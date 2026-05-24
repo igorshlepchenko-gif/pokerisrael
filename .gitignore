@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+client/node_modules/
+server/node_modules/
+
+# Build output
+client/dist/
+client/build/
+
+# Environment variables (sensitive!)
+server/.env
+
+# Logs
+server/server.log
+server/server.err
+client/vite.log
+client/vite.err
+*.log
+
+# Uploads (user files — not versioned)
+server/uploads/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+*.swp

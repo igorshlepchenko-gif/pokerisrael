@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>פוקר לייב ישראל — דמו</title>
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --green: #22c55e; --green-dark: #16a34a; --gold: #f59e0b;
+      --slate-50: #f8fafc; --slate-200: #e2e8f0; --slate-300: #cbd5e1;
+      --slate-400: #94a3b8; --slate-500: #64748b; --slate-600: #475569;
+      --slate-700: #334155; --slate-800: #1e293b; --slate-900: #0f172a; --slate-950: #020617;
+      --wa: #25D366;
+    }
+    body { font-family: 'Heebo', sans-serif; background: var(--slate-950); color: var(--slate-50); }
+
+    /* NAV */
+    nav { background: rgba(15,23,42,.9); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(51,65,85,.5); padding: 0 24px; height: 64px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 50; }
+    .logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+    .logo-text { line-height: 1.2; }
+    .logo-main { font-weight: 900; font-size: 18px; color: var(--green); }
+    .logo-sub { font-size: 10px; color: var(--slate-400); letter-spacing: 2px; }
+    .nav-actions { display: flex; align-items: center; gap: 12px; }
+    .theme-btn { background: none; border: none; cursor: pointer; padding: 8px; border-radius: 10px; font-size: 18px; color: var(--slate-400); }
+    .theme-btn:hover { background: var(--slate-700); color: var(--gold); }
+    .btn { padding: 8px 20px; border-radius: 12px; font-family: 'Heebo', sans-serif; font-weight: 700; cursor: pointer; border: none; transition: all .2s; font-size: 14px; }
+    .btn-primary { background: var(--green-dark); color: white; }
+    .btn-primary:hover { background: var(--green); transform: scale(1.04); }
+    .btn-ghost { background: none; border: 1px solid var(--slate-600); color: var(--slate-300); }
+    .btn-ghost:hover { border-color: var(--green); color: var(--green); }
+
+    /* HERO */
+    .hero { background: linear-gradient(to bottom, #0a3019, #0f172a); padding: 60px 24px 40px; text-align: center; position: relative; overflow: hidden; }
+    .hero-suits-bg { position: absolute; inset: 0; font-size: 180px; display: flex; align-items: center; justify-content: center; gap: 32px; color: white; opacity: .04; pointer-events: none; user-select: none; }
+    .suits-row { display: flex; gap: 12px; justify-content: center; margin-bottom: 16px; font-size: 36px; }
+    .red { color: #f87171; }
+    h1 { font-size: 46px; font-weight: 900; margin-bottom: 8px; }
+    h1 span { color: var(--green); }
+    .hero-sub { color: var(--slate-400); font-size: 17px; margin-bottom: 6px; }
+    .hero-note { color: var(--slate-500); font-size: 12px; }
+
+    /* AD BANNER */
+    .ad-banner { max-width: 970px; margin: 24px auto; height: 72px; border: 1px dashed var(--slate-700); border-radius: 14px; display: flex; align-items: center; justify-content: center; color: var(--slate-600); font-size: 12px; }
+
+    /* FILTERS */
+    .filters { max-width: 1200px; margin: 0 auto 28px; padding: 0 16px; }
+    .filter-card { background: var(--slate-800); border: 1px solid var(--slate-700); border-radius: 16px; padding: 16px; display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+    .filter-group { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 150px; }
+    .filter-label { font-size: 12px; color: var(--slate-400); }
+    input, select { background: var(--slate-700); border: 1px solid var(--slate-600); color: var(--slate-100); border-radius: 12px; padding: 10px 14px; font-family: 'Heebo', sans-serif; font-size: 14px; outline: none; width: 100%; }
+    input:focus, select:focus { border-color: var(--green); }
+    input::placeholder { color: var(--slate-400); }
+
+    /* GRID */
+    .grid-container { max-width: 1200px; margin: 0 auto 48px; padding: 0 16px; }
+    .count-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .count-text { font-size: 15px; color: var(--slate-300); font-weight: 700; }
+    .sort-text { font-size: 12px; color: var(--slate-500); }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 16px; }
+
+    /* CARD */
+    .t-card { background: var(--slate-800); border: 1px solid var(--slate-700); border-radius: 20px; padding: 20px; position: relative; overflow: hidden; transition: all .3s; }
+    .t-card:hover { border-color: rgba(34,197,94,.4); box-shadow: 0 20px 40px rgba(34,197,94,.07); }
+    .card-suit { position: absolute; top: 12px; left: 16px; font-size: 48px; opacity: .08; pointer-events: none; user-select: none; transition: opacity .3s; }
+    .t-card:hover .card-suit { opacity: .18; }
+    .card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 10px; }
+    .card-title { font-weight: 800; font-size: 16px; color: white; line-height: 1.3; }
+    .card-venue { font-weight: 600; font-size: 13px; color: var(--green); margin-top: 2px; }
+    .card-price { text-align: left; flex-shrink: 0; }
+    .price-num { font-size: 22px; font-weight: 900; color: var(--gold); }
+    .price-label { font-size: 11px; color: var(--slate-400); text-align: left; }
+    .card-address { font-size: 12px; color: var(--slate-400); display: flex; gap: 4px; align-items: center; margin-bottom: 12px; }
+    .time-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+    .time-box { background: rgba(2,6,23,.5); border-radius: 10px; padding: 8px; text-align: center; }
+    .time-label { font-size: 11px; color: var(--slate-500); margin-bottom: 2px; }
+    .time-val { font-weight: 700; font-size: 15px; color: var(--green); }
+    .time-date { font-size: 11px; color: var(--slate-400); }
+    .card-desc { font-size: 12px; color: var(--slate-400); line-height: 1.5; margin-bottom: 10px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .stages { margin-bottom: 10px; }
+    .stages-label { font-size: 11px; color: var(--slate-500); font-weight: 700; margin-bottom: 4px; }
+    .stages-list { display: flex; flex-wrap: wrap; gap: 4px; }
+    .stage-tag { font-size: 11px; background: var(--slate-700); color: var(--slate-300); padding: 2px 8px; border-radius: 20px; }
+    .card-ad { height: 30px; border: 1px dashed rgba(51,65,85,.5); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 10px; color: rgba(71,85,105,.7); margin-bottom: 12px; }
+    .wa-btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; background: var(--wa); color: white; font-weight: 700; padding: 11px; border-radius: 14px; text-decoration: none; font-size: 14px; font-family: 'Heebo', sans-serif; transition: all .2s; border: none; cursor: pointer; animation: wa-pulse 2s infinite; }
+    .wa-btn:hover { background: #1da851; transform: scale(1.03); }
+    @keyframes wa-pulse { 0%,100%{box-shadow:0 0 0 0 rgba(37,211,102,.4)} 50%{box-shadow:0 0 0 8px rgba(37,211,102,0)} }
+
+    /* REGISTER PAGE PREVIEW */
+    .page-section { max-width: 460px; margin: 40px auto; padding: 0 16px; }
+    .page-title { text-align: center; margin-bottom: 28px; }
+    .form-card { background: var(--slate-800); border: 1px solid var(--slate-700); border-radius: 20px; padding: 24px; }
+    .role-btn { width: 100%; background: var(--slate-700); border: 2px solid var(--slate-600); border-radius: 14px; padding: 16px; display: flex; align-items: center; gap: 14px; cursor: pointer; margin-bottom: 10px; text-align: right; transition: all .2s; }
+    .role-btn.active { border-color: var(--green); background: rgba(34,197,94,.1); }
+    .role-icon { font-size: 32px; }
+    .role-title { font-weight: 800; font-size: 16px; color: white; }
+    .role-desc { font-size: 12px; color: var(--slate-400); margin-top: 2px; }
+    .check { margin-right: auto; font-size: 20px; color: var(--green); }
+
+    /* STEPS */
+    .steps { display: flex; gap: 8px; margin-bottom: 28px; }
+    .step-bar { flex: 1; height: 6px; border-radius: 10px; background: var(--slate-700); }
+    .step-bar.active { background: var(--green); }
+
+    /* Footer */
+    footer { border-top: 1px solid var(--slate-800); background: rgba(15,23,42,.5); padding: 32px 24px; text-align: center; }
+    .footer-suits { display: flex; justify-content: center; gap: 16px; font-size: 24px; opacity: .15; margin-bottom: 10px; user-select: none; }
+    .footer-name { color: var(--slate-400); font-weight: 700; }
+    .footer-note { font-size: 12px; color: var(--slate-600); margin-top: 4px; }
+
+    /* Tabs */
+    .tab-bar { display: flex; gap: 4px; background: var(--slate-800); padding: 4px; border-radius: 14px; width: fit-content; margin-bottom: 24px; }
+    .tab { padding: 8px 18px; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; border: none; font-family: 'Heebo', sans-serif; background: none; color: var(--slate-400); transition: all .2s; }
+    .tab.active { background: var(--green-dark); color: white; }
+
+    /* Nav toggle */
+    #toggle-theme { display: none; }
+    body.light { background: #f0fdf4; color: #0f172a; }
+    body.light nav { background: rgba(240,253,244,.9); border-color: rgba(209,250,229,.8); }
+    body.light .filter-card, body.light .t-card, body.light .form-card { background: white; border-color: #e2e8f0; }
+    body.light input, body.light select { background: white; border-color: #cbd5e1; color: #0f172a; }
+    body.light .time-box { background: rgba(240,253,244,.8); }
+    body.light .logo-main { color: var(--green-dark); }
+  </style>
+</head>
+<body>
+  <!-- NAV -->
+  <nav>
+    <a href="#" class="logo">
+      <span style="font-size:28px">🂡</span>
+      <div class="logo-text">
+        <div class="logo-main">פוקר לייב ישראל</div>
+        <div class="logo-sub">POKER LIVE ISRAEL</div>
+      </div>
+    </a>
+    <div class="nav-actions">
+      <button class="theme-btn" onclick="document.body.classList.toggle('light')" title="החלף מצב תצוגה">☀️</button>
+      <button class="btn btn-ghost">התחברות</button>
+      <button class="btn btn-primary">הרשמה</button>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-suits-bg">♠ ♥ ♦ ♣</div>
+    <div class="suits-row">
+      <span>♠</span><span class="red">♥</span><span class="red">♦</span><span>♣</span>
+    </div>
+    <h1>פוקר לייב <span>ישראל</span></h1>
+    <p class="hero-sub">כל טורנירי הפוקר בישראל — במקום אחד</p>
+    <p class="hero-note">טורנירים במרכזי משחקי קלפים מורשים (מל"ק) בלבד</p>
+  </div>
+
+  <!-- AD BANNER -->
+  <div style="padding:0 16px">
+    <div class="ad-banner">מקום לפרסומת ראשית 970×90</div>
+  </div>
+
+  <!-- FILTERS -->
+  <div class="filters">
+    <div class="filter-card">
+      <div class="filter-group">
+        <label class="filter-label">חיפוש</label>
+        <input type="text" placeholder="שם טורניר, מקום..." />
+      </div>
+      <div class="filter-group" style="max-width:160px">
+        <label class="filter-label">עיר</label>
+        <select><option>כל הערים</option><option>תל אביב</option><option>ירושלים</option><option>חיפה</option></select>
+      </div>
+      <div class="filter-group" style="max-width:160px">
+        <label class="filter-label">יום</label>
+        <select><option>כל הימים</option><option>ראשון</option><option>שני</option><option>שלישי</option><option>רביעי</option><option>חמישי</option><option>שישי</option></select>
+      </div>
+      <button class="btn btn-primary">🔍 חיפוש</button>
+    </div>
+  </div>
+
+  <!-- TOURNAMENTS GRID -->
+  <div class="grid-container">
+    <div class="count-row">
+      <div class="count-text">3 טורנירים נמצאו</div>
+      <div class="sort-text">ממוין לפי שעת התחלה</div>
+    </div>
+    <div class="grid">
+
+      <!-- Card 1 -->
+      <div class="t-card">
+        <span class="card-suit red">♥</span>
+        <div class="card-header">
+          <div><div class="card-title">טורניר שבועי שלישי</div><div class="card-venue">קלאב 88 — תל אביב</div></div>
+          <div class="card-price"><div class="price-num">₪200</div><div class="price-label">כניסה</div></div>
+        </div>
+        <div class="card-address">📍 רוטשילד 88, תל אביב</div>
+        <div class="time-grid">
+          <div class="time-box"><div class="time-label">התחלה</div><div class="time-val">20:00</div><div class="time-date">יום ג', 27.5</div></div>
+          <div class="time-box"><div class="time-label">סיום משוער</div><div class="time-val">02:00</div><div class="time-date" style="color:var(--gold)">כל יום שלישי</div></div>
+        </div>
+        <p class="card-desc">טורניר Hold'em קלאסי, פרייז פול מובטח ₪5,000. ריביי חד פעמי בשעה הראשונה.</p>
+        <div class="stages"><div class="stages-label">שלבים:</div><div class="stages-list"><span class="stage-tag">Early · 20′</span><span class="stage-tag">Middle · 15′</span><span class="stage-tag">Late · 10′</span></div></div>
+        <div class="card-ad">פרסומת</div>
+        <a href="https://wa.me/972501234567?text=שלום%2C+הגעתי+אליכם+מאתר+הפוקר+לייב+ישראל%2C+ברצוני+להרשם+לטורניר+טורניר+שבועי+שלישי" target="_blank" class="wa-btn">
+          <svg viewBox="0 0 24 24" style="width:20px;height:20px;fill:white" xmlns="http://www.w3.org/2000/svg"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+          הרשמה לטורניר
+        </a>
+      </div>
+
+      <!-- Card 2 -->
+      <div class="t-card">
+        <span class="card-suit" style="color:#cbd5e1">♠</span>
+        <div class="card-header">
+          <div><div class="card-title">ביג גיים שישי</div><div class="card-venue">אייס קלאב — ירושלים</div></div>
+          <div class="card-price"><div class="price-num">₪350</div><div class="price-label">כניסה</div></div>
+        </div>
+        <div class="card-address">📍 יפו 14, ירושלים</div>
+        <div class="time-grid">
+          <div class="time-box"><div class="time-label">התחלה</div><div class="time-val">21:00</div><div class="time-date">יום ו', 30.5</div></div>
+          <div class="time-box"><div class="time-label">סיום משוער</div><div class="time-val">03:00</div><div class="time-date" style="color:var(--gold)">כל יום שישי</div></div>
+        </div>
+        <p class="card-desc">טורניר Hold'em + Omaha. שני סגנונות, פרייז פול מובטח ₪10,000. אוכל ושתייה כלולים.</p>
+        <div class="stages"><div class="stages-label">שלבים:</div><div class="stages-list"><span class="stage-tag">Early · 30′</span><span class="stage-tag">Mid · 20′</span><span class="stage-tag">Final · 10′</span></div></div>
+        <div class="card-ad">פרסומת</div>
+        <a href="#" class="wa-btn" onclick="return false">
+          <svg viewBox="0 0 24 24" style="width:20px;height:20px;fill:white" xmlns="http://www.w3.org/2000/svg"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+          הרשמה לטורניר
+        </a>
+      </div>
+
+      <!-- Card 3 -->
+      <div class="t-card">
+        <span class="card-suit red">♦</span>
+        <div class="card-header">
+          <div><div class="card-title">טורניר בוקר ראשון</div><div class="card-venue">רויאל פוקר — חיפה</div></div>
+          <div class="card-price"><div class="price-num">חינם</div><div class="price-label">כניסה</div></div>
+        </div>
+        <div class="card-address">📍 הנמל 5, חיפה</div>
+        <div class="time-grid">
+          <div class="time-box"><div class="time-label">התחלה</div><div class="time-val">11:00</div><div class="time-date">יום א', 1.6</div></div>
+          <div class="time-box"><div class="time-label">סיום משוער</div><div class="time-val">16:00</div><div class="time-date">—</div></div>
+        </div>
+        <p class="card-desc">טורניר אימון חינמי לשחקנים חדשים. מדריך מקצועי. כיבוד קל כלול.</p>
+        <div class="card-ad">פרסומת</div>
+        <a href="#" class="wa-btn" onclick="return false">
+          <svg viewBox="0 0 24 24" style="width:20px;height:20px;fill:white" xmlns="http://www.w3.org/2000/svg"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+          הרשמה לטורניר
+        </a>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- REGISTER PREVIEW -->
+  <div style="background:linear-gradient(to bottom, #0f172a, #0a1628); padding:40px 0;">
+    <div class="page-section">
+      <div class="page-title">
+        <div style="font-size:48px;margin-bottom:8px">🂡</div>
+        <h2 style="font-size:22px;font-weight:900">הרשמה לפוקר לייב ישראל</h2>
+        <p style="color:var(--slate-400);font-size:13px;margin-top:4px">צעד 1 מתוך 2</p>
+      </div>
+      <div class="steps"><div class="step-bar active"></div><div class="step-bar"></div></div>
+      <div class="form-card">
+        <h3 style="font-size:17px;font-weight:800;margin-bottom:4px;text-align:center">מה הסוג שלך?</h3>
+        <p style="font-size:13px;color:var(--slate-400);text-align:center;margin-bottom:18px">בחר את הסוג המתאים לך</p>
+        <button class="role-btn active">
+          <span class="role-icon">🃏</span>
+          <div><div class="role-title">שחקן</div><div class="role-desc">צפה בטורנירים והירשם אליהם</div></div>
+          <span class="check">✓</span>
+        </button>
+        <button class="role-btn">
+          <span class="role-icon">🏠</span>
+          <div><div class="role-title">שחקן ובעל מקום</div><div class="role-desc">נהל מקום וטורנירים, בנוסף לצפייה</div></div>
+        </button>
+        <button class="btn btn-primary" style="width:100%;margin-top:18px;padding:12px">המשך ←</button>
+      </div>
+      <p style="text-align:center;color:var(--slate-400);font-size:13px;margin-top:18px">
+        יש לך חשבון? <a href="#" style="color:var(--green);text-decoration:none">התחבר</a>
+      </p>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-suits">♠ ♥ ♦ ♣</div>
+    <div class="footer-name">פוקר לייב ישראל</div>
+    <div class="footer-note">כל הטורנירים מתקיימים במרכזי משחקי קלפים מורשים בלבד (מל"ק)</div>
+    <div style="margin-top:18px;height:56px;border:1px dashed var(--slate-700);border-radius:12px;display:flex;align-items:center;justify-content:center;max-width:700px;margin:18px auto 0;color:var(--slate-600);font-size:12px">מקום לפרסומת 728×90</div>
+    <p style="font-size:11px;color:var(--slate-700);margin-top:12px">© 2026 Poker Live Israel · כל הזכויות שמורות</p>
+  </footer>
+</body>
+</html>

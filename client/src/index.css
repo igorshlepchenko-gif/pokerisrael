@@ -1,0 +1,77 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    direction: rtl;
+  }
+
+  body {
+    font-family: 'Heebo', sans-serif;
+    @apply bg-slate-950 text-slate-100;
+    transition: background-color 0.3s, color 0.3s;
+  }
+
+  .light body {
+    @apply bg-green-50 text-slate-900;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-slate-800 border border-slate-700 rounded-2xl shadow-xl;
+  }
+
+  .light .card {
+    @apply bg-white border-slate-200 shadow-md;
+  }
+
+  .btn-primary {
+    @apply bg-poker-green hover:bg-poker-green-light text-white font-semibold py-2 px-5 rounded-xl
+           transition-all duration-200 hover:scale-105 active:scale-95 shadow-md;
+  }
+
+  .btn-gold {
+    @apply bg-poker-gold hover:bg-poker-gold-dark text-slate-900 font-bold py-2 px-5 rounded-xl
+           transition-all duration-200 hover:scale-105 active:scale-95 shadow-md;
+  }
+
+  .btn-ghost {
+    @apply border border-slate-600 hover:border-poker-green text-slate-300 hover:text-poker-green-light
+           font-semibold py-2 px-5 rounded-xl transition-all duration-200;
+  }
+
+  .input-field {
+    @apply w-full bg-slate-700 border border-slate-600 text-slate-100 rounded-xl px-4 py-3
+           focus:outline-none focus:border-poker-green transition-colors placeholder-slate-400;
+  }
+
+  .light .input-field {
+    @apply bg-white border-slate-300 text-slate-900 placeholder-slate-400;
+  }
+
+  .badge-status {
+    @apply text-xs font-semibold px-2.5 py-0.5 rounded-full;
+  }
+
+  .suit {
+    @apply inline-block select-none;
+  }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { @apply bg-slate-900; }
+::-webkit-scrollbar-thumb { @apply bg-slate-600 rounded-full; }
+::-webkit-scrollbar-thumb:hover { @apply bg-poker-green; }
+
+/* WhatsApp button pulse */
+@keyframes wa-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.4); }
+  50% { box-shadow: 0 0 0 8px rgba(37, 211, 102, 0); }
+}
+
+.wa-btn {
+  animation: wa-pulse 2s infinite;
+}
