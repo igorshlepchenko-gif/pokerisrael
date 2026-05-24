@@ -5,7 +5,7 @@ export default function Footer() {
         <span>♠</span><span>♥</span><span>♦</span><span>♣</span>
       </div>
       <p className="font-semibold text-slate-400">פוקר לייב ישראל</p>
-      <p className="text-xs mt-1">כל הטורנירים מתקיימים במרכזי משחקי קלפים מורשים בלבד (מל"ק)</p>
+      <p className="text-xs mt-1">כל הטורנירים מתקיימים במרכזי משחקי קלפים מורשים בלבד</p>
       <p className="text-xs mt-2 text-slate-600">© {new Date().getFullYear()} Poker Live Israel · כל הזכויות שמורות</p>
 
       {/* Ad slot — uncomment and replace with actual ad code when ready */}

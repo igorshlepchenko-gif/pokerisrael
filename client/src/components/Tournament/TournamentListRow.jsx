@@ -1,13 +1,10 @@
 import { buildWhatsAppLink, formatTime, formatDate, formatCost, DAYS_HE } from '../../utils/whatsapp';
 
-export default function TournamentListRow({ t, index }) {
+export default function TournamentListRow({ t, index, onClick }) {
   const waLink = buildWhatsAppLink(t.whatsapp_number, t.name);
-  const stages = Array.isArray(t.stages)
-    ? t.stages
-    : (typeof t.stages === 'string' ? JSON.parse(t.stages || '[]') : []);
 
   return (
-    <div className="group px-5 py-4 hover:bg-slate-700/30 transition-colors animate-fade-in">
+    <div onClick={onClick} className="group px-5 py-4 hover:bg-slate-700/30 transition-colors animate-fade-in cursor-pointer">
 
       {/* Mobile layout */}
       <div className="md:hidden space-y-2">
@@ -21,7 +18,13 @@ export default function TournamentListRow({ t, index }) {
                 </span>
               )}
             </div>
-            <div className="text-sm text-poker-green-light">{t.venue_name}</div>
+            <div className="flex items-center gap-1.5 text-sm text-poker-green-light">
+              {t.venue_logo
+                ? <img src={t.venue_logo} alt={t.venue_name} className="w-10 h-10 rounded-full object-cover shrink-0 ring-2 ring-slate-600" />
+                : <span className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-xl shrink-0">🏠</span>
+              }
+              {t.venue_name}
+            </div>
             <div className="text-xs text-slate-400">📍 {t.venue_address}, {t.venue_city}</div>
           </div>
           <div className="text-left shrink-0">
@@ -35,23 +38,20 @@ export default function TournamentListRow({ t, index }) {
             <span className="text-poker-gold">כל {DAYS_HE[t.day_of_week]}</span>
           )}
         </div>
-        {stages.length > 0 && (
-          <div className="flex flex-wrap gap-1">
-            {stages.map((s, i) => (
-              <span key={i} className="text-xs bg-slate-700 text-slate-300 px-2 py-0.5 rounded-full">
-                {s.name} · {s.duration_minutes}′
-              </span>
-            ))}
-          </div>
+        {t.starting_stack && (
+          <span className="text-xs bg-slate-700 text-poker-gold px-2 py-0.5 rounded-full">
+            ערימה: {t.starting_stack.toLocaleString()}
+          </span>
         )}
         <a href={waLink} target="_blank" rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
           className="wa-btn flex items-center justify-center gap-2 w-full bg-[#25D366] hover:bg-[#1da851] text-white font-bold py-2 px-4 rounded-xl text-sm transition-all">
           <WaIcon /> הרשמה לטורניר
         </a>
       </div>
 
       {/* Desktop layout */}
-      <div className="hidden md:grid grid-cols-[2fr_1.5fr_1fr_1fr_1fr_auto] gap-4 items-center">
+      <div className="hidden md:grid grid-cols-[2fr_1.5fr_1fr_1fr_auto] gap-4 items-center">
 
         {/* Name + venue */}
         <div className="min-w-0">
@@ -63,15 +63,25 @@ export default function TournamentListRow({ t, index }) {
               </span>
             )}
           </div>
-          <div className="text-sm text-poker-green-light truncate">{t.venue_name}</div>
-          {stages.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-1">
-              {stages.slice(0, 3).map((s, i) => (
-                <span key={i} className="text-[10px] bg-slate-700/80 text-slate-400 px-1.5 py-0.5 rounded-full">
-                  {s.name} {s.duration_minutes}′
+          <div className="flex items-center gap-1.5 text-sm text-poker-green-light truncate">
+            {t.venue_logo
+              ? <img src={t.venue_logo} alt={t.venue_name} className="w-10 h-10 rounded-full object-cover shrink-0 ring-2 ring-slate-600" />
+              : <span className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-xl shrink-0">🏠</span>
+            }
+            <span className="truncate">{t.venue_name}</span>
+          </div>
+          {(t.starting_stack || t.level_duration) && (
+            <div className="flex gap-1 mt-1 flex-wrap">
+              {t.starting_stack && (
+                <span className="text-[10px] bg-slate-700/80 text-poker-gold px-1.5 py-0.5 rounded-full">
+                  🎯 {t.starting_stack.toLocaleString()}
                 </span>
-              ))}
-              {stages.length > 3 && <span className="text-[10px] text-slate-500">+{stages.length - 3}</span>}
+              )}
+              {t.level_duration && (
+                <span className="text-[10px] bg-slate-700/80 text-slate-400 px-1.5 py-0.5 rounded-full">
+                  ⏱ {t.level_duration}דק׳
+                </span>
+              )}
             </div>
           )}
         </div>
@@ -90,16 +100,12 @@ export default function TournamentListRow({ t, index }) {
           )}
         </div>
 
-        {/* End time */}
-        <div className="text-sm text-slate-300">
-          {t.estimated_end_time ? formatTime(t.estimated_end_time) : <span className="text-slate-600">—</span>}
-        </div>
-
         {/* Cost */}
         <div className="font-black text-poker-gold">{formatCost(t.cost)}</div>
 
         {/* WhatsApp button */}
         <a href={waLink} target="_blank" rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
           className="wa-btn flex items-center gap-1.5 bg-[#25D366] hover:bg-[#1da851] text-white font-bold py-2 px-3 rounded-xl text-xs whitespace-nowrap transition-all hover:scale-105">
           <WaIcon /> הרשמה
         </a>

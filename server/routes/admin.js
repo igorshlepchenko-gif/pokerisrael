@@ -16,5 +16,6 @@ router.get('/venues/all', ctrl.getAllVenues);
 router.get('/tournaments', ctrl.getAllTournaments);
 router.get('/users', ctrl.getAllUsers);
 router.patch('/users/:id/toggle', ctrl.toggleUser);
+router.patch('/users/:id/unlock', ctrl.unlockUser);
 
 module.exports = router;

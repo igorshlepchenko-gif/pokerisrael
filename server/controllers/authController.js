@@ -49,20 +49,66 @@ exports.login = async (req, res) => {
 
   try {
     const result = await pool.query(
-      'SELECT id, name, email, password, phone, role, is_active FROM users WHERE email = $1',
+      `SELECT id, name, email, password, phone, role, is_active,
+              is_locked, failed_login_attempts, locked_at
+       FROM users WHERE email = $1`,
       [email]
     );
 
     const user = result.rows[0];
+
+    // מייל לא קיים — אותה הודעה גנרית (לא לחשוף אם המייל קיים)
     if (!user) return res.status(401).json({ message: 'מייל או סיסמה שגויים' });
     if (!user.is_active) return res.status(401).json({ message: 'החשבון מושבת' });
 
+    // חשבון ננעל
+    if (user.is_locked) {
+      return res.status(403).json({
+        message: 'החשבון ננעל עקב ניסיונות התחברות כושלים מרובים. אנא פנה למנהל המערכת.',
+        locked: true,
+      });
+    }
+
     const valid = await bcrypt.compare(password, user.password);
-    if (!valid) return res.status(401).json({ message: 'מייל או סיסמה שגויים' });
 
-    const { password: _, ...userData } = user;
+    if (!valid) {
+      const attempts = (user.failed_login_attempts || 0) + 1;
+      const shouldLock = attempts >= 10;
+
+      await pool.query(
+        `UPDATE users
+         SET failed_login_attempts = $1,
+             is_locked  = $2,
+             locked_at  = $3
+         WHERE id = $4`,
+        [attempts, shouldLock, shouldLock ? new Date() : user.locked_at, user.id]
+      );
+
+      if (shouldLock) {
+        console.warn(`[AUTH] חשבון ננעל: ${email} — ${attempts} ניסיונות כושלים`);
+        return res.status(403).json({
+          message: 'החשבון ננעל עקב ניסיונות התחברות כושלים מרובים. אנא פנה למנהל המערכת.',
+          locked: true,
+        });
+      }
+
+      // אזהרה לפני נעילה — מוצגת ב-3 הניסיונות האחרונים
+      const remaining = 10 - attempts;
+      const msg = remaining <= 3
+        ? `מייל או סיסמה שגויים — נותרו ${remaining} ניסיונות לפני נעילת החשבון`
+        : 'מייל או סיסמה שגויים';
+
+      return res.status(401).json({ message: msg });
+    }
+
+    // הצלחה — איפוס מונה
+    await pool.query(
+      'UPDATE users SET failed_login_attempts = 0, is_locked = false, locked_at = NULL WHERE id = $1',
+      [user.id]
+    );
+
+    const { password: _, failed_login_attempts: __, locked_at: ___, ...userData } = user;
     const token = generateToken(userData);
-
     res.json({ token, user: userData });
   } catch (err) {
     console.error(err);

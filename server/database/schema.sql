@@ -33,6 +33,8 @@ CREATE TABLE IF NOT EXISTS tournaments (
   start_time TIMESTAMP NOT NULL,
   estimated_end_time TIMESTAMP,
   stages JSONB DEFAULT '[]',
+  starting_stack INTEGER,
+  level_duration INTEGER,
   day_of_week INTEGER,
   is_recurring BOOLEAN DEFAULT FALSE,
   status VARCHAR(20) DEFAULT 'pending',
@@ -45,3 +47,8 @@ CREATE TABLE IF NOT EXISTS tournaments (
 CREATE INDEX IF NOT EXISTS idx_tournaments_status ON tournaments(status);
 CREATE INDEX IF NOT EXISTS idx_tournaments_start_time ON tournaments(start_time);
 CREATE INDEX IF NOT EXISTS idx_venues_owner ON venues(owner_id);
+
+-- מיגרציה: נעילת חשבון לאחר ניסיונות התחברות כושלים
+ALTER TABLE users ADD COLUMN IF NOT EXISTS failed_login_attempts INTEGER DEFAULT 0;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS is_locked BOOLEAN DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS locked_at TIMESTAMP;

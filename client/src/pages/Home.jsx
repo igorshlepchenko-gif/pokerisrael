@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import api from '../utils/api';
 import TournamentCard from '../components/Tournament/TournamentCard';
 import TournamentListRow from '../components/Tournament/TournamentListRow';
+import TournamentDetailModal from '../components/Tournament/TournamentDetailModal';
 import { DAYS_HE } from '../utils/whatsapp';
 
 export default function Home() {
@@ -13,6 +14,7 @@ export default function Home() {
   const [cities, setCities] = useState([]);
   const [viewMode, setViewMode] = useState(() => localStorage.getItem('pli_view') || 'grid');
   const [sort, setSort] = useState('start_time');
+  const [selectedTournament, setSelectedTournament] = useState(null);
 
   useEffect(() => { fetchTournaments(); }, [city, day, sort]);
 
@@ -43,6 +45,13 @@ export default function Home() {
 
   return (
     <div className="min-h-screen">
+      {/* Tournament detail modal */}
+      {selectedTournament && (
+        <TournamentDetailModal
+          tournament={selectedTournament}
+          onClose={() => setSelectedTournament(null)}
+        />
+      )}
       {/* Hero */}
       <div className="relative overflow-hidden bg-gradient-to-b from-poker-felt-dark via-slate-900 to-transparent py-16 px-4 text-center">
         <div className="absolute inset-0 opacity-5 select-none pointer-events-none text-[200px] flex items-center justify-center gap-8 text-slate-300">
@@ -57,7 +66,7 @@ export default function Home() {
             פוקר לייב <span className="text-poker-green-light">ישראל</span>
           </h1>
           <p className="text-slate-400 text-lg mb-1">כל טורנירי הפוקר בישראל — במקום אחד</p>
-          <p className="text-xs text-slate-500">טורנירים במרכזי משחקי קלפים מורשים (מל"ק) בלבד</p>
+          <p className="text-xs text-slate-500">טורנירים במרכזי משחקי קלפים מורשים בלבד</p>
         </div>
       </div>
 
@@ -86,9 +95,9 @@ export default function Home() {
               {DAYS_HE.map((d, i) => <option key={i} value={i}>{d}</option>)}
             </select>
           </div>
-          <button type="submit" className="btn-primary">🔍 חיפוש</button>
+          <button type="submit" className="btn-primary text-sm py-2 px-5 min-w-[90px]">🔍 חיפוש</button>
           {(search || city || day !== '') && (
-            <button type="button" className="btn-ghost text-sm"
+            <button type="button" className="btn-ghost text-sm py-2 px-5 min-w-[90px]"
               onClick={() => { setSearch(''); setCity(''); setDay(''); fetchTournaments(); }}>
               נקה
             </button>
@@ -112,8 +121,8 @@ export default function Home() {
         ) : (
           <>
             {/* Toolbar: count + sort + view toggle */}
-            <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
-              <h2 className="text-lg font-bold text-slate-300">
+            <div className="flex items-center justify-between gap-3 mb-5 min-h-[36px]">
+              <h2 className="text-lg font-bold text-slate-300 flex items-center">
                 {tournaments.length} טורנירים נמצאו
               </h2>
 
@@ -153,7 +162,7 @@ export default function Home() {
             {viewMode === 'grid' && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {tournaments.map((t, i) => (
-                  <TournamentCard key={t.id} t={t} index={i} />
+                  <TournamentCard key={t.id} t={t} index={i} onClick={() => setSelectedTournament(t)} />
                 ))}
               </div>
             )}
@@ -162,17 +171,16 @@ export default function Home() {
             {viewMode === 'list' && (
               <div className="card overflow-hidden">
                 {/* Table header */}
-                <div className="hidden md:grid grid-cols-[2fr_1.5fr_1fr_1fr_1fr_auto] gap-4 px-5 py-3 border-b border-slate-700 text-xs font-bold text-slate-400 uppercase tracking-wider">
+                <div className="hidden md:grid grid-cols-[2fr_1.5fr_1fr_1fr_auto] gap-4 px-5 py-3 border-b border-slate-700 text-xs font-bold text-slate-400 uppercase tracking-wider">
                   <span>טורניר / מקום</span>
                   <span>כתובת</span>
                   <span>התחלה</span>
-                  <span>סיום</span>
                   <span>עלות</span>
                   <span></span>
                 </div>
                 <div className="divide-y divide-slate-700/50">
                   {tournaments.map((t, i) => (
-                    <TournamentListRow key={t.id} t={t} index={i} />
+                    <TournamentListRow key={t.id} t={t} index={i} onClick={() => setSelectedTournament(t)} />
                   ))}
                 </div>
               </div>

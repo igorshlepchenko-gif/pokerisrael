@@ -70,7 +70,13 @@ export default function AdminPanel() {
     fetchData();
   };
 
+  const unlockUser = async (id) => {
+    await api.patch(`/admin/users/${id}/unlock`);
+    fetchData();
+  };
+
   const totalPending = pending.venues.length + pending.tournaments.length;
+  const lockedCount = users.filter(u => u.is_locked).length;
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
@@ -89,7 +95,7 @@ export default function AdminPanel() {
           ['pending', `⏳ ממתין לאישור${totalPending > 0 ? ` (${totalPending})` : ''}`],
           ['venues', '📍 מקומות'],
           ['tournaments', '🚀 קידומים'],
-          ['users', '👥 משתמשים'],
+          ['users', `👥 משתמשים${lockedCount > 0 ? ` 🔒${lockedCount}` : ''}`],
         ].map(([id, label]) => (
           <button key={id} onClick={() => setTab(id)}
             className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${tab === id ? 'bg-poker-green text-white' : 'text-slate-400 hover:text-slate-200'}`}>
@@ -273,24 +279,58 @@ export default function AdminPanel() {
           {/* Users */}
           {tab === 'users' && (
             <div className="space-y-2">
+              {lockedCount > 0 && (
+                <div className="bg-red-900/20 border border-red-700/40 rounded-xl px-4 py-3 flex items-center gap-2 mb-4">
+                  <span className="text-red-400 text-lg">🔒</span>
+                  <span className="text-red-300 text-sm font-semibold">
+                    {lockedCount} {lockedCount === 1 ? 'חשבון ננעל' : 'חשבונות ננעלו'} עקב ניסיונות התחברות כושלים מרובים
+                  </span>
+                </div>
+              )}
               {users.map(u => (
-                <div key={u.id} className={`card p-4 flex items-center justify-between flex-wrap gap-3 ${!u.is_active ? 'opacity-50' : ''}`}>
+                <div key={u.id} className={`card p-4 flex items-center justify-between flex-wrap gap-3
+                  ${u.is_locked ? 'border-red-700/50 bg-red-900/10' : !u.is_active ? 'opacity-50' : ''}`}>
                   <div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-semibold text-slate-100">{u.name}</span>
                       <span className="badge-status text-xs bg-slate-700 text-slate-300">
                         {u.role === 'admin' ? '👑 אדמין' : u.role === 'venue_owner' ? '🏠 מועדון פוקר' : '🃏 שחקן'}
                       </span>
-                      {!u.is_active && <span className="badge-status text-red-400 bg-red-900/20">מושבת</span>}
+                      {u.is_locked && (
+                        <span className="text-xs font-bold bg-red-900/40 text-red-400 px-2 py-0.5 rounded-full">
+                          🔒 נעול
+                        </span>
+                      )}
+                      {!u.is_active && !u.is_locked && (
+                        <span className="badge-status text-red-400 bg-red-900/20">מושבת</span>
+                      )}
                     </div>
                     <p className="text-sm text-slate-400">{u.email} · {u.phone}</p>
+                    {u.is_locked && u.locked_at && (
+                      <p className="text-xs text-red-400/70 mt-0.5">
+                        ננעל ב־{new Date(u.locked_at).toLocaleString('he-IL')} · {u.failed_login_attempts} ניסיונות כושלים
+                      </p>
+                    )}
+                    {!u.is_locked && u.failed_login_attempts > 0 && (
+                      <p className="text-xs text-amber-400/70 mt-0.5">
+                        ⚠️ {u.failed_login_attempts} ניסיונות כושלים
+                      </p>
+                    )}
                   </div>
-                  {u.role !== 'admin' && (
-                    <button onClick={() => toggleUser(u.id)}
-                      className={`text-sm font-semibold py-1.5 px-4 rounded-xl transition-all ${u.is_active ? 'bg-red-900/30 text-red-400 hover:bg-red-900/60' : 'bg-green-900/30 text-green-400 hover:bg-green-900/60'}`}>
-                      {u.is_active ? 'השבת' : 'הפעל'}
-                    </button>
-                  )}
+                  <div className="flex gap-2 shrink-0">
+                    {u.is_locked && (
+                      <button onClick={() => unlockUser(u.id)}
+                        className="text-sm font-semibold py-1.5 px-4 rounded-xl bg-blue-900/30 text-blue-400 hover:bg-blue-900/60 transition-all">
+                        🔓 שחרר נעילה
+                      </button>
+                    )}
+                    {u.role !== 'admin' && (
+                      <button onClick={() => toggleUser(u.id)}
+                        className={`text-sm font-semibold py-1.5 px-4 rounded-xl transition-all ${u.is_active ? 'bg-red-900/30 text-red-400 hover:bg-red-900/60' : 'bg-green-900/30 text-green-400 hover:bg-green-900/60'}`}>
+                        {u.is_active ? 'השבת' : 'הפעל'}
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>

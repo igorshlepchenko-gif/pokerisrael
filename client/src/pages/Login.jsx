@@ -2,6 +2,9 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
+// מסנן תווים שאינם ASCII (מונע הקלדה בעברית ובכל שפה אחרת)
+const englishOnly = (value) => value.replace(/[^\x20-\x7E]/g, '');
+
 export default function Login() {
   const [form, setForm] = useState({ email: '', password: '' });
   const [showPass, setShowPass] = useState(false);
@@ -37,14 +40,17 @@ export default function Login() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-semibold text-slate-300 mb-1">כתובת מייל</label>
-              <input type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))}
+              <input type="email" value={form.email}
+                onChange={e => setForm(p => ({ ...p, email: englishOnly(e.target.value) }))}
+                onKeyDown={e => { if (/[^\x20-\x7E]/.test(e.key)) e.preventDefault(); }}
                 className="input-field" placeholder="email@example.com" required dir="ltr" />
             </div>
             <div>
               <label className="block text-sm font-semibold text-slate-300 mb-1">סיסמה</label>
               <div className="relative">
                 <input type={showPass ? 'text' : 'password'} value={form.password}
-                  onChange={e => setForm(p => ({ ...p, password: e.target.value }))}
+                  onChange={e => setForm(p => ({ ...p, password: englishOnly(e.target.value) }))}
+                  onKeyDown={e => { if (/[^\x20-\x7E]/.test(e.key)) e.preventDefault(); }}
                   className="input-field pl-10" placeholder="הסיסמה שלך" required dir="ltr" />
                 <button type="button" onClick={() => setShowPass(p => !p)}
                   className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200">

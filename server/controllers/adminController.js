@@ -108,7 +108,10 @@ exports.getAllTournaments = async (req, res) => {
 exports.getAllUsers = async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT id, name, email, phone, role, is_active, created_at FROM users ORDER BY created_at DESC'
+      `SELECT id, name, email, phone, role, is_active,
+              is_locked, failed_login_attempts, locked_at, created_at
+       FROM users
+       ORDER BY is_locked DESC, created_at DESC`
     );
     res.json(result.rows);
   } catch (err) {
@@ -123,6 +126,18 @@ exports.toggleUser = async (req, res) => {
       [req.params.id]
     );
     res.json({ is_active: result.rows[0].is_active });
+  } catch (err) {
+    res.status(500).json({ message: 'שגיאת שרת' });
+  }
+};
+
+exports.unlockUser = async (req, res) => {
+  try {
+    await pool.query(
+      'UPDATE users SET is_locked = false, failed_login_attempts = 0, locked_at = NULL WHERE id = $1',
+      [req.params.id]
+    );
+    res.json({ message: 'החשבון שוחרר בהצלחה' });
   } catch (err) {
     res.status(500).json({ message: 'שגיאת שרת' });
   }

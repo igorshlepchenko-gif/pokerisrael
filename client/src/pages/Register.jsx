@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
+const englishOnly = (value) => value.replace(/[^\x20-\x7E]/g, '');
+
 const ROLE_OPTIONS = [
   {
     value: 'player',
@@ -128,7 +130,9 @@ export default function Register() {
 
               <div>
                 <label className="block text-sm font-semibold text-slate-300 mb-1">כתובת מייל *</label>
-                <input type="email" value={form.email} onChange={e => set('email', e.target.value)}
+                <input type="email" value={form.email}
+                  onChange={e => set('email', englishOnly(e.target.value))}
+                  onKeyDown={e => { if (/[^\x20-\x7E]/.test(e.key)) e.preventDefault(); }}
                   className="input-field" placeholder="email@example.com" required dir="ltr" />
               </div>
 
@@ -142,7 +146,8 @@ export default function Register() {
                 <label className="block text-sm font-semibold text-slate-300 mb-1">סיסמה *</label>
                 <div className="relative">
                   <input type={showPass ? 'text' : 'password'} value={form.password}
-                    onChange={e => set('password', e.target.value)}
+                    onChange={e => set('password', englishOnly(e.target.value))}
+                    onKeyDown={e => { if (/[^\x20-\x7E]/.test(e.key)) e.preventDefault(); }}
                     className="input-field pl-10" placeholder="לפחות 8 תווים, אות גדולה, ספרה ותו מיוחד" required dir="ltr" />
                   <button type="button" onClick={() => setShowPass(p => !p)}
                     className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200">
@@ -163,7 +168,9 @@ export default function Register() {
 
               <div>
                 <label className="block text-sm font-semibold text-slate-300 mb-1">אימות סיסמה *</label>
-                <input type="password" value={form.confirmPassword} onChange={e => set('confirmPassword', e.target.value)}
+                <input type="password" value={form.confirmPassword}
+                  onChange={e => set('confirmPassword', englishOnly(e.target.value))}
+                  onKeyDown={e => { if (/[^\x20-\x7E]/.test(e.key)) e.preventDefault(); }}
                   className={`input-field ${form.confirmPassword && form.password !== form.confirmPassword ? 'border-red-500' : ''}`}
                   placeholder="הזן שוב את הסיסמה" required dir="ltr" />
               </div>

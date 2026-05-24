@@ -12,10 +12,10 @@ exports.getAll = async (req, res) => {
     const baseSelect = `
       SELECT
         t.id, t.name, t.description, t.cost, t.start_time, t.estimated_end_time,
-        t.stages, t.is_recurring, t.day_of_week, t.status,
+        t.stages, t.starting_stack, t.level_duration, t.is_recurring, t.day_of_week, t.status,
         t.is_boosted, t.boost_label,
         v.id AS venue_id, v.name AS venue_name, v.address AS venue_address,
-        v.city AS venue_city, v.whatsapp_number
+        v.city AS venue_city, v.whatsapp_number, v.logo_url AS venue_logo
       FROM tournaments t
       JOIN venues v ON t.venue_id = v.id
     `;
@@ -77,7 +77,7 @@ exports.create = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
-  const { venue_id, name, description, cost, start_time, estimated_end_time, stages, is_recurring, day_of_week } = req.body;
+  const { venue_id, name, description, cost, start_time, estimated_end_time, stages, starting_stack, level_duration, is_recurring, day_of_week } = req.body;
 
   try {
     const venueCheck = await pool.query(
@@ -90,11 +90,11 @@ exports.create = async (req, res) => {
 
     const result = await pool.query(
       `INSERT INTO tournaments
-        (venue_id, name, description, cost, start_time, estimated_end_time, stages, is_recurring, day_of_week, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+        (venue_id, name, description, cost, start_time, estimated_end_time, stages, starting_stack, level_duration, is_recurring, day_of_week, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
        RETURNING *`,
       [venue_id, name, description, cost, start_time, estimated_end_time,
-       JSON.stringify(stages || []), is_recurring || false, day_of_week, req.user.id]
+       JSON.stringify(stages || []), starting_stack || null, level_duration || null, is_recurring || false, day_of_week, req.user.id]
     );
 
     res.status(201).json({

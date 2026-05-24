@@ -7,7 +7,7 @@ function randomSuit(id) {
   return { suit: SUITS[id % 4], color: SUIT_COLORS[id % 4] };
 }
 
-export default function TournamentCard({ t, index }) {
+export default function TournamentCard({ t, index, onClick }) {
   const { suit, color } = randomSuit(index);
   const waLink = buildWhatsAppLink(t.whatsapp_number, t.name);
 
@@ -16,7 +16,10 @@ export default function TournamentCard({ t, index }) {
     : (typeof t.stages === 'string' ? JSON.parse(t.stages || '[]') : []);
 
   return (
-    <div className={`card p-5 hover:border-poker-green/50 transition-all duration-300 hover:shadow-poker-green/10 hover:shadow-2xl animate-slide-up group relative overflow-hidden ${t.is_boosted ? 'border-amber-500/40 shadow-amber-500/5 shadow-xl' : ''}`}>
+    <div
+      onClick={onClick}
+      className={`card p-5 hover:border-poker-green/50 transition-all duration-300 hover:shadow-poker-green/10 hover:shadow-2xl animate-slide-up group relative overflow-hidden cursor-pointer ${t.is_boosted ? 'border-amber-500/40 shadow-amber-500/5 shadow-xl' : ''}`}
+    >
 
       {/* Boost badge */}
       {t.is_boosted && (
@@ -30,17 +33,15 @@ export default function TournamentCard({ t, index }) {
         {suit}
       </span>
 
-      {/* Header */}
-      <div className="mb-3">
-        <div className="flex items-start justify-between gap-2">
-          <div>
-            <h3 className="font-bold text-lg text-slate-100 leading-tight">{t.name}</h3>
-            <p className="text-poker-green-light font-semibold text-sm mt-0.5">{t.venue_name}</p>
-          </div>
-          <div className="text-left shrink-0">
-            <div className="text-xl font-black text-poker-gold">{formatCost(t.cost)}</div>
-            <div className="text-xs text-slate-400 text-left">כניסה</div>
-          </div>
+      {/* Header — לוגו + שם מועדון + שם טורניר */}
+      <div className="flex items-center gap-3 mb-3">
+        {t.venue_logo
+          ? <img src={t.venue_logo} alt={t.venue_name} className="w-14 h-14 rounded-full object-cover shrink-0 ring-2 ring-slate-600" />
+          : <span className="w-14 h-14 rounded-full bg-slate-700 flex items-center justify-center text-2xl shrink-0">🏠</span>
+        }
+        <div className="min-w-0">
+          <h3 className="font-bold text-lg text-slate-100 leading-tight truncate">{t.name}</h3>
+          <p className="text-poker-green-light font-semibold text-sm">{t.venue_name}</p>
         </div>
       </div>
 
@@ -50,21 +51,25 @@ export default function TournamentCard({ t, index }) {
         <span>{t.venue_address}, {t.venue_city}</span>
       </div>
 
-      {/* Time */}
-      <div className="grid grid-cols-2 gap-2 mb-3">
+      {/* גריד מסודר: התחלה | סיום | עלות — שלושתם בשורה אחת */}
+      <div className="grid grid-cols-3 gap-2 mb-3">
         <div className="bg-slate-900/50 rounded-lg p-2 text-center">
           <div className="text-xs text-slate-500 mb-0.5">התחלה</div>
           <div className="font-bold text-poker-green-light">{formatTime(t.start_time)}</div>
           <div className="text-xs text-slate-400">{formatDate(t.start_time)}</div>
+          {t.is_recurring && t.day_of_week !== null && (
+            <div className="text-xs text-poker-gold">כל יום {DAYS_HE[t.day_of_week]}</div>
+          )}
         </div>
         <div className="bg-slate-900/50 rounded-lg p-2 text-center">
           <div className="text-xs text-slate-500 mb-0.5">סיום משוער</div>
           <div className="font-bold text-slate-300">
             {t.estimated_end_time ? formatTime(t.estimated_end_time) : '—'}
           </div>
-          {t.is_recurring && t.day_of_week !== null && (
-            <div className="text-xs text-poker-gold">כל יום {DAYS_HE[t.day_of_week]}</div>
-          )}
+        </div>
+        <div className="bg-slate-900/50 rounded-lg p-2 text-center">
+          <div className="text-xs text-slate-500 mb-0.5">כניסה</div>
+          <div className="font-bold text-poker-gold">{formatCost(t.cost)}</div>
         </div>
       </div>
 
@@ -73,28 +78,90 @@ export default function TournamentCard({ t, index }) {
         <p className="text-xs text-slate-400 mb-3 line-clamp-2 leading-relaxed">{t.description}</p>
       )}
 
-      {/* Stages */}
-      {stages.length > 0 && (
-        <div className="mb-3">
-          <div className="text-xs text-slate-500 mb-1 font-semibold">שלבים:</div>
-          <div className="flex flex-wrap gap-1">
-            {stages.map((s, i) => (
-              <span key={i} className="text-xs bg-slate-700 text-slate-300 px-2 py-0.5 rounded-full">
-                {s.name} · {s.duration_minutes}′
-              </span>
-            ))}
-          </div>
+      {/* Starting stack + level duration */}
+      {(t.starting_stack || t.level_duration) && (
+        <div className="mb-3 flex flex-wrap gap-2">
+          {t.starting_stack && (
+            <span className="text-xs bg-slate-700 text-poker-gold px-2 py-0.5 rounded-full font-bold">
+              🎯 ערימה: {t.starting_stack.toLocaleString()}
+            </span>
+          )}
+          {t.level_duration && (
+            <span className="text-xs bg-slate-700 text-slate-300 px-2 py-0.5 rounded-full font-bold">
+              ⏱ {t.level_duration} דק׳ לשלב
+            </span>
+          )}
         </div>
       )}
 
-      {/* Ad slot per card — replace with actual ad code when ready */}
-      {/* <div className="mb-3">...</div> */}
+      {/* Blind structure table */}
+      {stages.length > 0 && (() => {
+        const levelCount = stages.filter(r => r.type !== 'break').length;
+        const hasDuration = stages.some(r => r.type !== 'break' && r.duration);
+        return (
+          <details className="mb-3 group/blind">
+            <summary className="cursor-pointer text-xs text-slate-500 hover:text-slate-300 transition-colors select-none list-none flex items-center gap-1">
+              <span className="group-open/blind:rotate-90 transition-transform inline-block">▶</span>
+              מבנה בליינדים ({levelCount} שלבים)
+            </summary>
+            <div className="mt-2 rounded-lg overflow-hidden border border-slate-700">
+              <table className="w-full text-[10px]">
+                <thead>
+                  <tr className="bg-slate-800 text-slate-400">
+                    <th className="py-1 px-2 text-center">שלב</th>
+                    <th className="py-1 px-2 text-center">סמול</th>
+                    <th className="py-1 px-2 text-center">ביג</th>
+                    <th className="py-1 px-2 text-center">אנטה</th>
+                    {hasDuration && <th className="py-1 px-2 text-center">זמן</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {(() => {
+                    let lvl = 0;
+                    return stages.map((row, i) => {
+                      const isBreak = row.type === 'break';
+                      if (!isBreak) lvl++;
+                      const displayLevel = isBreak ? null : lvl;
+                      return isBreak ? (
+                        <tr key={i} className="bg-amber-500/5 border-y border-amber-500/20">
+                          <td className="py-1 px-2 text-center text-amber-400 text-[10px]">☕</td>
+                          <td colSpan={hasDuration ? 3 : 3} className="py-1 px-2 text-center text-amber-400/80 text-[10px] font-semibold">
+                            הפסקה
+                          </td>
+                          {hasDuration && (
+                            <td className="py-1 px-2 text-center text-amber-400/70 text-[10px]">{row.duration} דק׳</td>
+                          )}
+                        </tr>
+                      ) : (
+                        <tr key={i} className={i % 2 === 0 ? 'bg-slate-900/50' : 'bg-slate-800/30'}>
+                          <td className="py-1 px-2 text-center">
+                            <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-slate-700 text-poker-green-light font-black text-[10px]">
+                              {displayLevel}
+                            </span>
+                          </td>
+                          <td className="py-0.5 px-2 text-center text-poker-gold">{row.small_blind?.toLocaleString()}</td>
+                          <td className="py-0.5 px-2 text-center text-poker-gold">{row.big_blind?.toLocaleString()}</td>
+                          <td className="py-0.5 px-2 text-center text-slate-400">{row.ante > 0 ? row.ante?.toLocaleString() : '—'}</td>
+                          {hasDuration && (
+                            <td className="py-0.5 px-2 text-center text-slate-300">{row.duration ? `${row.duration}′` : '—'}</td>
+                          )}
+                        </tr>
+                      );
+                    });
+                  })()}
+                </tbody>
+              </table>
+            </div>
+          </details>
+        );
+      })()}
 
       {/* WhatsApp button */}
       <a
         href={waLink}
         target="_blank"
         rel="noopener noreferrer"
+        onClick={(e) => e.stopPropagation()}
         className="wa-btn flex items-center justify-center gap-2 w-full bg-[#25D366] hover:bg-[#1da851] text-white font-bold py-2.5 px-4 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95 text-sm shadow-lg"
       >
         <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current" xmlns="http://www.w3.org/2000/svg">
