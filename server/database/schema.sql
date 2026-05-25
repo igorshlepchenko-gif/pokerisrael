@@ -52,3 +52,7 @@ CREATE INDEX IF NOT EXISTS idx_venues_owner ON venues(owner_id);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS failed_login_attempts INTEGER DEFAULT 0;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS is_locked BOOLEAN DEFAULT FALSE;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS locked_at TIMESTAMP;
+
+-- מיגרציה: Re-Entry ו-Late Registration בטורנירים
+ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS re_entry VARCHAR(20) DEFAULT NULL;
+ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS late_reg_level INTEGER DEFAULT NULL;

@@ -4,16 +4,28 @@ const XLSX = require('xlsx');
 
 const DAYS_MAP_HE = { 'ראשון': 0, 'שני': 1, 'שלישי': 2, 'רביעי': 3, 'חמישי': 4, 'שישי': 5, 'שבת': 6 };
 
+exports.getPublicVenues = async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, name, logo_url FROM venues WHERE is_approved = true ORDER BY name ASC`
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'שגיאת שרת' });
+  }
+};
+
 exports.getAll = async (req, res) => {
   try {
-    const { city, day, search, sort } = req.query;
-    const hasFilters = city || day !== undefined || search;
+    const { city, day, search, sort, venue_ids } = req.query;
+    const hasFilters = city || day !== undefined || search || venue_ids;
 
     const baseSelect = `
       SELECT
         t.id, t.name, t.description, t.cost, t.start_time, t.estimated_end_time,
         t.stages, t.starting_stack, t.level_duration, t.is_recurring, t.day_of_week, t.status,
-        t.is_boosted, t.boost_label,
+        t.is_boosted, t.boost_label, t.re_entry, t.late_reg_level,
         v.id AS venue_id, v.name AS venue_name, v.address AS venue_address,
         v.city AS venue_city, v.whatsapp_number, v.logo_url AS venue_logo
       FROM tournaments t
@@ -21,9 +33,12 @@ exports.getAll = async (req, res) => {
     `;
 
     // מיון
-    const sortClause = sort === 'venue_name'
-      ? 'ORDER BY t.is_boosted DESC, v.name ASC'
-      : 'ORDER BY t.is_boosted DESC, t.start_time ASC';
+    const sortClause =
+      sort === 'venue_name' ? 'ORDER BY t.is_boosted DESC, v.name ASC' :
+      sort === 'cost_asc'   ? 'ORDER BY t.is_boosted DESC, t.cost ASC NULLS LAST' :
+      sort === 'cost_desc'  ? 'ORDER BY t.is_boosted DESC, t.cost DESC NULLS LAST' :
+      sort === 'day'        ? 'ORDER BY t.is_boosted DESC, t.day_of_week ASC NULLS LAST, t.start_time ASC' :
+      /* start_time default */ 'ORDER BY t.is_boosted DESC, t.start_time ASC';
 
     let query, params = [], idx = 1;
 
@@ -36,6 +51,10 @@ exports.getAll = async (req, res) => {
         filterParts.push(`(t.name ILIKE $${idx} OR v.name ILIKE $${idx})`);
         params.push(`%${search}%`);
         idx++;
+      }
+      if (venue_ids) {
+        const ids = venue_ids.split(',').map(Number).filter(Boolean);
+        if (ids.length > 0) { filterParts.push(`v.id = ANY($${idx++})`); params.push(ids); }
       }
 
       query = `${baseSelect}
@@ -77,7 +96,7 @@ exports.create = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
-  const { venue_id, name, description, cost, start_time, estimated_end_time, stages, starting_stack, level_duration, is_recurring, day_of_week } = req.body;
+  const { venue_id, name, description, cost, start_time, estimated_end_time, stages, starting_stack, level_duration, is_recurring, day_of_week, re_entry, late_reg_level } = req.body;
 
   try {
     const venueCheck = await pool.query(
@@ -90,11 +109,12 @@ exports.create = async (req, res) => {
 
     const result = await pool.query(
       `INSERT INTO tournaments
-        (venue_id, name, description, cost, start_time, estimated_end_time, stages, starting_stack, level_duration, is_recurring, day_of_week, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+        (venue_id, name, description, cost, start_time, estimated_end_time, stages, starting_stack, level_duration, is_recurring, day_of_week, re_entry, late_reg_level, created_by)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
        RETURNING *`,
       [venue_id, name, description, cost, start_time, estimated_end_time,
-       JSON.stringify(stages || []), starting_stack || null, level_duration || null, is_recurring || false, day_of_week, req.user.id]
+       JSON.stringify(stages || []), starting_stack || null, level_duration || null, is_recurring || false, day_of_week,
+       re_entry || null, late_reg_level || null, req.user.id]
     );
 
     res.status(201).json({
@@ -230,6 +250,53 @@ exports.bulkCreate = async (req, res) => {
     });
   } catch (err) {
     console.error('bulkCreate error:', err);
+    res.status(500).json({ message: 'שגיאת שרת' });
+  }
+};
+
+exports.updateTournament = async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
+  const { id } = req.params;
+  const {
+    name, description, cost, start_time, estimated_end_time,
+    stages, starting_stack, level_duration, is_recurring, day_of_week,
+    re_entry, late_reg_level,
+  } = req.body;
+
+  try {
+    // בדיקת בעלות — הטורניר שייך למקום של המשתמש
+    const ownerCheck = await pool.query(
+      `SELECT t.id FROM tournaments t
+       JOIN venues v ON t.venue_id = v.id
+       WHERE t.id = $1 AND v.owner_id = $2`,
+      [id, req.user.id]
+    );
+    if (!ownerCheck.rows[0]) {
+      return res.status(403).json({ message: 'אין לך הרשאה לערוך טורניר זה' });
+    }
+
+    const result = await pool.query(
+      `UPDATE tournaments SET
+         name = $1, description = $2, cost = $3, start_time = $4, estimated_end_time = $5,
+         stages = $6, starting_stack = $7, level_duration = $8, is_recurring = $9,
+         day_of_week = $10, re_entry = $11, late_reg_level = $12
+       WHERE id = $13
+       RETURNING *`,
+      [
+        name, description, cost, start_time, estimated_end_time || null,
+        JSON.stringify(stages || []),
+        starting_stack || null, level_duration || null,
+        is_recurring || false, day_of_week ?? null,
+        re_entry || null, late_reg_level || null,
+        id,
+      ]
+    );
+
+    res.json({ tournament: result.rows[0], message: 'הטורניר עודכן בהצלחה' });
+  } catch (err) {
+    console.error(err);
     res.status(500).json({ message: 'שגיאת שרת' });
   }
 };

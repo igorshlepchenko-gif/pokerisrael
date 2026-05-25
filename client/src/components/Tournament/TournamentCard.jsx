@@ -78,8 +78,8 @@ export default function TournamentCard({ t, index, onClick }) {
         <p className="text-xs text-slate-400 mb-3 line-clamp-2 leading-relaxed">{t.description}</p>
       )}
 
-      {/* Starting stack + level duration */}
-      {(t.starting_stack || t.level_duration) && (
+      {/* Starting stack + level duration + re-entry */}
+      {(t.starting_stack || t.level_duration || t.re_entry) && (
         <div className="mb-3 flex flex-wrap gap-2">
           {t.starting_stack && (
             <span className="text-xs bg-slate-700 text-poker-gold px-2 py-0.5 rounded-full font-bold">
@@ -91,8 +91,41 @@ export default function TournamentCard({ t, index, onClick }) {
               ⏱ {t.level_duration} דק׳ לשלב
             </span>
           )}
+          {t.re_entry && (
+            <span className="text-xs bg-slate-700 text-emerald-400 px-2 py-0.5 rounded-full font-bold">
+              🔄 {t.re_entry} Re-Entry
+            </span>
+          )}
         </div>
       )}
+
+      {/* Late Registration */}
+      {t.late_reg_level && (() => {
+        let n = 0, stageIdx = -1;
+        for (let i = 0; i < stages.length; i++) {
+          if (stages[i].type !== 'break') n++;
+          if (n === t.late_reg_level) { stageIdx = i; break; }
+        }
+        if (stageIdx === -1) return null;
+        const stage = stages[stageIdx];
+        let totalMins = 0;
+        for (let i = 0; i < stageIdx; i++) totalMins += parseInt(stages[i].duration) || 0;
+        let estTime = null;
+        if (t.start_time) {
+          const dt = new Date(t.start_time);
+          dt.setMinutes(dt.getMinutes() + totalMins);
+          estTime = dt.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+        }
+        return (
+          <div className="mb-3 bg-indigo-950/50 rounded-lg px-3 py-2 border border-indigo-700/30 text-xs flex flex-wrap gap-3">
+            <span className="text-indigo-300 font-bold">⏳ Late Reg עד שלב {t.late_reg_level}</span>
+            <span className="text-slate-400">
+              {stage.small_blind?.toLocaleString()}/{stage.big_blind?.toLocaleString()}
+            </span>
+            {estTime && <span className="text-poker-green-light font-semibold">~ {estTime}</span>}
+          </div>
+        );
+      })()}
 
       {/* Blind structure table */}
       {stages.length > 0 && (() => {

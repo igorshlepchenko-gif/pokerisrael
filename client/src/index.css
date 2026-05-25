@@ -14,9 +14,47 @@
   }
 
   .light body {
-    @apply bg-green-50 text-slate-900;
+    @apply bg-slate-100 text-slate-900;
   }
 }
+
+/* ===== מצב יום — Light Mode ===== */
+.light .card {
+  @apply bg-white border-slate-200 shadow-md text-slate-900;
+}
+.light .input-field {
+  @apply bg-white border-slate-300 text-slate-900 placeholder-slate-400;
+}
+.light nav {
+  background: rgba(255,255,255,0.92) !important;
+  border-color: rgba(0,0,0,0.08) !important;
+}
+.light nav a,
+.light nav button,
+.light nav span {
+  color: #1e293b;
+}
+.light .btn-ghost {
+  @apply border-slate-300 text-slate-700 hover:border-poker-green hover:text-poker-green;
+}
+.light .text-slate-100,
+.light .text-slate-200,
+.light .text-slate-300 { color: #1e293b !important; }
+.light .text-slate-400 { color: #475569 !important; }
+.light .text-slate-500 { color: #64748b !important; }
+.light .bg-slate-800,
+.light .bg-slate-700\/30,
+.light .bg-slate-900\/50,
+.light .bg-slate-900\/60 { background-color: #f8fafc !important; }
+.light .bg-slate-800\/40,
+.light .bg-slate-900\/30 { background-color: #f1f5f9 !important; }
+.light .bg-slate-900 { background-color: #e2e8f0 !important; }
+.light .bg-slate-950 { background-color: #f1f5f9 !important; }
+.light .border-slate-700,
+.light .border-slate-700\/50 { border-color: #cbd5e1 !important; }
+.light .border-slate-600 { border-color: #94a3b8 !important; }
+.light ::-webkit-scrollbar-track { background: #e2e8f0; }
+.light ::-webkit-scrollbar-thumb { background: #94a3b8; }
 
 @layer components {
   .card {

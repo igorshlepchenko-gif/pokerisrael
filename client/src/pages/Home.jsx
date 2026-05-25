@@ -3,6 +3,7 @@ import api from '../utils/api';
 import TournamentCard from '../components/Tournament/TournamentCard';
 import TournamentListRow from '../components/Tournament/TournamentListRow';
 import TournamentDetailModal from '../components/Tournament/TournamentDetailModal';
+import VenueMultiSelect from '../components/VenueMultiSelect';
 import { DAYS_HE } from '../utils/whatsapp';
 
 export default function Home() {
@@ -15,8 +16,16 @@ export default function Home() {
   const [viewMode, setViewMode] = useState(() => localStorage.getItem('pli_view') || 'grid');
   const [sort, setSort] = useState('start_time');
   const [selectedTournament, setSelectedTournament] = useState(null);
+  const [allVenues, setAllVenues] = useState([]);
+  const [selectedVenues, setSelectedVenues] = useState([]);
 
-  useEffect(() => { fetchTournaments(); }, [city, day, sort]);
+  useEffect(() => {
+    api.get('/tournaments/public-venues')
+      .then(res => setAllVenues(res.data))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => { fetchTournaments(); }, [city, day, sort, selectedVenues]);
 
   const fetchTournaments = async () => {
     setLoading(true);
@@ -25,6 +34,7 @@ export default function Home() {
       if (city) params.city = city;
       if (day !== '') params.day = day;
       if (search) params.search = search;
+      if (selectedVenues.length > 0) params.venue_ids = selectedVenues.join(',');
       const res = await api.get('/tournaments', { params });
       setTournaments(res.data);
       const uniqueCities = [...new Set(res.data.map(t => t.venue_city))].filter(Boolean);
@@ -79,7 +89,7 @@ export default function Home() {
           <div className="flex-1 min-w-[160px]">
             <label className="block text-xs text-slate-400 mb-1">חיפוש</label>
             <input type="text" value={search} onChange={e => setSearch(e.target.value)}
-              className="input-field text-sm" placeholder="שם טורניר, מקום..." />
+              className="input-field text-sm" placeholder="שם טורניר, מועדון..." />
           </div>
           <div className="min-w-[140px]">
             <label className="block text-xs text-slate-400 mb-1">עיר</label>
@@ -95,10 +105,15 @@ export default function Home() {
               {DAYS_HE.map((d, i) => <option key={i} value={i}>{d}</option>)}
             </select>
           </div>
+          <VenueMultiSelect
+            venues={allVenues}
+            selected={selectedVenues}
+            onChange={setSelectedVenues}
+          />
           <button type="submit" className="btn-primary text-sm py-2 px-5 min-w-[90px]">🔍 חיפוש</button>
-          {(search || city || day !== '') && (
+          {(search || city || day !== '' || selectedVenues.length > 0) && (
             <button type="button" className="btn-ghost text-sm py-2 px-5 min-w-[90px]"
-              onClick={() => { setSearch(''); setCity(''); setDay(''); fetchTournaments(); }}>
+              onClick={() => { setSearch(''); setCity(''); setDay(''); setSelectedVenues([]); fetchTournaments(); }}>
               נקה
             </button>
           )}
@@ -135,8 +150,11 @@ export default function Home() {
                     onChange={e => setSort(e.target.value)}
                     className="bg-transparent text-sm text-slate-200 outline-none cursor-pointer"
                   >
-                    <option value="start_time">קרוב ביותר</option>
-                    <option value="venue_name">שם מקום א-ת</option>
+                    <option value="start_time">קרוב בזמן</option>
+                    <option value="day">לפי יום בשבוע</option>
+                    <option value="cost_asc">עלות: נמוך לגבוה</option>
+                    <option value="cost_desc">עלות: גבוה לנמוך</option>
+                    <option value="venue_name">שם מועדון א-ת</option>
                   </select>
                 </div>
 
@@ -172,7 +190,7 @@ export default function Home() {
               <div className="card overflow-hidden">
                 {/* Table header */}
                 <div className="hidden md:grid grid-cols-[2fr_1.5fr_1fr_1fr_auto] gap-4 px-5 py-3 border-b border-slate-700 text-xs font-bold text-slate-400 uppercase tracking-wider">
-                  <span>טורניר / מקום</span>
+                  <span>טורניר / מועדון</span>
                   <span>כתובת</span>
                   <span>התחלה</span>
                   <span>עלות</span>

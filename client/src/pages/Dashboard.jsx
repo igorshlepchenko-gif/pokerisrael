@@ -31,7 +31,7 @@ function LogoUploader({ value, onChange }) {
 
   return (
     <div>
-      <label className="block text-xs text-slate-400 mb-1">לוגו המקום</label>
+      <label className="block text-xs text-slate-400 mb-1">לוגו המועדון</label>
       <div className="flex items-center gap-3">
         <div
           onClick={() => inputRef.current.click()}
@@ -191,7 +191,7 @@ function BulkUploader({ venues, onSuccess }) {
   };
 
   const handleSubmit = async () => {
-    if (!venueId) return setResult({ success: false, message: 'יש לבחור מקום תחילה' });
+    if (!venueId) return setResult({ success: false, message: 'יש לבחור מועדון תחילה' });
     if (!file) return setResult({ success: false, message: 'יש לבחור קובץ' });
     setLoading(true); setResult(null);
     try {
@@ -246,9 +246,9 @@ function BulkUploader({ venues, onSuccess }) {
 
           {/* Venue select */}
           <div>
-            <label className="block text-xs text-slate-400 mb-1">בחר מקום *</label>
+            <label className="block text-xs text-slate-400 mb-1">בחר מועדון *</label>
             <select value={venueId} onChange={e => setVenueId(e.target.value)} className="input-field text-sm">
-              <option value="">— בחר מקום —</option>
+              <option value="">— בחר מועדון —</option>
               {approvedVenues.map(v => <option key={v.id} value={v.id}>{v.name} ({v.city})</option>)}
             </select>
           </div>
@@ -302,6 +302,7 @@ export default function Dashboard() {
   const [tournaments, setTournaments] = useState([]);
   const [venues, setVenues] = useState([]);
   const [showForm, setShowForm] = useState(false);
+  const [editingTournament, setEditingTournament] = useState(null);
   const [showVenueForm, setShowVenueForm] = useState(false);
   const [loading, setLoading] = useState(true);
   const [venueForm, setVenueForm] = useState({
@@ -369,7 +370,7 @@ export default function Dashboard() {
 
       {/* Tabs */}
       <div className="flex gap-1 mb-6 bg-slate-800 p-1 rounded-xl w-fit">
-        {[['tournaments', '🃏 טורנירים'], ['venues', '🏠 מקומות']].map(([id, label]) => (
+        {[['tournaments', '🃏 טורנירים'], ['venues', '🏠 מועדונים']].map(([id, label]) => (
           <button key={id} onClick={() => setTab(id)}
             className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${tab === id ? 'bg-poker-green text-white' : 'text-slate-400 hover:text-slate-200'}`}>
             {label}
@@ -384,14 +385,35 @@ export default function Dashboard() {
             <h2 className="text-xl font-bold text-white mb-4">הוספת טורניר חדש</h2>
             {venues.filter(v => v.is_approved).length === 0 ? (
               <div className="text-center py-6">
-                <p className="text-amber-400 mb-2">אין לך עדיין מקומות מאושרים</p>
-                <p className="text-slate-400 text-sm">הוסף מקום ועמוד לאישור המנהל תחילה</p>
+                <p className="text-amber-400 mb-2">אין לך עדיין מועדונים מאושרים</p>
+                <p className="text-slate-400 text-sm">הוסף מועדון ועמוד לאישור המנהל תחילה</p>
                 <button onClick={() => { setShowForm(false); setTab('venues'); setShowVenueForm(true); }}
-                  className="btn-primary mt-4">הוסף מקום</button>
+                  className="btn-primary mt-4">הוסף מועדון</button>
               </div>
             ) : (
               <TournamentForm venues={venues} onSuccess={() => { setShowForm(false); fetchData(); }} onCancel={() => setShowForm(false)} />
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Tournament edit modal */}
+      {editingTournament && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+          <div className="card p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-white">✏️ עריכת טורניר</h2>
+              <button onClick={() => setEditingTournament(null)}
+                className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-700 hover:bg-red-500/80 text-slate-300 hover:text-white transition-all text-sm">
+                ✕
+              </button>
+            </div>
+            <TournamentForm
+              venues={venues}
+              tournament={editingTournament}
+              onSuccess={() => { setEditingTournament(null); fetchData(); }}
+              onCancel={() => setEditingTournament(null)}
+            />
           </div>
         </div>
       )}
@@ -414,6 +436,9 @@ export default function Dashboard() {
                 <div className="flex items-center gap-2 flex-wrap">
                   <h3 className="font-bold text-slate-100">{t.name}</h3>
                   <span className={`badge-status ${STATUS_COLORS[t.status]}`}>{STATUS_LABELS[t.status]}</span>
+                  {t.re_entry && (
+                    <span className="text-[10px] bg-emerald-900/30 text-emerald-400 px-1.5 py-0.5 rounded-full">🔄 {t.re_entry}</span>
+                  )}
                 </div>
                 <p className="text-sm text-slate-400 mt-1">{t.venue_name} · {formatDate(t.start_time)} · {formatTime(t.start_time)}</p>
                 <p className="text-sm text-poker-gold font-semibold">{formatCost(t.cost)}</p>
@@ -421,6 +446,12 @@ export default function Dashboard() {
                   <p className="text-xs text-red-400 mt-1 bg-red-900/20 rounded px-2 py-1">סיבת דחייה: {t.rejection_reason}</p>
                 )}
               </div>
+              <button
+                onClick={() => setEditingTournament(t)}
+                className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-600 text-slate-400 hover:border-poker-green hover:text-poker-green-light text-xs font-semibold transition-all hover:scale-105 active:scale-95"
+              >
+                ✏️ עריכה
+              </button>
             </div>
           ))}
         </div>
@@ -431,14 +462,14 @@ export default function Dashboard() {
         <div className="space-y-3">
           <div className="flex justify-end mb-2">
             <button onClick={() => setShowVenueForm(p => !p)} className="btn-ghost text-sm">
-              {showVenueForm ? 'סגור' : '+ הוסף מקום'}
+              {showVenueForm ? 'סגור' : '+ הוסף מועדון'}
             </button>
           </div>
 
           {/* Venue form */}
           {showVenueForm && (
             <div className="card p-5 border-poker-green/50 animate-slide-up">
-              <h3 className="font-bold text-white mb-4">הוספת מקום חדש</h3>
+              <h3 className="font-bold text-white mb-4">הוספת מועדון חדש</h3>
               <form onSubmit={handleVenueSubmit} className="space-y-4">
 
                 {/* Logo uploader */}
@@ -449,7 +480,7 @@ export default function Dashboard() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs text-slate-400 mb-1">שם המקום *</label>
+                    <label className="block text-xs text-slate-400 mb-1">שם המועדון *</label>
                     <input type="text" value={venueForm.name}
                       onChange={e => setVenueForm(p => ({ ...p, name: e.target.value }))}
                       className="input-field text-sm" required />
@@ -473,7 +504,7 @@ export default function Dashboard() {
                       className="input-field text-sm" placeholder="050-0000000" dir="ltr" required />
                   </div>
                   <div className="sm:col-span-2">
-                    <label className="block text-xs text-slate-400 mb-1">תיאור המקום</label>
+                    <label className="block text-xs text-slate-400 mb-1">תיאור המועדון</label>
                     <textarea value={venueForm.description}
                       onChange={e => setVenueForm(p => ({ ...p, description: e.target.value }))}
                       className="input-field text-sm resize-none" rows={2} />
@@ -495,7 +526,7 @@ export default function Dashboard() {
           {venues.length === 0 && !showVenueForm ? (
             <div className="card p-12 text-center">
               <div className="text-5xl mb-3 opacity-20">🏠</div>
-              <p className="text-slate-400">עדיין אין לך מקומות רשומים</p>
+              <p className="text-slate-400">עדיין אין לך מועדונים רשומים</p>
             </div>
           ) : venues.map(v => (
             <div key={v.id} className="card p-4">

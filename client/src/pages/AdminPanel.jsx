@@ -93,7 +93,7 @@ export default function AdminPanel() {
       <div className="flex gap-1 mb-6 bg-slate-800 p-1 rounded-xl w-fit flex-wrap">
         {[
           ['pending', `⏳ ממתין לאישור${totalPending > 0 ? ` (${totalPending})` : ''}`],
-          ['venues', '📍 מקומות'],
+          ['venues', '📍 מועדונים'],
           ['tournaments', '🚀 קידומים'],
           ['users', `👥 משתמשים${lockedCount > 0 ? ` 🔒${lockedCount}` : ''}`],
         ].map(([id, label]) => (
@@ -114,7 +114,7 @@ export default function AdminPanel() {
               {/* Pending venues */}
               {pending.venues.length > 0 && (
                 <div>
-                  <h2 className="text-lg font-bold text-slate-300 mb-3">🏠 מקומות ממתינים לאישור</h2>
+                  <h2 className="text-lg font-bold text-slate-300 mb-3">🏠 מועדונים ממתינים לאישור</h2>
                   <div className="space-y-3">
                     {pending.venues.map(v => (
                       <div key={v.id} className="card p-4">
@@ -177,7 +177,7 @@ export default function AdminPanel() {
           {tab === 'venues' && (
             <div className="space-y-4">
               {allVenues.length === 0 && (
-                <div className="card p-12 text-center text-slate-500">אין מקומות רשומים</div>
+                <div className="card p-12 text-center text-slate-500">אין מועדונים רשומים</div>
               )}
               {allVenues.map(v => (
                 <div key={v.id} className={`card p-5 ${!v.is_approved ? 'border-amber-500/30' : 'border-green-700/20'}`}>
@@ -217,7 +217,7 @@ export default function AdminPanel() {
                     {/* כפתורים */}
                     {!v.is_approved && (
                       <div className="flex flex-col gap-2 shrink-0 self-center">
-                        <button onClick={() => approveVenue(v.id)} className="btn-primary">✅ אשר מקום</button>
+                        <button onClick={() => approveVenue(v.id)} className="btn-primary">✅ אשר מועדון</button>
                         <button onClick={() => rejectVenue(v.id)}
                           className="bg-red-900/30 hover:bg-red-900/60 text-red-400 font-semibold py-2 px-4 rounded-xl transition-all text-center">
                           ❌ דחה

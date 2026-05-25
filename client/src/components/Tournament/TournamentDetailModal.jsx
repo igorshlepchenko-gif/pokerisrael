@@ -54,7 +54,7 @@ export default function TournamentDetailModal({ tournament: t, onClose }) {
           </div>
           <button
             onClick={onClose}
-            className="shrink-0 text-slate-400 hover:text-white transition-colors p-1.5 hover:bg-slate-700 rounded-lg"
+            className="shrink-0 flex items-center justify-center w-9 h-9 rounded-full bg-slate-700 hover:bg-red-500/80 text-slate-300 hover:text-white transition-all duration-200 hover:scale-110 active:scale-95 shadow-md"
             aria-label="סגור"
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
@@ -112,7 +112,56 @@ export default function TournamentDetailModal({ tournament: t, onClose }) {
                 ⏱ {t.level_duration} דק׳ לשלב
               </span>
             )}
+            {t.re_entry && (
+              <span className="bg-slate-700/80 text-emerald-400 px-3 py-2 rounded-xl font-bold text-sm border border-slate-600">
+                🔄 Re-Entry: {t.re_entry}
+              </span>
+            )}
           </div>
+
+          {/* Late Registration info */}
+          {t.late_reg_level && (() => {
+            const stagesArr = Array.isArray(t.stages)
+              ? t.stages
+              : (typeof t.stages === 'string' ? JSON.parse(t.stages || '[]') : []);
+            let n = 0, stageIdx = -1;
+            for (let i = 0; i < stagesArr.length; i++) {
+              if (stagesArr[i].type !== 'break') n++;
+              if (n === t.late_reg_level) { stageIdx = i; break; }
+            }
+            if (stageIdx === -1) return null;
+            const stage = stagesArr[stageIdx];
+            let totalMins = 0;
+            for (let i = 0; i < stageIdx; i++) totalMins += parseInt(stagesArr[i].duration) || 0;
+            let estTime = null;
+            if (t.start_time) {
+              const dt = new Date(t.start_time);
+              dt.setMinutes(dt.getMinutes() + totalMins);
+              estTime = dt.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+            }
+            return (
+              <div className="bg-indigo-950/60 rounded-xl p-3 border border-indigo-700/40">
+                <div className="text-xs font-bold text-indigo-300 mb-2">⏳ Late Registration — עד שלב {t.late_reg_level}</div>
+                <div className="flex flex-wrap gap-4 text-sm">
+                  <span className="text-slate-400">
+                    בליינדים:{' '}
+                    <span className="text-poker-gold font-bold">
+                      {stage.small_blind?.toLocaleString()}/{stage.big_blind?.toLocaleString()}
+                    </span>
+                    {stage.ante > 0 && (
+                      <span className="text-slate-500 mr-1">  אנטה: <span className="text-slate-300">{stage.ante?.toLocaleString()}</span></span>
+                    )}
+                  </span>
+                  {estTime && (
+                    <span className="text-slate-400">
+                      ⏰ שעה משוערת:{' '}
+                      <span className="text-poker-green-light font-bold">{estTime}</span>
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Description */}
           {t.description && (

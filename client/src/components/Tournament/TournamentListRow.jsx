@@ -70,7 +70,7 @@ export default function TournamentListRow({ t, index, onClick }) {
             }
             <span className="truncate">{t.venue_name}</span>
           </div>
-          {(t.starting_stack || t.level_duration) && (
+          {(t.starting_stack || t.level_duration || t.re_entry || t.late_reg_level) && (
             <div className="flex gap-1 mt-1 flex-wrap">
               {t.starting_stack && (
                 <span className="text-[10px] bg-slate-700/80 text-poker-gold px-1.5 py-0.5 rounded-full">
@@ -80,6 +80,16 @@ export default function TournamentListRow({ t, index, onClick }) {
               {t.level_duration && (
                 <span className="text-[10px] bg-slate-700/80 text-slate-400 px-1.5 py-0.5 rounded-full">
                   ⏱ {t.level_duration}דק׳
+                </span>
+              )}
+              {t.re_entry && (
+                <span className="text-[10px] bg-slate-700/80 text-emerald-400 px-1.5 py-0.5 rounded-full">
+                  🔄 {t.re_entry}
+                </span>
+              )}
+              {t.late_reg_level && (
+                <span className="text-[10px] bg-indigo-900/60 text-indigo-300 px-1.5 py-0.5 rounded-full border border-indigo-700/30">
+                  ⏳ Late Reg שלב {t.late_reg_level}
                 </span>
               )}
             </div>

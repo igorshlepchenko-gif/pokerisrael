@@ -62,15 +62,53 @@ const BLIND_PRESETS = {
   },
 };
 
-export default function TournamentForm({ venues, onSuccess, onCancel }) {
+// תרגום שמות שדות לעברית להצגת שגיאות ולידציה
+const FIELD_LABELS = {
+  name:                'שם הטורניר',
+  cost:                'עלות',
+  start_time:          'שעת התחלה',
+  estimated_end_time:  'שעת סיום משוערת',
+  venue_id:            'מועדון',
+  day_of_week:         'יום בשבוע',
+  starting_stack:      'ערימה התחלתית',
+  level_duration:      'זמן לשלב',
+  re_entry:            'Re-Entry',
+  late_reg_level:      'Late Reg',
+  description:         'תיאור',
+};
+
+// המרת timestamp ל-datetime-local (שומרת שעה מקומית)
+function toLocalDT(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function parseStages(raw) {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+  try { return JSON.parse(raw); } catch { return []; }
+}
+
+export default function TournamentForm({ venues, tournament = null, onSuccess, onCancel }) {
+  const isEdit = !!tournament;
+
   const [form, setForm] = useState({
-    venue_id: '', name: '', description: '', cost: '',
-    start_time: '', estimated_end_time: '',
-    is_recurring: false, day_of_week: '',
-    starting_stack: '',
-    level_duration: '',
+    venue_id:            tournament?.venue_id       ?? '',
+    name:                tournament?.name            ?? '',
+    description:         tournament?.description     ?? '',
+    cost:                tournament?.cost            ?? '',
+    start_time:          toLocalDT(tournament?.start_time),
+    estimated_end_time:  toLocalDT(tournament?.estimated_end_time),
+    is_recurring:        tournament?.is_recurring    ?? false,
+    day_of_week:         tournament?.day_of_week     ?? '',
+    starting_stack:      tournament?.starting_stack  ?? '',
+    level_duration:      tournament?.level_duration  ?? '',
+    re_entry:            tournament?.re_entry        ?? '',
+    late_reg_level:      tournament?.late_reg_level  ?? '',
   });
-  const [blinds, setBlinds] = useState([]);
+  const [blinds, setBlinds] = useState(() => parseStages(tournament?.stages));
   const [activePreset, setActivePreset] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -131,20 +169,36 @@ export default function TournamentForm({ venues, onSuccess, onCancel }) {
     try {
       const payload = {
         ...form,
-        venue_id: parseInt(form.venue_id),
-        cost: parseFloat(form.cost),
-        day_of_week: form.day_of_week !== '' ? parseInt(form.day_of_week) : null,
-        starting_stack: form.starting_stack !== '' ? parseInt(form.starting_stack) : null,
-        level_duration: form.level_duration !== '' ? parseInt(form.level_duration) : null,
+        venue_id:           parseInt(form.venue_id),
+        cost:               parseFloat(form.cost),
+        estimated_end_time: form.estimated_end_time || null,
+        day_of_week:        form.day_of_week !== '' ? parseInt(form.day_of_week) : null,
+        starting_stack:     form.starting_stack !== '' ? parseInt(form.starting_stack) : null,
+        level_duration:     form.level_duration !== '' ? parseInt(form.level_duration) : null,
+        re_entry:           form.re_entry || null,
+        late_reg_level:     form.late_reg_level !== '' ? parseInt(form.late_reg_level) : null,
         stages: (() => {
           let n = 0;
           return blinds.map(r => r.type === 'break' ? r : { ...r, level: ++n });
         })(),
       };
-      await api.post('/tournaments', payload);
+      if (isEdit) {
+        await api.put(`/tournaments/${tournament.id}`, payload);
+      } else {
+        await api.post('/tournaments', payload);
+      }
       onSuccess();
     } catch (err) {
-      setError(err.response?.data?.message || 'שגיאה בשמירת הטורניר');
+      const d = err.response?.data;
+      if (d?.errors?.length > 0) {
+        const lines = d.errors.map(e => {
+          const label = FIELD_LABELS[e.path] || e.path || 'שדה לא ידוע';
+          return `• ${label}: ${e.msg}`;
+        });
+        setError(lines.join('\n'));
+      } else {
+        setError(d?.message || 'שגיאה בשמירת הטורניר');
+      }
     } finally {
       setLoading(false);
     }
@@ -154,16 +208,25 @@ export default function TournamentForm({ venues, onSuccess, onCancel }) {
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="sm:col-span-2">
-          <label className="block text-sm font-semibold text-slate-300 mb-1">מקום *</label>
-          <select value={form.venue_id} onChange={e => set('venue_id', e.target.value)}
-            className="input-field" required>
-            <option value="">בחר מקום...</option>
-            {venues.filter(v => v.is_approved).map(v => (
-              <option key={v.id} value={v.id}>{v.name} — {v.city}</option>
-            ))}
-          </select>
-          {venues.filter(v => !v.is_approved).length > 0 && (
-            <p className="text-xs text-amber-400 mt-1">יש לך מקומות ממתינים לאישור</p>
+          <label className="block text-sm font-semibold text-slate-300 mb-1">מועדון *</label>
+          {isEdit ? (
+            <div className="input-field bg-slate-700/40 text-slate-400 cursor-not-allowed">
+              {venues.find(v => v.id === form.venue_id)?.name || tournament.venue_name}
+              <span className="text-xs text-slate-500 mr-2">(לא ניתן לשינוי)</span>
+            </div>
+          ) : (
+            <>
+              <select value={form.venue_id} onChange={e => set('venue_id', e.target.value)}
+                className="input-field" required>
+                <option value="">בחר מועדון...</option>
+                {venues.filter(v => v.is_approved).map(v => (
+                  <option key={v.id} value={v.id}>{v.name} — {v.city}</option>
+                ))}
+              </select>
+              {venues.filter(v => !v.is_approved).length > 0 && (
+                <p className="text-xs text-amber-400 mt-1">יש לך מועדונים ממתינים לאישור</p>
+              )}
+            </>
           )}
         </div>
 
@@ -392,11 +455,92 @@ export default function TournamentForm({ venues, onSuccess, onCancel }) {
         </div>
       </div>
 
-      {error && <p className="text-red-400 text-sm bg-red-900/20 rounded-lg p-3">{error}</p>}
+      {/* Re-Entry */}
+      <div>
+        <label className="block text-sm font-semibold text-slate-300 mb-1">🔄 Re-Entry</label>
+        <select value={form.re_entry} onChange={e => set('re_entry', e.target.value)} className="input-field">
+          <option value="">ללא Re-Entry</option>
+          <option value="1X">1X</option>
+          <option value="2X">2X</option>
+          <option value="3X">3X</option>
+          <option value="4X">4X</option>
+          <option value="Unlimited">Unlimited</option>
+        </select>
+      </div>
+
+      {/* Late Registration */}
+      {blinds.filter(r => r.type !== 'break').length > 0 && (
+        <div>
+          <label className="block text-sm font-semibold text-slate-300 mb-1">⏳ Late Registration — עד שלב</label>
+          <select value={form.late_reg_level} onChange={e => set('late_reg_level', e.target.value)} className="input-field">
+            <option value="">ללא Late Reg</option>
+            {(() => {
+              let n = 0;
+              return blinds.map((row, i) => {
+                if (row.type === 'break') return null;
+                n++;
+                const lvl = n;
+                return (
+                  <option key={i} value={lvl}>
+                    שלב {lvl} — {row.small_blind?.toLocaleString()}/{row.big_blind?.toLocaleString()}
+                  </option>
+                );
+              });
+            })()}
+          </select>
+
+          {form.late_reg_level !== '' && (() => {
+            const targetLevel = parseInt(form.late_reg_level);
+            let n = 0, stageIdx = -1;
+            for (let i = 0; i < blinds.length; i++) {
+              if (blinds[i].type !== 'break') n++;
+              if (n === targetLevel) { stageIdx = i; break; }
+            }
+            if (stageIdx === -1) return null;
+            const stage = blinds[stageIdx];
+            let totalMins = 0;
+            for (let i = 0; i < stageIdx; i++) totalMins += parseInt(blinds[i].duration) || 0;
+            let estTime = null;
+            if (form.start_time) {
+              const dt = new Date(form.start_time);
+              dt.setMinutes(dt.getMinutes() + totalMins);
+              estTime = dt.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+            }
+            return (
+              <div className="mt-2 bg-slate-900/60 rounded-xl p-3 border border-slate-700/50 text-sm flex flex-wrap gap-4">
+                <span className="text-slate-400">
+                  🃏 בליינדים:{' '}
+                  <span className="text-poker-gold font-bold">
+                    {stage.small_blind?.toLocaleString()}/{stage.big_blind?.toLocaleString()}
+                  </span>
+                  {stage.ante > 0 && (
+                    <span className="text-slate-500 mr-1">  אנטה: <span className="text-slate-300">{stage.ante?.toLocaleString()}</span></span>
+                  )}
+                </span>
+                {estTime ? (
+                  <span className="text-slate-400">
+                    ⏰ שעה משוערת:{' '}
+                    <span className="text-poker-green-light font-bold">{estTime}</span>
+                    <span className="text-slate-500 text-xs mr-1">({totalMins} דק׳ מהתחלה)</span>
+                  </span>
+                ) : (
+                  <span className="text-xs text-amber-400">הגדר שעת התחלה לחישוב שעה משוערת</span>
+                )}
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
+      {error && (
+        <div className="text-red-400 text-sm bg-red-900/20 rounded-lg p-3 whitespace-pre-line leading-relaxed">
+          {error}
+        </div>
+      )}
 
       <div className="flex gap-3 pt-2">
         <button type="submit" disabled={loading} className="btn-primary flex-1">
-          {loading ? 'שולח...' : '📤 שלח לאישור מנהל'}
+          {loading ? 'שומר...' : isEdit ? '💾 שמור שינויים' : '📤 שלח לאישור מנהל'}
         </button>
         <button type="button" onClick={onCancel} className="btn-ghost flex-1">ביטול</button>
       </div>

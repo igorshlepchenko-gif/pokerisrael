@@ -31,10 +31,17 @@ export default function Navbar() {
             {/* Theme toggle */}
             <button
               onClick={toggleTheme}
-              className="p-2 rounded-xl text-slate-400 hover:text-poker-gold hover:bg-slate-700 transition-all"
-              title={isDark ? 'מצב יום' : 'מצב לילה'}
+              title={isDark ? 'עבור למצב יום' : 'עבור למצב לילה'}
+              className={`
+                flex items-center gap-2 px-3.5 py-1.5 rounded-full text-sm font-bold
+                transition-all duration-300 hover:scale-105 active:scale-95 shadow-md
+                ${isDark
+                  ? 'bg-amber-400/15 border border-amber-400/50 text-amber-300 hover:bg-amber-400/25'
+                  : 'bg-slate-700 border border-slate-500 text-slate-200 hover:bg-slate-600'}
+              `}
             >
-              {isDark ? '☀️' : '🌙'}
+              <span className="text-base leading-none">{isDark ? '☀️' : '🌙'}</span>
+              <span className="hidden sm:inline tracking-wide">{isDark ? 'מצב יום' : 'מצב לילה'}</span>
             </button>
 
             {user ? (

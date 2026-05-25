@@ -19,6 +19,7 @@ const bulkUpload = multer({
 });
 
 router.get('/', ctrl.getAll);
+router.get('/public-venues', ctrl.getPublicVenues);
 
 router.get('/my', authenticate, requireRole('venue_owner', 'admin'), ctrl.getMyTournaments);
 
@@ -33,6 +34,12 @@ router.get('/venues', authenticate, requireRole('venue_owner', 'admin'), ctrl.ge
 
 router.post('/bulk', authenticate, requireRole('venue_owner', 'admin'),
   bulkUpload.single('file'), ctrl.bulkCreate);
+
+router.put('/:id', authenticate, requireRole('venue_owner', 'admin'), [
+  body('name').trim().notEmpty().withMessage('שם הטורניר הוא שדה חובה'),
+  body('cost').isFloat({ min: 0 }).withMessage('עלות לא תקינה'),
+  body('start_time').isISO8601().withMessage('שעת התחלה לא תקינה'),
+], ctrl.updateTournament);
 
 router.post('/venues', authenticate, requireRole('venue_owner', 'admin'), [
   body('name').trim().notEmpty().withMessage('שם המקום הוא שדה חובה'),
