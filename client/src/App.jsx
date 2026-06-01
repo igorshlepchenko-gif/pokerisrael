@@ -6,6 +6,7 @@ import Footer from './components/Layout/Footer';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import VerifyEmail from './pages/VerifyEmail';
 import Dashboard from './pages/Dashboard';
 import AdminPanel from './pages/AdminPanel';
 
@@ -26,6 +27,7 @@ function AppRoutes() {
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/dashboard" element={
             <ProtectedRoute roles={['venue_owner', 'admin']}>
               <Dashboard />

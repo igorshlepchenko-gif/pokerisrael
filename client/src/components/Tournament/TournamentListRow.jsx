@@ -1,7 +1,9 @@
-import { buildWhatsAppLink, formatTime, formatDate, formatCost, DAYS_HE } from '../../utils/whatsapp';
+import { buildWhatsAppLink, formatTime, formatDate, formatCost, DAYS_HE, getStageDurations } from '../../utils/whatsapp';
 
 export default function TournamentListRow({ t, index, onClick }) {
-  const waLink = buildWhatsAppLink(t.whatsapp_number, t.name);
+  const waLink = buildWhatsAppLink(t.whatsapp_number, t);
+  const stages = Array.isArray(t.stages) ? t.stages : (typeof t.stages === 'string' ? JSON.parse(t.stages || '[]') : []);
+  const levelDur = getStageDurations(stages, t.level_duration);
 
   return (
     <div onClick={onClick} className="group px-5 py-4 hover:bg-slate-700/30 transition-colors animate-fade-in cursor-pointer">
@@ -77,9 +79,9 @@ export default function TournamentListRow({ t, index, onClick }) {
                   🎯 {t.starting_stack.toLocaleString()}
                 </span>
               )}
-              {t.level_duration && (
-                <span className="text-[10px] bg-slate-700/80 text-slate-400 px-1.5 py-0.5 rounded-full">
-                  ⏱ {t.level_duration}דק׳
+              {levelDur && (
+                <span className="text-[10px] bg-cyan-500/15 text-cyan-300 border border-cyan-500/40 px-1.5 py-0.5 rounded-full font-bold tracking-wide">
+                  ⏱ {levelDur}דק׳
                 </span>
               )}
               {t.re_entry && (
@@ -110,8 +112,20 @@ export default function TournamentListRow({ t, index, onClick }) {
           )}
         </div>
 
-        {/* Cost */}
-        <div className="font-black text-poker-gold">{formatCost(t.cost)}</div>
+        {/* Cost + Rake + GTD */}
+        <div>
+          <div className="font-black text-poker-gold">{formatCost(t.cost)}</div>
+          {t.rake != null && t.rake !== '' && (
+            <div className="text-[11px] text-slate-400 mt-0.5">
+              RAKE {t.rake_type === 'percent' ? `${t.rake}%` : `₪${Number(t.rake).toLocaleString('he-IL')}`}
+            </div>
+          )}
+          {t.gtd > 0 && (
+            <div className="text-xs text-amber-400 font-bold mt-0.5">
+              💰 ₪{Number(t.gtd).toLocaleString('he-IL')} GTD
+            </div>
+          )}
+        </div>
 
         {/* WhatsApp button */}
         <a href={waLink} target="_blank" rel="noopener noreferrer"

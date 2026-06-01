@@ -6,6 +6,9 @@ import { formatDate, formatTime, formatCost } from '../utils/whatsapp';
 const STATUS_LABELS = { pending: '⏳ ממתין', approved: '✅ מאושר', rejected: '❌ נדחה' };
 const STATUS_COLORS = { pending: 'text-amber-400 bg-amber-900/20', approved: 'text-green-400 bg-green-900/20', rejected: 'text-red-400 bg-red-900/20' };
 
+const isPast = (t) =>
+  !t.is_recurring && new Date(t.estimated_end_time || t.start_time) < new Date();
+
 // --- Logo uploader ---
 function LogoUploader({ value, onChange }) {
   const inputRef = useRef();
@@ -175,19 +178,18 @@ function BulkUploader({ venues, onSuccess }) {
   const inputRef = useRef();
   const approvedVenues = venues.filter(v => v.is_approved);
 
-  const downloadTemplate = () => {
-    const BOM = '﻿';
-    const rows = [
-      ['שם טורניר', 'תיאור', 'עלות', 'תאריך התחלה', 'שעת התחלה', 'שעת סיום משוערת', 'חוזר שבועי', 'יום בשבוע'],
-      ['טורניר שישי לילה', 'טורניר פריים טיים, 15K guarantee', '150', '30/05/2026', '22:00', '02:00', 'כן', 'שישי'],
-      ['טורניר צהריים', '', '80', '25/05/2026', '13:00', '17:00', 'לא', ''],
-      ['טורניר VIP', 'כניסה מוגבלת ל-20 שחקנים', '300', '01/06/2026', '20:00', '00:00', 'כן', 'ראשון'],
-    ];
-    const csv = BOM + rows.map(r => r.map(c => `"${c}"`).join(',')).join('\r\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = 'תבנית_טורנירים.csv'; a.click();
-    URL.revokeObjectURL(url);
+  const downloadTemplate = async () => {
+    try {
+      const res = await api.get('/tournaments/template', { responseType: 'blob' });
+      const url = URL.createObjectURL(new Blob([res.data]));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'תבנית_טורנירים.xlsx';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      alert('שגיאה בהורדת התבנית');
+    }
   };
 
   const handleSubmit = async () => {
@@ -237,11 +239,15 @@ function BulkUploader({ venues, onSuccess }) {
           {/* Instructions */}
           <div className="text-xs text-slate-500 bg-slate-800/40 rounded-xl px-4 py-3 space-y-1 leading-relaxed">
             <p className="font-semibold text-slate-400 mb-1.5">📋 הנחיות מילוי:</p>
-            <p>• <strong>שם טורניר</strong> ו-<strong>עלות</strong> ו-<strong>תאריך + שעת התחלה</strong> הם שדות חובה</p>
+            <p>• <strong>שם טורניר</strong>, <strong>עלות</strong> ו-<strong>תאריך + שעת התחלה</strong> — שדות חובה</p>
             <p>• תאריך בפורמט <span className="font-mono bg-slate-700 px-1 rounded">DD/MM/YYYY</span> · שעה בפורמט <span className="font-mono bg-slate-700 px-1 rounded">HH:MM</span></p>
-            <p>• <strong>חוזר שבועי:</strong> כתוב <span className="font-mono bg-slate-700 px-1 rounded">כן</span> או <span className="font-mono bg-slate-700 px-1 rounded">לא</span></p>
-            <p>• <strong>יום בשבוע:</strong> ראשון / שני / שלישי / רביעי / חמישי / שישי / שבת</p>
-            <p>• מקסימום <strong>10 שורות</strong> לפי קובץ</p>
+            <p>• <strong>חוזר שבועי:</strong> <span className="font-mono bg-slate-700 px-1 rounded">כן</span> / <span className="font-mono bg-slate-700 px-1 rounded">לא</span> · <strong>יום בשבוע:</strong> ראשון / שני / שלישי / רביעי / חמישי / שישי / שבת</p>
+            <p>• <strong>ערימה התחלתית:</strong> מספר צ'יפס (למשל: 20000)</p>
+            <p>• <strong>זמן לשלב:</strong> מספר דקות (למשל: 20)</p>
+            <p>• <strong>כניסה חוזרת:</strong> <span className="font-mono bg-slate-700 px-1 rounded">1X</span> / <span className="font-mono bg-slate-700 px-1 rounded">2X</span> / <span className="font-mono bg-slate-700 px-1 rounded">3X</span> / <span className="font-mono bg-slate-700 px-1 rounded">4X</span> / <span className="font-mono bg-slate-700 px-1 rounded">Unlimited</span></p>
+            <p>• <strong>Late Reg עד שלב:</strong> מספר שלב (למשל: 6) · ריק = ללא</p>
+            <p>• <strong>מבנה בליינדים:</strong> בחר מהרשימה — <span className="font-mono bg-slate-700 px-1 rounded">hyper</span> / <span className="font-mono bg-slate-700 px-1 rounded">turbo</span> / <span className="font-mono bg-slate-700 px-1 rounded">regular</span> או שם תבנית שמורה שלך</p>
+            <p>• מקסימום <strong>15 שורות</strong> בכל קובץ</p>
           </div>
 
           {/* Venue select */}
@@ -296,6 +302,80 @@ function BulkUploader({ venues, onSuccess }) {
   );
 }
 
+// --- Venue Edit Form ---
+function VenueEditForm({ venue, onSuccess, onCancel }) {
+  const [form, setForm] = useState({
+    name:             venue.name             || '',
+    address:          venue.address          || '',
+    city:             venue.city             || '',
+    whatsapp_number:  venue.whatsapp_number  || '',
+    description:      venue.description      || '',
+    logo_url:         venue.logo_url         || '',
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError]     = useState('');
+
+  const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    try {
+      const res = await api.put(`/tournaments/venues/${venue.id}`, form);
+      onSuccess(res.data.message || 'המועדון עודכן בהצלחה');
+    } catch (err) {
+      const d = err.response?.data;
+      setError(d?.message || d?.errors?.[0]?.msg || 'שגיאה בשמירת המועדון');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <LogoUploader value={form.logo_url} onChange={url => set('logo_url', url)} />
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs text-slate-400 mb-1">שם המועדון *</label>
+          <input type="text" value={form.name} onChange={e => set('name', e.target.value)}
+            className="input-field text-sm" required />
+        </div>
+        <div>
+          <label className="block text-xs text-slate-400 mb-1">עיר *</label>
+          <input type="text" value={form.city} onChange={e => set('city', e.target.value)}
+            className="input-field text-sm" required />
+        </div>
+        <div className="sm:col-span-2">
+          <label className="block text-xs text-slate-400 mb-1">כתובת מלאה *</label>
+          <input type="text" value={form.address} onChange={e => set('address', e.target.value)}
+            className="input-field text-sm" required />
+        </div>
+        <div>
+          <label className="block text-xs text-slate-400 mb-1">מספר וואצאפ * (להרשמות)</label>
+          <input type="tel" value={form.whatsapp_number} onChange={e => set('whatsapp_number', e.target.value)}
+            className="input-field text-sm" placeholder="050-0000000" dir="ltr" required />
+        </div>
+        <div className="sm:col-span-2">
+          <label className="block text-xs text-slate-400 mb-1">תארו את המועדון שלכם, במה אתם ייחודיים ומה אתם מציעים</label>
+          <textarea value={form.description} onChange={e => set('description', e.target.value)}
+            className="input-field text-sm resize-none" rows={2} />
+        </div>
+      </div>
+
+      {error && <p className="text-red-400 text-sm bg-red-900/20 rounded-lg p-3">{error}</p>}
+
+      <div className="flex gap-3 pt-1">
+        <button type="submit" disabled={loading} className="btn-primary flex-1 text-sm">
+          {loading ? 'שומר...' : '💾 שמור שינויים'}
+        </button>
+        <button type="button" onClick={onCancel} className="btn-ghost flex-1 text-sm">ביטול</button>
+      </div>
+    </form>
+  );
+}
+
 // --- Main Dashboard ---
 export default function Dashboard() {
   const [tab, setTab] = useState('tournaments');
@@ -304,6 +384,7 @@ export default function Dashboard() {
   const [showForm, setShowForm] = useState(false);
   const [editingTournament, setEditingTournament] = useState(null);
   const [showVenueForm, setShowVenueForm] = useState(false);
+  const [editingVenue, setEditingVenue] = useState(null);
   const [loading, setLoading] = useState(true);
   const [venueForm, setVenueForm] = useState({
     name: '', address: '', city: '', whatsapp_number: '', description: '', logo_url: '',
@@ -430,30 +511,36 @@ export default function Dashboard() {
               <p className="text-slate-400">עדיין אין לך טורנירים</p>
               <button onClick={() => setShowForm(true)} className="btn-primary mt-4">+ הוסף את הראשון</button>
             </div>
-          ) : tournaments.map(t => (
-            <div key={t.id} className="card p-4 flex flex-wrap gap-4 items-start">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="font-bold text-slate-100">{t.name}</h3>
-                  <span className={`badge-status ${STATUS_COLORS[t.status]}`}>{STATUS_LABELS[t.status]}</span>
-                  {t.re_entry && (
-                    <span className="text-[10px] bg-emerald-900/30 text-emerald-400 px-1.5 py-0.5 rounded-full">🔄 {t.re_entry}</span>
+          ) : tournaments.map(t => {
+            const past = isPast(t);
+            return (
+              <div key={t.id} className={`card p-4 flex flex-wrap gap-4 items-start ${past ? 'opacity-60' : ''}`}>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="font-bold text-slate-100">{t.name}</h3>
+                    <span className={`badge-status ${STATUS_COLORS[t.status]}`}>{STATUS_LABELS[t.status]}</span>
+                    {past && (
+                      <span className="text-[10px] bg-slate-700/80 text-slate-400 px-1.5 py-0.5 rounded-full border border-slate-600">🕐 עבר</span>
+                    )}
+                    {t.re_entry && (
+                      <span className="text-[10px] bg-emerald-900/30 text-emerald-400 px-1.5 py-0.5 rounded-full">🔄 {t.re_entry}</span>
+                    )}
+                  </div>
+                  <p className="text-sm text-slate-400 mt-1">{t.venue_name} · {formatDate(t.start_time)} · {formatTime(t.start_time)}</p>
+                  <p className="text-sm text-poker-gold font-semibold">{formatCost(t.cost)}</p>
+                  {t.rejection_reason && (
+                    <p className="text-xs text-red-400 mt-1 bg-red-900/20 rounded px-2 py-1">סיבת דחייה: {t.rejection_reason}</p>
                   )}
                 </div>
-                <p className="text-sm text-slate-400 mt-1">{t.venue_name} · {formatDate(t.start_time)} · {formatTime(t.start_time)}</p>
-                <p className="text-sm text-poker-gold font-semibold">{formatCost(t.cost)}</p>
-                {t.rejection_reason && (
-                  <p className="text-xs text-red-400 mt-1 bg-red-900/20 rounded px-2 py-1">סיבת דחייה: {t.rejection_reason}</p>
-                )}
+                <button
+                  onClick={() => setEditingTournament(t)}
+                  className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-600 text-slate-400 hover:border-poker-green hover:text-poker-green-light text-xs font-semibold transition-all hover:scale-105 active:scale-95"
+                >
+                  ✏️ עריכה
+                </button>
               </div>
-              <button
-                onClick={() => setEditingTournament(t)}
-                className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-600 text-slate-400 hover:border-poker-green hover:text-poker-green-light text-xs font-semibold transition-all hover:scale-105 active:scale-95"
-              >
-                ✏️ עריכה
-              </button>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -498,13 +585,13 @@ export default function Dashboard() {
                       className="input-field text-sm" required />
                   </div>
                   <div>
-                    <label className="block text-xs text-slate-400 mb-1">מספר וואצאפ * (לרישומים)</label>
+                    <label className="block text-xs text-slate-400 mb-1">מספר וואצאפ * (להרשמות)</label>
                     <input type="tel" value={venueForm.whatsapp_number}
                       onChange={e => setVenueForm(p => ({ ...p, whatsapp_number: e.target.value }))}
                       className="input-field text-sm" placeholder="050-0000000" dir="ltr" required />
                   </div>
                   <div className="sm:col-span-2">
-                    <label className="block text-xs text-slate-400 mb-1">תיאור המועדון</label>
+                    <label className="block text-xs text-slate-400 mb-1">תארו את המועדון שלכם, במה אתם ייחודיים ומה אתם מציעים</label>
                     <textarea value={venueForm.description}
                       onChange={e => setVenueForm(p => ({ ...p, description: e.target.value }))}
                       className="input-field text-sm resize-none" rows={2} />
@@ -519,6 +606,26 @@ export default function Dashboard() {
                   <button type="button" onClick={() => setShowVenueForm(false)} className="btn-ghost text-sm">ביטול</button>
                 </div>
               </form>
+            </div>
+          )}
+
+          {/* Venue edit modal */}
+          {editingVenue && (
+            <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+              <div className="card p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-bold text-white">✏️ עריכת מועדון</h3>
+                  <button onClick={() => setEditingVenue(null)}
+                    className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-700 hover:bg-red-500/80 text-slate-300 hover:text-white transition-all text-sm">
+                    ✕
+                  </button>
+                </div>
+                <VenueEditForm
+                  venue={editingVenue}
+                  onSuccess={(msg) => { setVenueSuccess(msg); setEditingVenue(null); fetchData(); }}
+                  onCancel={() => setEditingVenue(null)}
+                />
+              </div>
             </div>
           )}
 
@@ -544,6 +651,12 @@ export default function Dashboard() {
                     <span className={`badge-status ${v.is_approved ? 'text-green-400 bg-green-900/20' : 'text-amber-400 bg-amber-900/20'}`}>
                       {v.is_approved ? '✅ מאושר' : '⏳ ממתין לאישור'}
                     </span>
+                    <button
+                      onClick={() => setEditingVenue(v)}
+                      className="flex items-center gap-1 px-2.5 py-0.5 rounded-lg border border-slate-600 text-slate-400 hover:border-poker-green hover:text-poker-green-light text-xs font-semibold transition-all hover:scale-105 active:scale-95"
+                    >
+                      ✏️ עריכה
+                    </button>
                   </div>
                   <p className="text-sm text-slate-400">📍 {v.address}, {v.city}</p>
                   <p className="text-sm text-slate-400">📱 {v.whatsapp_number}</p>

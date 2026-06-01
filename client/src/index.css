@@ -3,40 +3,23 @@
 @tailwind utilities;
 
 @layer base {
-  * {
-    direction: rtl;
-  }
+  * { direction: rtl; }
 
   body {
     font-family: 'Heebo', sans-serif;
-    @apply bg-slate-950 text-slate-100;
+    background-color: #06091a;
+    color: #f1f5f9;
     transition: background-color 0.3s, color 0.3s;
   }
-
-  .light body {
-    @apply bg-slate-100 text-slate-900;
-  }
 }
 
-/* ===== מצב יום — Light Mode ===== */
-.light .card {
-  @apply bg-white border-slate-200 shadow-md text-slate-900;
-}
-.light .input-field {
-  @apply bg-white border-slate-300 text-slate-900 placeholder-slate-400;
-}
-.light nav {
-  background: rgba(255,255,255,0.92) !important;
-  border-color: rgba(0,0,0,0.08) !important;
-}
-.light nav a,
-.light nav button,
-.light nav span {
-  color: #1e293b;
-}
-.light .btn-ghost {
-  @apply border-slate-300 text-slate-700 hover:border-poker-green hover:text-poker-green;
-}
+/* ===== Light mode ===== */
+.light body { background-color: #f1f5f9; color: #0f172a; }
+.light .card { @apply bg-white border-slate-200 shadow-md text-slate-900; }
+.light .input-field { @apply bg-white border-slate-300 text-slate-900 placeholder-slate-400; }
+.light nav { background: rgba(255,255,255,0.95) !important; border-color: rgba(0,0,0,0.08) !important; }
+.light nav a, .light nav button, .light nav span { color: #1e293b; }
+.light .btn-ghost { @apply border-slate-300 text-slate-700 hover:border-blue-500 hover:text-blue-600; }
 .light .text-slate-100,
 .light .text-slate-200,
 .light .text-slate-300 { color: #1e293b !important; }
@@ -58,7 +41,9 @@
 
 @layer components {
   .card {
-    @apply bg-slate-800 border border-slate-700 rounded-2xl shadow-xl;
+    background: rgba(13,21,38,0.85);
+    border: 1px solid rgba(29,78,216,0.18);
+    @apply rounded-2xl shadow-xl;
   }
 
   .light .card {
@@ -66,8 +51,9 @@
   }
 
   .btn-primary {
-    @apply bg-poker-green hover:bg-poker-green-light text-white font-semibold py-2 px-5 rounded-xl
-           transition-all duration-200 hover:scale-105 active:scale-95 shadow-md;
+    @apply bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-5 rounded-xl
+           transition-all duration-200 hover:scale-105 active:scale-95 shadow-lg;
+    box-shadow: 0 0 20px rgba(29,78,216,0.35);
   }
 
   .btn-gold {
@@ -76,13 +62,15 @@
   }
 
   .btn-ghost {
-    @apply border border-slate-600 hover:border-poker-green text-slate-300 hover:text-poker-green-light
+    @apply border border-slate-600 hover:border-blue-500 text-slate-300 hover:text-blue-400
            font-semibold py-2 px-5 rounded-xl transition-all duration-200;
   }
 
   .input-field {
-    @apply w-full bg-slate-700 border border-slate-600 text-slate-100 rounded-xl px-4 py-3
-           focus:outline-none focus:border-poker-green transition-colors placeholder-slate-400;
+    background: rgba(13,21,38,0.8);
+    border: 1px solid rgba(29,78,216,0.25);
+    @apply w-full text-slate-100 rounded-xl px-4 py-3
+           focus:outline-none focus:border-blue-500 transition-colors placeholder-slate-500;
   }
 
   .light .input-field {
@@ -98,18 +86,77 @@
   }
 }
 
-/* Scrollbar */
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { @apply bg-slate-900; }
-::-webkit-scrollbar-thumb { @apply bg-slate-600 rounded-full; }
-::-webkit-scrollbar-thumb:hover { @apply bg-poker-green; }
-
-/* WhatsApp button pulse */
-@keyframes wa-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.4); }
-  50% { box-shadow: 0 0 0 8px rgba(37, 211, 102, 0); }
+/* Select dropdown options — readable on dark background */
+select option {
+  background-color: #0d1526;
+  color: #e2e8f0;
+}
+select option:checked,
+select option:hover {
+  background-color: #1d4ed8;
+  color: #ffffff;
 }
 
-.wa-btn {
-  animation: wa-pulse 2s infinite;
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #06091a; }
+::-webkit-scrollbar-thumb { background: #1d4ed8; border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: #60a5fa; }
+
+/* WhatsApp button */
+@keyframes wa-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.4); }
+  50%       { box-shadow: 0 0 0 8px rgba(37, 211, 102, 0); }
+}
+.wa-btn { animation: wa-pulse 2s infinite; }
+
+/* Blue glow effects */
+.glow-blue { box-shadow: 0 0 30px rgba(29,78,216,0.4), 0 0 60px rgba(29,78,216,0.15); }
+.glow-blue-sm { box-shadow: 0 0 12px rgba(29,78,216,0.5); }
+
+/* Badge color cycle animation */
+@keyframes badge-cycle {
+  0%   { background: rgba(29,78,216,0.45);  border-color: rgba(96,165,250,0.7);  box-shadow: 0 0 18px rgba(29,78,216,0.5);  color: #fff; }
+  20%  { background: rgba(124,58,237,0.45); border-color: rgba(167,139,250,0.7); box-shadow: 0 0 18px rgba(124,58,237,0.5); color: #f0f; }
+  40%  { background: rgba(6,182,212,0.35);  border-color: rgba(34,211,238,0.7);  box-shadow: 0 0 18px rgba(6,182,212,0.5);  color: #22d3ee; }
+  60%  { background: rgba(234,179,8,0.35);  border-color: rgba(250,204,21,0.7);  box-shadow: 0 0 18px rgba(234,179,8,0.5);  color: #fde047; }
+  80%  { background: rgba(16,185,129,0.35); border-color: rgba(52,211,153,0.7);  box-shadow: 0 0 18px rgba(16,185,129,0.5); color: #6ee7b7; }
+  100% { background: rgba(29,78,216,0.45);  border-color: rgba(96,165,250,0.7);  box-shadow: 0 0 18px rgba(29,78,216,0.5);  color: #fff; }
+}
+.badge-cycle {
+  animation: badge-cycle 3s ease-in-out infinite;
+}
+
+/* Hero background */
+.hero-bg {
+  background: linear-gradient(135deg, #06091a 0%, #0d1a3a 40%, #06091a 100%);
+  position: relative;
+}
+.hero-bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 60% 50% at 30% 50%, rgba(29,78,216,0.12) 0%, transparent 70%),
+              radial-gradient(ellipse 40% 60% at 80% 50%, rgba(34,211,238,0.06) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+/* Stat card glow on hover */
+.stat-card {
+  background: rgba(29,78,216,0.08);
+  border: 1px solid rgba(29,78,216,0.2);
+  @apply rounded-2xl px-6 py-4 transition-all duration-300;
+}
+.stat-card:hover {
+  background: rgba(29,78,216,0.15);
+  border-color: rgba(29,78,216,0.4);
+}
+
+/* Table row hover */
+.tournament-row {
+  border-bottom: 1px solid rgba(29,78,216,0.1);
+  transition: background 0.15s;
+}
+.tournament-row:hover {
+  background: rgba(29,78,216,0.07);
 }

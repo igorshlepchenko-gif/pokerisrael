@@ -17,5 +17,6 @@ router.get('/tournaments', ctrl.getAllTournaments);
 router.get('/users', ctrl.getAllUsers);
 router.patch('/users/:id/toggle', ctrl.toggleUser);
 router.patch('/users/:id/unlock', ctrl.unlockUser);
+router.get('/change-logs', ctrl.getChangeLogs);
 
 module.exports = router;

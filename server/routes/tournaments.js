@@ -22,6 +22,7 @@ router.get('/', ctrl.getAll);
 router.get('/public-venues', ctrl.getPublicVenues);
 
 router.get('/my', authenticate, requireRole('venue_owner', 'admin'), ctrl.getMyTournaments);
+router.get('/template', authenticate, requireRole('venue_owner', 'admin'), ctrl.downloadTemplate);
 
 router.post('/', authenticate, requireRole('venue_owner', 'admin'), [
   body('venue_id').isInt().withMessage('מקום לא תקין'),
@@ -41,11 +42,22 @@ router.put('/:id', authenticate, requireRole('venue_owner', 'admin'), [
   body('start_time').isISO8601().withMessage('שעת התחלה לא תקינה'),
 ], ctrl.updateTournament);
 
+const waValidation = body('whatsapp_number')
+  .trim().notEmpty().withMessage('מספר וואצאפ הוא שדה חובה')
+  .matches(/^[\d\s\-+()]{7,20}$/).withMessage('מספר וואצאפ לא תקין');
+
+router.put('/venues/:id', authenticate, requireRole('venue_owner', 'admin'), [
+  body('name').trim().notEmpty().withMessage('שם המועדון הוא שדה חובה'),
+  body('address').trim().notEmpty().withMessage('כתובת היא שדה חובה'),
+  body('city').trim().notEmpty().withMessage('עיר היא שדה חובה'),
+  waValidation,
+], ctrl.updateVenue);
+
 router.post('/venues', authenticate, requireRole('venue_owner', 'admin'), [
   body('name').trim().notEmpty().withMessage('שם המקום הוא שדה חובה'),
   body('address').trim().notEmpty().withMessage('כתובת היא שדה חובה'),
   body('city').trim().notEmpty().withMessage('עיר היא שדה חובה'),
-  body('whatsapp_number').trim().notEmpty().withMessage('מספר וואצאפ הוא שדה חובה'),
+  waValidation,
 ], ctrl.createVenue);
 
 module.exports = router;

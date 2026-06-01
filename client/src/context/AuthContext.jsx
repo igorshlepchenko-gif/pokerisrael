@@ -8,15 +8,11 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('pli_token');
-    if (token) {
-      api.get('/auth/me')
-        .then(res => setUser(res.data.user))
-        .catch(() => localStorage.removeItem('pli_token'))
-        .finally(() => setLoading(false));
-    } else {
-      setLoading(false);
-    }
+    // קוראים תמיד — מתחשב גם ב-httpOnly cookie (כניסה עם Google)
+    api.get('/auth/me')
+      .then(res => setUser(res.data.user))
+      .catch(() => localStorage.removeItem('pli_token'))
+      .finally(() => setLoading(false));
   }, []);
 
   const login = async (email, password) => {
@@ -28,12 +24,16 @@ export function AuthProvider({ children }) {
 
   const register = async (data) => {
     const res = await api.post('/auth/register', data);
-    localStorage.setItem('pli_token', res.data.token);
-    setUser(res.data.user);
-    return res.data.user;
+    // כשאימות מייל מופעל — השרת מחזיר { message } בלבד, ללא טוקן
+    if (res.data.token) {
+      localStorage.setItem('pli_token', res.data.token);
+      setUser(res.data.user);
+    }
+    return res.data; // מחזיר { token, user } או { message }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try { await api.post('/auth/logout'); } catch { /* עדיין מנקה בצד לקוח */ }
     localStorage.removeItem('pli_token');
     setUser(null);
   };

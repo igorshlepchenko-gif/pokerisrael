@@ -9,23 +9,29 @@ import { DAYS_HE } from '../utils/whatsapp';
 export default function Home() {
   const [tournaments, setTournaments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [tournamentType, setTournamentType] = useState('all');
   const [search, setSearch] = useState('');
   const [city, setCity] = useState('');
   const [day, setDay] = useState('');
+  const [gtdMin, setGtdMin] = useState('');
   const [cities, setCities] = useState([]);
-  const [viewMode, setViewMode] = useState(() => localStorage.getItem('pli_view') || 'grid');
+  const [viewMode, setViewMode] = useState(() => localStorage.getItem('pli_view') || 'list');
   const [sort, setSort] = useState('start_time');
   const [selectedTournament, setSelectedTournament] = useState(null);
   const [allVenues, setAllVenues] = useState([]);
   const [selectedVenues, setSelectedVenues] = useState([]);
+  const [stats, setStats] = useState({ tournaments: null, venues: null, users: null });
 
   useEffect(() => {
     api.get('/tournaments/public-venues')
       .then(res => setAllVenues(res.data))
       .catch(() => {});
+    api.get('/stats')
+      .then(res => setStats(res.data))
+      .catch(() => {});
   }, []);
 
-  useEffect(() => { fetchTournaments(); }, [city, day, sort, selectedVenues]);
+  useEffect(() => { fetchTournaments(); }, [tournamentType, city, day, sort, selectedVenues, gtdMin]);
 
   const fetchTournaments = async () => {
     setLoading(true);
@@ -35,6 +41,8 @@ export default function Home() {
       if (day !== '') params.day = day;
       if (search) params.search = search;
       if (selectedVenues.length > 0) params.venue_ids = selectedVenues.join(',');
+      if (gtdMin) params.gtd_min = gtdMin;
+      if (tournamentType !== 'all') params.tournament_type = tournamentType;
       const res = await api.get('/tournaments', { params });
       setTournaments(res.data);
       const uniqueCities = [...new Set(res.data.map(t => t.venue_city))].filter(Boolean);
@@ -63,25 +71,87 @@ export default function Home() {
         />
       )}
       {/* Hero */}
-      <div className="relative overflow-hidden bg-gradient-to-b from-poker-felt-dark via-slate-900 to-transparent py-16 px-4 text-center">
-        <div className="absolute inset-0 opacity-5 select-none pointer-events-none text-[200px] flex items-center justify-center gap-8 text-slate-300">
-          ♠ ♥ ♦ ♣
+      <div className="hero-bg relative overflow-hidden py-20 px-4">
+        {/* Animated background dots */}
+        <div className="absolute inset-0 pointer-events-none select-none overflow-hidden">
+          <div className="absolute top-1/4 right-1/4 w-96 h-96 rounded-full opacity-[0.06]"
+            style={{ background: 'radial-gradient(circle, #1d4ed8, transparent)' }} />
+          <div className="absolute bottom-0 left-1/3 w-64 h-64 rounded-full opacity-[0.05]"
+            style={{ background: 'radial-gradient(circle, #22d3ee, transparent)' }} />
+          {/* Subtle grid */}
+          <div className="absolute inset-0 opacity-[0.03]"
+            style={{ backgroundImage: 'linear-gradient(rgba(96,165,250,1) 1px, transparent 1px), linear-gradient(90deg, rgba(96,165,250,1) 1px, transparent 1px)', backgroundSize: '60px 60px' }} />
         </div>
-        <div className="relative">
-          <div className="flex justify-center gap-3 text-4xl mb-4 animate-fade-in">
-            <span>♠</span><span className="text-red-400">♥</span>
-            <span className="text-red-400">♦</span><span>♣</span>
+
+        <div className="relative max-w-4xl mx-auto text-center">
+          {/* Tag line */}
+          <div className="badge-cycle inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-black mb-6 tracking-wide"
+            style={{ border: '1.5px solid' }}>
+            ♠ כל הטורנירים בישראל
           </div>
-          <h1 className="text-4xl sm:text-5xl font-black text-white mb-2">
-            פוקר לייב <span className="text-poker-green-light">ישראל</span>
+
+          {/* Main heading */}
+          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black text-white leading-tight mb-6 animate-slide-up">
+            מצא את הטורניר
+            <br />
+            <span style={{ background: 'linear-gradient(135deg, #60a5fa, #22d3ee)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+              הבא שלך
+            </span>
           </h1>
-          <p className="text-slate-400 text-lg mb-1">כל טורנירי הפוקר בישראל — במקום אחד</p>
-          <p className="text-xs text-slate-500">טורנירים במרכזי משחקי קלפים מורשים בלבד</p>
+
+          <p className="text-slate-400 text-lg mb-10">
+            כל טורנירי הפוקר בישראל — במקום אחד
+          </p>
+
+          {/* Stats */}
+          <div className="flex justify-center gap-4 sm:gap-8 mb-10 flex-wrap">
+            {[
+              { icon: '🏆', value: stats.tournaments, label: 'טורנירים במערכת' },
+              { icon: '📍', value: stats.venues,      label: 'מועדונים פעילים' },
+              { icon: '👥', value: stats.users,       label: 'משתמשים' },
+            ].map(s => (
+              <div key={s.label} className="stat-card text-center min-w-[110px]">
+                <div className="text-2xl mb-1">{s.icon}</div>
+                <div className="text-2xl font-black text-white">
+                  {s.value === null ? '...' : s.value.toLocaleString('he-IL')}
+                </div>
+                <div className="text-xs text-slate-400 mt-0.5">{s.label}</div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* Top ad banner — replace with actual ad code when ready */}
-      {/* <div className="max-w-7xl mx-auto px-4 mb-6">...</div> */}
+      {/* ── Type selector ── */}
+      <div className="max-w-7xl mx-auto px-4 mb-6">
+        <div className="flex gap-3 justify-center flex-wrap">
+          {[
+            { key: 'all',    icon: '🌐', label: 'הכל',             desc: 'כל סוגי האירועים' },
+            { key: 'live',   icon: '🏠', label: 'טורניר לייב',    desc: 'מפגשים פיזיים במועדונים' },
+            { key: 'online', icon: '💻', label: 'טורניר אונליין',  desc: 'משחקים ברשת' },
+            { key: 'cash',   icon: '🃏', label: 'קאש גיים',        desc: 'משחקי קאש פרטיים' },
+          ].map(({ key, icon, label, desc }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => { setTournamentType(key); setSearch(''); setCity(''); setDay(''); setGtdMin(''); setSelectedVenues([]); }}
+              className={`flex items-center gap-3 px-6 py-3 rounded-2xl border-2 font-bold text-sm transition-all duration-200 hover:scale-105 ${
+                tournamentType === key
+                  ? 'border-blue-500 bg-blue-600/20 text-white shadow-lg'
+                  : 'border-slate-700 bg-slate-800/40 text-slate-400 hover:border-slate-500 hover:text-slate-200'
+              }`}
+              style={tournamentType === key ? { boxShadow: '0 0 20px rgba(29,78,216,0.35)' } : {}}
+            >
+              <span className="text-2xl">{icon}</span>
+              <div className="text-right">
+                <div>{label}</div>
+                <div className="text-xs font-normal opacity-60">{desc}</div>
+              </div>
+              {tournamentType === key && <span className="text-blue-400 text-base mr-1">✓</span>}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* Filters */}
       <div className="max-w-7xl mx-auto px-4 mb-8">
@@ -110,10 +180,15 @@ export default function Home() {
             selected={selectedVenues}
             onChange={setSelectedVenues}
           />
+          <div className="min-w-[130px]">
+            <label className="block text-xs text-slate-400 mb-1">💰 GTD מינימום (₪)</label>
+            <input type="number" value={gtdMin} onChange={e => setGtdMin(e.target.value)}
+              className="input-field text-sm" placeholder="ללא הגבלה" min="0" />
+          </div>
           <button type="submit" className="btn-primary text-sm py-2 px-5 min-w-[90px]">🔍 חיפוש</button>
-          {(search || city || day !== '' || selectedVenues.length > 0) && (
+          {(search || city || day !== '' || selectedVenues.length > 0 || gtdMin) && (
             <button type="button" className="btn-ghost text-sm py-2 px-5 min-w-[90px]"
-              onClick={() => { setSearch(''); setCity(''); setDay(''); setSelectedVenues([]); fetchTournaments(); }}>
+              onClick={() => { setSearch(''); setCity(''); setDay(''); setSelectedVenues([]); setGtdMin(''); fetchTournaments(); }}>
               נקה
             </button>
           )}
@@ -148,13 +223,14 @@ export default function Home() {
                   <select
                     value={sort}
                     onChange={e => setSort(e.target.value)}
-                    className="bg-transparent text-sm text-slate-200 outline-none cursor-pointer"
+                    className="text-sm text-slate-200 outline-none cursor-pointer"
+                    style={{ background: '#0d1526' }}
                   >
-                    <option value="start_time">קרוב בזמן</option>
-                    <option value="day">לפי יום בשבוע</option>
-                    <option value="cost_asc">עלות: נמוך לגבוה</option>
-                    <option value="cost_desc">עלות: גבוה לנמוך</option>
-                    <option value="venue_name">שם מועדון א-ת</option>
+                    <option value="start_time"  style={{ background: '#0d1526', color: '#e2e8f0' }}>קרוב בזמן</option>
+                    <option value="day"          style={{ background: '#0d1526', color: '#e2e8f0' }}>לפי יום בשבוע</option>
+                    <option value="cost_asc"     style={{ background: '#0d1526', color: '#e2e8f0' }}>עלות: נמוך לגבוה</option>
+                    <option value="cost_desc"    style={{ background: '#0d1526', color: '#e2e8f0' }}>עלות: גבוה לנמוך</option>
+                    <option value="venue_name"   style={{ background: '#0d1526', color: '#e2e8f0' }}>שם מועדון א-ת</option>
                   </select>
                 </div>
 

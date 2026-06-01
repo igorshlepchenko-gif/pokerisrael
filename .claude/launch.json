@@ -1,11 +1,10 @@
-{
+﻿{
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "poker-client",
+      "name": "client",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
-      "cwd": "client",
       "port": 5173
     }
   ]

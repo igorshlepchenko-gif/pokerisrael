@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 310 72" fill="none">
+  <defs>
+    <radialGradient id="cg" cx="38%" cy="28%" r="70%">
+      <stop offset="0%" stop-color="#2563eb"/>
+      <stop offset="100%" stop-color="#1a3a8f"/>
+    </radialGradient>
+    <filter id="gl" x="-25%" y="-25%" width="150%" height="150%">
+      <feGaussianBlur stdDeviation="2" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <clipPath id="chip-clip">
+      <circle cx="36" cy="36" r="25"/>
+    </clipPath>
+  </defs>
+
+  <!-- ══ CHIP ══ -->
+  <g filter="url(#gl)">
+    <!-- Outer blue disc -->
+    <circle cx="36" cy="36" r="34" fill="url(#cg)"/>
+
+    <!-- 8 white edge segments -->
+    <g transform="translate(36,36)" fill="white" opacity="0.97">
+      <rect x="-8.5" y="-34" width="17" height="9" rx="2.5"/>
+      <g transform="rotate(45)"><rect x="-8.5" y="-34" width="17" height="9" rx="2.5"/></g>
+      <g transform="rotate(90)"><rect x="-8.5" y="-34" width="17" height="9" rx="2.5"/></g>
+      <g transform="rotate(135)"><rect x="-8.5" y="-34" width="17" height="9" rx="2.5"/></g>
+      <g transform="rotate(180)"><rect x="-8.5" y="-34" width="17" height="9" rx="2.5"/></g>
+      <g transform="rotate(225)"><rect x="-8.5" y="-34" width="17" height="9" rx="2.5"/></g>
+      <g transform="rotate(270)"><rect x="-8.5" y="-34" width="17" height="9" rx="2.5"/></g>
+      <g transform="rotate(315)"><rect x="-8.5" y="-34" width="17" height="9" rx="2.5"/></g>
+    </g>
+
+    <!-- Inner ring -->
+    <circle cx="36" cy="36" r="23" fill="none" stroke="white" stroke-width="1.2" opacity="0.5"/>
+
+    <!-- ── Israel silhouette (white) — accurate shape ── -->
+    <!-- Centered at (36,36). Total height ~32px, width ~16px -->
+    <path transform="translate(36,36)" fill="white" opacity="0.97"
+      d="
+        M -2,-16
+        C  0,-16  3,-15  5,-13
+        C  7,-11  7, -8  8, -6
+        C  9, -4  7, -2  6,  0
+        C  5,  2  5,  3  4,  5
+        C  3,  7  2,  9  1, 13
+        C  0, 14  0, 16  0, 16
+        C  0, 16 -1, 14 -1, 13
+        C -2,  9 -3,  7 -4,  5
+        C -5,  3 -6,  1 -6, -1
+        C -6, -3 -5, -5 -6, -7
+        C -7, -9 -6,-12 -4,-14
+        C -3,-15 -2,-16 -2,-16
+        Z
+      "
+    />
+
+    <!-- Star of David on map -->
+    <g transform="translate(36,39)" stroke="#1a3a8f" stroke-width="1.1" fill="none" opacity="0.88">
+      <polygon points="0,-5  4.3,2.5 -4.3,2.5"/>
+      <polygon points="0, 5  4.3,-2.5 -4.3,-2.5"/>
+    </g>
+  </g>
+
+  <!-- ══ WORDMARK — single line ══ -->
+  <text y="42"
+    font-family="'Arial Black','Heebo',Impact,sans-serif"
+    font-weight="900"
+    font-size="26"
+    letter-spacing="-0.5">
+    <tspan x="84" fill="white">Poker</tspan><tspan fill="#60a5fa">Israel</tspan><tspan fill="#22d3ee" font-size="15" font-weight="400" dy="1" letter-spacing="0">.org</tspan>
+  </text>
+
+  <!-- Subtle underline accent -->
+  <rect x="84" y="55" width="210" height="1.2" rx="0.6" fill="url(#cg)" opacity="0.5"/>
+</svg>

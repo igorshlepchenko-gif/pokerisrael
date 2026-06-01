@@ -2,18 +2,140 @@ import { useState, useEffect } from 'react';
 import api from '../utils/api';
 import { formatDate, formatTime, formatCost } from '../utils/whatsapp';
 
+// ---- helpers for change log diff ----
+const VENUE_LABELS = {
+  name: 'שם מועדון', address: 'כתובת', city: 'עיר',
+  whatsapp_number: 'וואטסאפ', description: 'תיאור', logo_url: 'לוגו',
+};
+const TOURNAMENT_LABELS = {
+  name: 'שם טורניר', cost: 'עלות', start_time: 'שעת התחלה',
+  estimated_end_time: 'שעת סיום', description: 'תיאור',
+  is_recurring: 'חוזר שבועי', day_of_week: 'יום בשבוע',
+  re_entry: 'כניסה חוזרת', late_reg_level: 'Late Reg שלב',
+  starting_stack: 'Stack פתיחה', level_duration: 'משך שלב (דק\')',
+};
+const TRACKED_VENUE_FIELDS = Object.keys(VENUE_LABELS);
+const TRACKED_TOURNAMENT_FIELDS = Object.keys(TOURNAMENT_LABELS);
+
+function computeDiff(entityType, oldData, newData) {
+  if (!oldData || !newData) return [];
+  const fields = entityType === 'venue' ? TRACKED_VENUE_FIELDS : TRACKED_TOURNAMENT_FIELDS;
+  const labels = entityType === 'venue' ? VENUE_LABELS : TOURNAMENT_LABELS;
+  const diffs = [];
+  for (const field of fields) {
+    const oldVal = oldData[field] ?? null;
+    const newVal = newData[field] ?? null;
+    const oldStr = oldVal === null ? '—' : String(oldVal);
+    const newStr = newVal === null ? '—' : String(newVal);
+    if (oldStr !== newStr) {
+      diffs.push({ label: labels[field] || field, oldStr, newStr });
+    }
+  }
+  return diffs;
+}
+
+function ChangeLogRow({ log }) {
+  const [open, setOpen] = useState(false);
+  const diffs = computeDiff(log.entity_type, log.old_data, log.new_data);
+  const typeLabel = log.entity_type === 'venue' ? '🏠 מועדון' : log.entity_type === 'user' ? '👤 משתמש' : '🃏 טורניר';
+  const actionLabel = log.action === 'update' ? 'עדכון' : 'יצירה';
+  const dateStr = new Date(log.created_at).toLocaleString('he-IL', {
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  });
+
+  return (
+    <div className="card p-0 overflow-hidden">
+      {/* row header */}
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between gap-3 px-5 py-4 text-right hover:bg-slate-700/30 transition-colors"
+      >
+        <div className="flex items-center gap-3 flex-wrap min-w-0">
+          <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-slate-700 text-slate-300 shrink-0">{typeLabel}</span>
+          <span className="font-semibold text-slate-100 truncate">{log.entity_name}</span>
+          <span className="text-xs text-slate-500">#{log.entity_id}</span>
+          <span className="text-xs bg-blue-900/30 text-blue-400 px-2 py-0.5 rounded-full shrink-0">{actionLabel}</span>
+          {diffs.length > 0 && (
+            <span className="text-xs bg-amber-900/30 text-amber-400 px-2 py-0.5 rounded-full shrink-0">
+              {diffs.length} שינויים
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-3 shrink-0">
+          <div className="text-left">
+            <p className="text-xs text-slate-400">{log.changed_by_name}</p>
+            <p className="text-xs text-slate-500">{dateStr}</p>
+          </div>
+          <span className="text-slate-500 text-sm">{open ? '▲' : '▼'}</span>
+        </div>
+      </button>
+
+      {/* diff details */}
+      {open && (
+        <div className="border-t border-slate-700/60 px-5 py-4 bg-slate-800/40">
+          {diffs.length === 0 ? (
+            <p className="text-sm text-slate-500">לא נמצאו שינויים בשדות מעקב</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm border-collapse">
+                <thead>
+                  <tr className="text-right">
+                    <th className="pb-2 pr-2 text-slate-400 font-semibold w-36">שדה</th>
+                    <th className="pb-2 px-3 text-red-400 font-semibold">לפני</th>
+                    <th className="pb-2 px-3 text-green-400 font-semibold">אחרי</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {diffs.map(({ label, oldStr, newStr }) => (
+                    <tr key={label} className="border-t border-slate-700/40">
+                      <td className="py-1.5 pr-2 text-slate-400 font-medium">{label}</td>
+                      <td className="py-1.5 px-3 text-red-300 bg-red-900/10 rounded-r-none max-w-xs break-words">
+                        {oldStr.length > 80 ? oldStr.slice(0, 80) + '…' : oldStr}
+                      </td>
+                      <td className="py-1.5 px-3 text-green-300 bg-green-900/10 max-w-xs break-words">
+                        {newStr.length > 80 ? newStr.slice(0, 80) + '…' : newStr}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const isPast = (t) =>
+  !t.is_recurring && new Date(t.estimated_end_time || t.start_time) < new Date();
+
 export default function AdminPanel() {
   const [tab, setTab] = useState('pending');
   const [pending, setPending] = useState({ venues: [], tournaments: [] });
   const [users, setUsers] = useState([]);
   const [allTournaments, setAllTournaments] = useState([]);
   const [allVenues, setAllVenues] = useState([]);
+  const [changeLogs, setChangeLogs] = useState([]);
+  const [changeLogsTotal, setChangeLogsTotal] = useState(0);
+  const [clEntityType, setClEntityType] = useState('');
+  const [clAction, setClAction] = useState('');
+  const [clDateFrom, setClDateFrom] = useState('');
+  const [clDateTo, setClDateTo] = useState('');
+  const [clSearch, setClSearch] = useState('');
+  const [clSearchInput, setClSearchInput] = useState('');
+  const [registrations, setRegistrations] = useState([]);
+  const [regSearch, setRegSearch] = useState('');
+  const [regTotal, setRegTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [rejectModal, setRejectModal] = useState(null);
   const [rejectReason, setRejectReason] = useState('');
   const [boostLabel, setBoostLabel] = useState({});
+  const [deleteVenueModal, setDeleteVenueModal] = useState(null); // venue object
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
-  useEffect(() => { fetchData(); }, [tab]);
+  useEffect(() => { fetchData(); }, [tab, clEntityType, clAction, clDateFrom, clDateTo, clSearch, regSearch]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -27,6 +149,25 @@ export default function AdminPanel() {
       } else if (tab === 'tournaments') {
         const res = await api.get('/admin/tournaments');
         setAllTournaments(res.data);
+      } else if (tab === 'changelog') {
+        const res = await api.get('/admin/change-logs', {
+          params: {
+            entity_type: clEntityType || undefined,
+            action:      clAction     || undefined,
+            date_from:   clDateFrom   || undefined,
+            date_to:     clDateTo     || undefined,
+            search:      clSearch     || undefined,
+            limit: 200,
+          },
+        });
+        setChangeLogs(res.data.logs);
+        setChangeLogsTotal(res.data.total);
+      } else if (tab === 'registrations') {
+        const res = await api.get('/registrations', {
+          params: { search: regSearch || undefined, limit: 200 },
+        });
+        setRegistrations(res.data.registrations);
+        setRegTotal(res.data.total);
       } else {
         const res = await api.get('/admin/users');
         setUsers(res.data);
@@ -75,6 +216,20 @@ export default function AdminPanel() {
     fetchData();
   };
 
+  const handleDeleteVenue = async () => {
+    if (!deleteVenueModal) return;
+    setDeleteLoading(true);
+    try {
+      await api.delete(`/admin/venues/${deleteVenueModal.id}`);
+      setDeleteVenueModal(null);
+      fetchData();
+    } catch {
+      alert('שגיאה במחיקת המועדון');
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
   const totalPending = pending.venues.length + pending.tournaments.length;
   const lockedCount = users.filter(u => u.is_locked).length;
 
@@ -96,6 +251,8 @@ export default function AdminPanel() {
           ['venues', '📍 מועדונים'],
           ['tournaments', '🚀 קידומים'],
           ['users', `👥 משתמשים${lockedCount > 0 ? ` 🔒${lockedCount}` : ''}`],
+          ['changelog', '📋 יומן שינויים'],
+          ['registrations', `📝 הרשמות${regTotal > 0 ? ` (${regTotal})` : ''}`],
         ].map(([id, label]) => (
           <button key={id} onClick={() => setTab(id)}
             className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${tab === id ? 'bg-poker-green text-white' : 'text-slate-400 hover:text-slate-200'}`}>
@@ -215,15 +372,17 @@ export default function AdminPanel() {
                     </div>
 
                     {/* כפתורים */}
-                    {!v.is_approved && (
-                      <div className="flex flex-col gap-2 shrink-0 self-center">
+                    <div className="flex flex-col gap-2 shrink-0 self-center">
+                      {!v.is_approved && (
                         <button onClick={() => approveVenue(v.id)} className="btn-primary">✅ אשר מועדון</button>
-                        <button onClick={() => rejectVenue(v.id)}
-                          className="bg-red-900/30 hover:bg-red-900/60 text-red-400 font-semibold py-2 px-4 rounded-xl transition-all text-center">
-                          ❌ דחה
-                        </button>
-                      </div>
-                    )}
+                      )}
+                      <button
+                        onClick={() => setDeleteVenueModal(v)}
+                        className="bg-red-900/30 hover:bg-red-900/60 text-red-400 font-semibold py-2 px-4 rounded-xl transition-all text-center text-sm"
+                      >
+                        🗑️ מחק מועדון
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -237,8 +396,10 @@ export default function AdminPanel() {
               {allTournaments.length === 0 && (
                 <div className="card p-12 text-center text-slate-500">אין טורנירים מאושרים</div>
               )}
-              {allTournaments.map(t => (
-                <div key={t.id} className={`card p-4 flex items-center justify-between flex-wrap gap-3 ${t.is_boosted ? 'border-amber-500/40 bg-amber-500/5' : ''}`}>
+              {allTournaments.map(t => {
+                const past = isPast(t);
+                return (
+                <div key={t.id} className={`card p-4 flex items-center justify-between flex-wrap gap-3 ${t.is_boosted ? 'border-amber-500/40 bg-amber-500/5' : ''} ${past ? 'opacity-60' : ''}`}>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-bold text-slate-100">{t.name}</span>
@@ -246,6 +407,9 @@ export default function AdminPanel() {
                         <span className="bg-amber-500/20 text-amber-400 text-xs font-black px-2 py-0.5 rounded-full">
                           🚀 {t.boost_label || 'מקודם'}
                         </span>
+                      )}
+                      {past && (
+                        <span className="text-[10px] bg-slate-700/80 text-slate-400 px-1.5 py-0.5 rounded-full border border-slate-600">🕐 עבר</span>
                       )}
                     </div>
                     <p className="text-sm text-slate-400">{t.venue_name} · {formatDate(t.start_time)} {formatTime(t.start_time)} · {formatCost(t.cost)}</p>
@@ -272,7 +436,185 @@ export default function AdminPanel() {
                     </button>
                   </div>
                 </div>
-              ))}
+              );})}
+            </div>
+          )}
+
+          {/* Registration log */}
+          {tab === 'registrations' && (
+            <div>
+              {/* כותרת + חיפוש + ייצוא */}
+              <div className="flex items-center gap-3 mb-5 flex-wrap">
+                <input
+                  type="text"
+                  value={regSearch}
+                  onChange={e => setRegSearch(e.target.value)}
+                  placeholder="חיפוש לפי שם, טורניר או מועדון..."
+                  className="input-field flex-1 min-w-48 py-2 text-sm"
+                />
+                <a
+                  href={`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/registrations/export`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={async (e) => {
+                    e.preventDefault();
+                    const token = localStorage.getItem('pli_token');
+                    const res = await fetch('/api/registrations/export', {
+                      headers: { Authorization: `Bearer ${token}` },
+                    });
+                    const blob = await res.blob();
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `registrations_${new Date().toISOString().slice(0,10)}.xlsx`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  }}
+                  className="flex items-center gap-2 bg-green-900/30 hover:bg-green-900/60 text-green-400 font-semibold py-2 px-4 rounded-xl transition-all text-sm shrink-0 border border-green-700/30"
+                >
+                  📊 ייצוא לאקסל
+                </a>
+                <span className="text-xs text-slate-500 shrink-0">{regTotal} הרשמות סה"כ</span>
+              </div>
+
+              {registrations.length === 0 ? (
+                <div className="card p-16 text-center">
+                  <div className="text-5xl mb-3">📝</div>
+                  <p className="text-slate-400 font-semibold">אין הרשמות עדיין</p>
+                  <p className="text-slate-600 text-sm mt-1">הרשמות דרך WhatsApp יירשמו כאן אוטומטית</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto rounded-xl border border-slate-700">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-slate-900 text-right">
+                        <th className="py-3 px-4 text-slate-400 font-semibold">תאריך הרשמה</th>
+                        <th className="py-3 px-4 text-slate-400 font-semibold">שם הנרשם</th>
+                        <th className="py-3 px-4 text-slate-400 font-semibold">טלפון</th>
+                        <th className="py-3 px-4 text-slate-400 font-semibold">שם טורניר</th>
+                        <th className="py-3 px-4 text-slate-400 font-semibold">מועדון</th>
+                        <th className="py-3 px-4 text-slate-400 font-semibold">תאריך טורניר</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {registrations.map((r, i) => (
+                        <tr key={r.id}
+                          className={`border-t border-slate-700/50 hover:bg-slate-700/20 transition-colors ${i % 2 === 0 ? '' : 'bg-slate-800/30'}`}>
+                          <td className="py-3 px-4 text-slate-400 text-xs whitespace-nowrap">
+                            {new Date(r.created_at).toLocaleString('he-IL', {
+                              day: '2-digit', month: '2-digit', year: '2-digit',
+                              hour: '2-digit', minute: '2-digit',
+                            })}
+                          </td>
+                          <td className="py-3 px-4 font-semibold text-slate-100">{r.registrant_name}</td>
+                          <td className="py-3 px-4 text-slate-400 dir-ltr text-left">{r.registrant_phone || '—'}</td>
+                          <td className="py-3 px-4 text-slate-300">{r.tournament_name}</td>
+                          <td className="py-3 px-4 text-poker-green-light">{r.venue_name}</td>
+                          <td className="py-3 px-4 text-slate-400 text-xs whitespace-nowrap">
+                            {r.tournament_date
+                              ? new Date(r.tournament_date).toLocaleString('he-IL', {
+                                  day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
+                                })
+                              : '—'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Change log */}
+          {tab === 'changelog' && (
+            <div>
+              {/* Search */}
+              <div className="flex gap-2 mb-4">
+                <input
+                  type="text"
+                  value={clSearchInput}
+                  onChange={e => setClSearchInput(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && setClSearch(clSearchInput)}
+                  placeholder="חיפוש חופשי: שם, מייל, כתובת..."
+                  className="input-field flex-1 text-sm py-2"
+                />
+                <button
+                  onClick={() => setClSearch(clSearchInput)}
+                  className="btn-primary px-5 text-sm"
+                >
+                  🔍 חפש
+                </button>
+                {clSearch && (
+                  <button
+                    onClick={() => { setClSearch(''); setClSearchInput(''); }}
+                    className="btn-ghost text-sm px-3"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+
+              {/* Filters */}
+              <div className="card p-4 mb-5 space-y-3">
+                {/* Entity type */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs text-slate-500 w-16 shrink-0">ישות:</span>
+                  {[['', 'הכל'], ['venue', '🏠 מועדון'], ['tournament', '🃏 טורניר'], ['user', '👤 משתמש']].map(([val, label]) => (
+                    <button key={val} onClick={() => setClEntityType(val)}
+                      className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${clEntityType === val ? 'bg-poker-green text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Action */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs text-slate-500 w-16 shrink-0">פעולה:</span>
+                  {[['', 'הכל'], ['create', '✨ יצירה'], ['update', '✏️ עדכון']].map(([val, label]) => (
+                    <button key={val} onClick={() => setClAction(val)}
+                      className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${clAction === val ? 'bg-poker-green text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Date range */}
+                <div className="flex items-center gap-3 flex-wrap">
+                  <span className="text-xs text-slate-500 w-16 shrink-0">תאריכים:</span>
+                  <input type="date" value={clDateFrom} onChange={e => setClDateFrom(e.target.value)}
+                    className="input-field text-xs py-1.5 w-36" dir="ltr" />
+                  <span className="text-slate-500 text-xs">עד</span>
+                  <input type="date" value={clDateTo} onChange={e => setClDateTo(e.target.value)}
+                    className="input-field text-xs py-1.5 w-36" dir="ltr" />
+                  {(clDateFrom || clDateTo) && (
+                    <button onClick={() => { setClDateFrom(''); setClDateTo(''); }}
+                      className="text-xs text-slate-400 hover:text-slate-200">✕ נקה</button>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs text-slate-500">{changeLogsTotal} רשומות סה״כ · מוצגות {changeLogs.length}</span>
+                {(clEntityType || clAction || clDateFrom || clDateTo || clSearch) && (
+                  <button onClick={() => { setClEntityType(''); setClAction(''); setClDateFrom(''); setClDateTo(''); setClSearch(''); setClSearchInput(''); }}
+                    className="text-xs text-amber-400 hover:text-amber-300">↺ אפס הכל</button>
+                )}
+              </div>
+
+              {changeLogs.length === 0 ? (
+                <div className="card p-16 text-center">
+                  <div className="text-5xl mb-3">📋</div>
+                  <p className="text-slate-400 font-semibold">לא נמצאו רשומות</p>
+                  <p className="text-slate-600 text-sm mt-1">נסה לשנות את הסינון</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {changeLogs.map(log => (
+                    <ChangeLogRow key={log.id} log={log} />
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -336,6 +678,42 @@ export default function AdminPanel() {
             </div>
           )}
         </>
+      )}
+
+      {/* Delete venue confirmation modal */}
+      {deleteVenueModal && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+          <div className="card p-6 w-full max-w-md animate-slide-up">
+            <div className="text-center mb-5">
+              <div className="text-5xl mb-3">🗑️</div>
+              <h3 className="text-xl font-black text-white mb-2">מחיקת מועדון</h3>
+              <p className="text-slate-300 font-semibold">
+                האם אתה בטוח שברצונך למחוק את המועדון
+              </p>
+              <p className="text-red-400 font-black text-lg mt-1">"{deleteVenueModal.name}"?</p>
+            </div>
+            <div className="bg-red-950/50 border border-red-800/40 rounded-xl p-4 mb-5 text-sm text-red-300 space-y-1">
+              <p className="font-bold">⚠️ שים לב — פעולה זו בלתי הפיכה:</p>
+              <p>• המועדון יימחק לצמיתות מהמערכת</p>
+              <p>• כל הטורנירים של המועדון יימחקו גם הם</p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={handleDeleteVenue}
+                disabled={deleteLoading}
+                className="flex-1 bg-red-700 hover:bg-red-600 text-white font-bold py-2.5 px-5 rounded-xl transition-all disabled:opacity-50"
+              >
+                {deleteLoading ? 'מוחק...' : '🗑️ כן, מחק לצמיתות'}
+              </button>
+              <button
+                onClick={() => setDeleteVenueModal(null)}
+                className="flex-1 btn-ghost"
+              >
+                ביטול
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Reject modal */}
