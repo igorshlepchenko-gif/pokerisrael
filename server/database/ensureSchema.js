@@ -7,18 +7,16 @@ const pool = require('../config/db');
 async function ensureSchema() {
   try {
     const exists = await pool.query("SELECT to_regclass('public.users') AS t");
-    if (exists.rows[0].t) {
-      return; // הטבלאות כבר קיימות — לא עושים כלום
+    if (!exists.rows[0].t) {
+      console.log('🔧 מסד נתונים ריק — יוצר טבלאות...');
+      const fullPath = path.join(__dirname, 'schema_full.sql');
+      const schemaPath = fs.existsSync(fullPath) ? fullPath : path.join(__dirname, 'schema.sql');
+      const schema = fs.readFileSync(schemaPath, 'utf8');
+      await pool.query(schema);
+      console.log('✅ טבלאות נוצרו בהצלחה');
     }
 
-    console.log('🔧 מסד נתונים ריק — יוצר טבלאות...');
-    const fullPath = path.join(__dirname, 'schema_full.sql');
-    const schemaPath = fs.existsSync(fullPath) ? fullPath : path.join(__dirname, 'schema.sql');
-    const schema = fs.readFileSync(schemaPath, 'utf8');
-    await pool.query(schema);
-    console.log('✅ טבלאות נוצרו בהצלחה');
-
-    // יצירת משתמש אדמין ראשוני
+    // ודא שמשתמש אדמין קיים (תמיד — לא רק ביצירה ראשונה)
     const adminEmail = process.env.ADMIN_EMAIL || 'admin@pokerisrael.org';
     const existingAdmin = await pool.query('SELECT id FROM users WHERE email = $1', [adminEmail]);
     if (existingAdmin.rows.length === 0) {
