@@ -3,7 +3,8 @@ const multer = require('multer');
 const { MulterError } = multer;
 const path = require('path');
 const fs = require('fs');
-const { v4: uuidv4 } = require('uuid');
+const crypto = require('crypto');
+const uuidv4 = () => crypto.randomUUID(); // במקום חבילת uuid (ESM-only)
 const fileType = require('file-type');
 const pool = require('../config/db');
 const { authenticate, requireRole } = require('../middleware/auth');
