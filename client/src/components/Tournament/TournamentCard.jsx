@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { formatTime, formatDate, formatCost, DAYS_HE, buildWhatsAppLink, getStageDurations } from '../../utils/whatsapp';
+import { formatTime, formatDate, formatCost, DAYS_HE, buildWhatsAppLink, getStageDurations, formatGames } from '../../utils/whatsapp';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
 import RegistrationModal from './RegistrationModal';
@@ -88,6 +88,22 @@ export default function TournamentCard({ t, index, onClick }) {
         <span>📍</span>
         <span>{t.venue_address}, {t.venue_city}</span>
       </div>
+
+      {/* סוג משחק קאש / פלטפורמה אונליין */}
+      {(t.game_type || t.platform) && (
+        <div className="flex flex-wrap gap-2 mb-3">
+          {t.platform && (
+            <span className="text-xs bg-blue-500/15 text-blue-300 border border-blue-500/40 px-2 py-0.5 rounded-full font-bold">
+              {t.tournament_type === 'online' ? '💻' : '📍'} {t.platform}
+            </span>
+          )}
+          {t.game_type && (
+            <span className="text-xs bg-violet-500/15 text-violet-300 border border-violet-500/40 px-2 py-0.5 rounded-full font-bold tracking-wide">
+              🃏 {formatGames(t.game_type, t.secondary_games)}
+            </span>
+          )}
+        </div>
+      )}
 
       {/* גריד מסודר: התחלה | סיום | עלות — שלושתם בשורה אחת */}
       <div className="grid grid-cols-3 gap-2 mb-3">

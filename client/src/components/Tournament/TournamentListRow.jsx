@@ -1,4 +1,4 @@
-import { buildWhatsAppLink, formatTime, formatDate, formatCost, DAYS_HE, getStageDurations } from '../../utils/whatsapp';
+import { buildWhatsAppLink, formatTime, formatDate, formatCost, DAYS_HE, getStageDurations, formatGames } from '../../utils/whatsapp';
 
 export default function TournamentListRow({ t, index, onClick }) {
   const waLink = buildWhatsAppLink(t.whatsapp_number, t);
@@ -72,8 +72,18 @@ export default function TournamentListRow({ t, index, onClick }) {
             }
             <span className="truncate">{t.venue_name}</span>
           </div>
-          {(t.starting_stack || t.level_duration || t.re_entry || t.late_reg_level) && (
+          {(t.starting_stack || t.level_duration || t.re_entry || t.late_reg_level || t.platform || t.game_type) && (
             <div className="flex gap-1 mt-1 flex-wrap">
+              {t.platform && (
+                <span className="text-[10px] bg-blue-500/15 text-blue-300 border border-blue-500/40 px-1.5 py-0.5 rounded-full font-bold">
+                  {t.tournament_type === 'online' ? '💻' : '📍'} {t.platform}
+                </span>
+              )}
+              {t.game_type && (
+                <span className="text-[10px] bg-violet-500/15 text-violet-300 border border-violet-500/40 px-1.5 py-0.5 rounded-full font-bold">
+                  🃏 {formatGames(t.game_type, t.secondary_games)}
+                </span>
+              )}
               {t.starting_stack && (
                 <span className="text-[10px] bg-slate-700/80 text-poker-gold px-1.5 py-0.5 rounded-full">
                   🎯 {t.starting_stack.toLocaleString()}

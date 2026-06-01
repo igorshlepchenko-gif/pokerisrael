@@ -439,7 +439,7 @@ export default function Dashboard() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-black text-white">🏠 לוח ניהול</h1>
         <button onClick={() => setShowForm(true)} className="btn-primary">
-          + הוסף טורניר
+          + הוסף אירוע
         </button>
       </div>
 
@@ -463,7 +463,7 @@ export default function Dashboard() {
       {showForm && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
           <div className="card p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <h2 className="text-xl font-bold text-white mb-4">הוספת טורניר חדש</h2>
+            <h2 className="text-xl font-bold text-white mb-4">הוספת אירוע חדש</h2>
             {venues.filter(v => v.is_approved).length === 0 ? (
               <div className="text-center py-6">
                 <p className="text-amber-400 mb-2">אין לך עדיין מועדונים מאושרים</p>
@@ -483,7 +483,7 @@ export default function Dashboard() {
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
           <div className="card p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-white">✏️ עריכת טורניר</h2>
+              <h2 className="text-xl font-bold text-white">✏️ עריכת אירוע</h2>
               <button onClick={() => setEditingTournament(null)}
                 className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-700 hover:bg-red-500/80 text-slate-300 hover:text-white transition-all text-sm">
                 ✕
@@ -508,7 +508,7 @@ export default function Dashboard() {
           {tournaments.length === 0 ? (
             <div className="card p-12 text-center">
               <div className="text-5xl mb-3 opacity-20">🃏</div>
-              <p className="text-slate-400">עדיין אין לך טורנירים</p>
+              <p className="text-slate-400">עדיין אין לך אירועים</p>
               <button onClick={() => setShowForm(true)} className="btn-primary mt-4">+ הוסף את הראשון</button>
             </div>
           ) : tournaments.map(t => {

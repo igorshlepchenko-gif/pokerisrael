@@ -26,7 +26,6 @@ export default function Navbar() {
           <div className="hidden md:flex items-center gap-1">
             {[
               { to: '/', label: 'בית' },
-              { to: '/#tournaments', label: 'טורנירים' },
             ].map(({ to, label }) => (
               <Link key={label} to={to}
                 className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all duration-200

@@ -154,8 +154,35 @@ export default function TournamentForm({ venues, tournament = null, onSuccess, o
     rake:                tournament?.rake            ?? '',
     rake_type:           tournament?.rake_type       ?? 'amount',
     platform:            tournament?.platform        ?? '',
-    game_type:           tournament?.game_type       ?? 'NLH',
   });
+
+  // ── משחקי קאש: בחירה מרובה + ראשי/משני ─────────────────────────
+  const CASH_GAMES = ['NLH', 'PLO', 'PLO5', 'PLO6'];
+  const initGames = () => {
+    const primary = tournament?.game_type || 'NLH';
+    let sec = tournament?.secondary_games;
+    if (typeof sec === 'string') { try { sec = JSON.parse(sec || '[]'); } catch { sec = []; } }
+    if (!Array.isArray(sec)) sec = [];
+    const selected = [...new Set([primary, ...sec.map(s => s.game)])];
+    const hands = {};
+    sec.forEach(s => { hands[s.game] = s.hands; });
+    return { selected, primary, hands };
+  };
+  const [selectedGames, setSelectedGames] = useState(() => initGames().selected);
+  const [primaryGame, setPrimaryGame]     = useState(() => initGames().primary);
+  const [secondaryHands, setSecondaryHands] = useState(() => initGames().hands);
+
+  const toggleGame = (g) => {
+    setSelectedGames(prev => {
+      if (prev.includes(g)) {
+        const next = prev.filter(x => x !== g);
+        // אם הסרנו את הראשי — נבחר ראשי חדש
+        if (primaryGame === g && next.length > 0) setPrimaryGame(next[0]);
+        return next;
+      }
+      return [...prev, g];
+    });
+  };
   const PRESET_DURATIONS = ['10','15','20','25','30','40','45','60'];
 
   const [blinds, setBlinds] = useState(() => parseStages(tournament?.stages));
@@ -289,11 +316,25 @@ export default function TournamentForm({ venues, tournament = null, onSuccess, o
         gtd:                form.gtd !== '' ? parseInt(form.gtd) : null,
         tournament_type:    tournamentType,
         venue_id:           tournamentType === 'live' ? parseInt(form.venue_id) : null,
+        // משחקי קאש: ראשי + משניים עם ידיים בסיבוב
+        game_type:          showGameType ? primaryGame : null,
+        secondary_games:    showGameType
+          ? selectedGames
+              .filter(g => g !== primaryGame)
+              .map(g => ({ game: g, hands: parseInt(secondaryHands[g]) || 1 }))
+          : [],
         stages: (() => {
           let n = 0;
           return blinds.map(r => r.type === 'break' ? r : { ...r, level: ++n });
         })(),
       };
+
+      // ולידציה למשחקי קאש
+      if (showGameType && selectedGames.length === 0) {
+        setError('• יש לבחור לפחות סוג משחק אחד');
+        setLoading(false);
+        return;
+      }
       if (isEdit) {
         await api.put(`/tournaments/${tournament.id}`, payload);
       } else {
@@ -442,31 +483,81 @@ export default function TournamentForm({ venues, tournament = null, onSuccess, o
           </div>
         )}
 
-        {/* סוג משחק — קאש פיזי או אונליין קאש */}
+        {/* סוג משחק — קאש פיזי או אונליין קאש: בחירה מרובה + ראשי/משני */}
         {showGameType && (
-          <div className="sm:col-span-2">
-            <label className="block text-sm font-semibold text-slate-300 mb-1">🃏 סוג משחק</label>
-            <div className="flex gap-2 flex-wrap">
-              {['NLH', 'PLO', 'PLO5', 'Short Deck', 'Mixed'].map(g => (
-                <button key={g} type="button"
-                  onClick={() => set('game_type', g)}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold border transition-all ${
-                    form.game_type === g
-                      ? 'border-blue-500 bg-blue-600/20 text-blue-300'
-                      : 'border-slate-600 text-slate-400 hover:border-slate-400'
-                  }`}>{g}</button>
-              ))}
+          <div className="sm:col-span-2 space-y-3">
+            <div>
+              <label className="block text-sm font-semibold text-slate-300 mb-1">
+                🃏 סוג משחק <span className="text-xs text-slate-500 font-normal">(ניתן לבחור כמה)</span>
+              </label>
+              <div className="flex gap-2 flex-wrap">
+                {CASH_GAMES.map(g => (
+                  <button key={g} type="button"
+                    onClick={() => toggleGame(g)}
+                    className={`px-4 py-1.5 rounded-lg text-sm font-bold border-2 transition-all ${
+                      selectedGames.includes(g)
+                        ? 'border-blue-500 bg-blue-600/25 text-white'
+                        : 'border-slate-600 text-slate-400 hover:border-slate-400'
+                    }`}>
+                    {selectedGames.includes(g) && '✓ '}{g}
+                  </button>
+                ))}
+              </div>
             </div>
+
+            {/* כשנבחרו 2+ משחקים — בחירת ראשי + ידיים למשניים */}
+            {selectedGames.length >= 2 && (
+              <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-3 space-y-3">
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1.5">המשחק הראשי</label>
+                  <div className="flex gap-2 flex-wrap">
+                    {selectedGames.map(g => (
+                      <button key={g} type="button"
+                        onClick={() => setPrimaryGame(g)}
+                        className={`px-3 py-1 rounded-lg text-xs font-bold border transition-all ${
+                          primaryGame === g
+                            ? 'border-amber-500 bg-amber-500/20 text-amber-300'
+                            : 'border-slate-600 text-slate-400 hover:border-slate-400'
+                        }`}>
+                        {primaryGame === g && '⭐ '}{g}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* משחקים משניים — ידיים בסיבוב */}
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1.5">משחקים משניים — ידיים בסיבוב</label>
+                  <div className="space-y-2">
+                    {selectedGames.filter(g => g !== primaryGame).map(g => (
+                      <div key={g} className="flex items-center gap-3">
+                        <span className="text-sm font-bold text-slate-300 w-16">{g}</span>
+                        <div className="flex items-center gap-2">
+                          <input type="number" min="1" max="20"
+                            value={secondaryHands[g] ?? 1}
+                            onChange={e => setSecondaryHands(prev => ({ ...prev, [g]: e.target.value }))}
+                            className="input-field py-1 w-20 text-center text-sm" />
+                          <span className="text-xs text-slate-500">ידיים בסיבוב</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-2">
+                    💡 לדוגמה: {primaryGame} כמשחק ראשי, ו{selectedGames.filter(g => g !== primaryGame)[0] || 'PLO5'} פעמיים בסיבוב
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
         <div className="sm:col-span-2">
           <label className="block text-sm font-semibold text-slate-300 mb-1">
-            {isCash ? 'שם המשחק *' : 'שם הטורניר *'}
+            {showGameType ? 'שם המשחק *' : 'שם הטורניר *'}
           </label>
           <input type="text" value={form.name} onChange={e => set('name', e.target.value)}
             className="input-field"
-            placeholder={isCash ? 'למשל: קאש ראשון שישי' : isOnline ? 'למשל: Sunday Million' : 'למשל: טורניר שבועי'}
+            placeholder={showGameType ? 'למשל: קאש ראשון שישי' : isOnline ? 'למשל: Sunday Million' : 'למשל: טורניר שבועי'}
             required />
         </div>
 
@@ -533,7 +624,9 @@ export default function TournamentForm({ venues, tournament = null, onSuccess, o
         <div className="flex items-center gap-3">
           <input type="checkbox" id="recurring" checked={form.is_recurring} onChange={e => set('is_recurring', e.target.checked)}
             className="w-4 h-4 accent-poker-green" />
-          <label htmlFor="recurring" className="text-sm font-semibold text-slate-300">טורניר שבועי חוזר</label>
+          <label htmlFor="recurring" className="text-sm font-semibold text-slate-300">
+            {showGameType ? 'משחק שבועי קבוע' : 'טורניר שבועי חוזר'}
+          </label>
         </div>
 
         {form.is_recurring && (
@@ -562,24 +655,24 @@ export default function TournamentForm({ venues, tournament = null, onSuccess, o
 
       <div>
         <label className="block text-sm font-semibold text-slate-300 mb-1">
-          {isCash ? 'הערות' : 'תיאור הטורניר'}
+          {showGameType ? 'הערות' : 'תיאור הטורניר'}
         </label>
         <textarea value={form.description} onChange={e => set('description', e.target.value)}
           className="input-field resize-none" rows={3} placeholder="מידע כללי, פרייז פול, מבנה..." />
       </div>
 
-      {/* Starting stack */}
-      <div>
+      {/* Starting stack — רק לטורנירים */}
+      {showBlinds && <div>
         <label className="block text-sm font-semibold text-slate-300 mb-1">גובה ערימה התחלתית</label>
         <div className="relative">
           <input type="number" value={form.starting_stack} onChange={e => set('starting_stack', e.target.value)}
             className="input-field" placeholder="למשל: 20000" min="0" />
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm pointer-events-none">צ'יפס</span>
         </div>
-      </div>
+      </div>}
 
-      {/* Level duration */}
-      <div>
+      {/* Level duration — רק לטורנירים */}
+      {showBlinds && <div>
         <label className="block text-sm font-semibold text-slate-300 mb-1">זמן לשלב</label>
         {!customDuration ? (
           <select
@@ -629,7 +722,7 @@ export default function TournamentForm({ venues, tournament = null, onSuccess, o
             </button>
           </div>
         )}
-      </div>
+      </div>}
 
       {/* Blind Structure — רק לטורנירים */}
       {showBlinds && <div>

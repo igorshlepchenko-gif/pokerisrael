@@ -84,24 +84,23 @@ export default function Home() {
         </div>
 
         <div className="relative max-w-4xl mx-auto text-center">
-          {/* Tag line */}
-          <div className="badge-cycle inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-black mb-6 tracking-wide"
-            style={{ border: '1.5px solid' }}>
-            ♠ כל הטורנירים בישראל
-          </div>
-
           {/* Main heading */}
-          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black text-white leading-tight mb-6 animate-slide-up">
-            מצא את הטורניר
+          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black text-white leading-tight mb-6 animate-slide-up pt-4">
+            כל הפוקר{' '}
+            <span style={{
+              background: 'linear-gradient(to bottom, #fff 0%, #fff 16%, #0038b8 16%, #0038b8 40%, #fff 40%, #fff 60%, #0038b8 60%, #0038b8 84%, #fff 84%, #fff 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+              filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.7))',
+            }}>
+              בישראל
+            </span>
             <br />
             <span style={{ background: 'linear-gradient(135deg, #60a5fa, #22d3ee)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-              הבא שלך
+              במקום אחד
             </span>
           </h1>
-
-          <p className="text-slate-400 text-lg mb-10">
-            כל טורנירי הפוקר בישראל — במקום אחד
-          </p>
 
           {/* Stats */}
           <div className="flex justify-center gap-4 sm:gap-8 mb-10 flex-wrap">

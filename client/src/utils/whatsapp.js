@@ -65,3 +65,13 @@ export function getStageDurations(stages, fallback) {
   if (durations.length > 0) return durations.join('/');
   return fallback ? String(fallback) : null;
 }
+
+// מחזיר מחרוזת תצוגה למשחקי קאש: "NLH" או "NLH + PLO5 ×2"
+export function formatGames(primary, secondary) {
+  if (!primary) return null;
+  let sec = secondary;
+  if (typeof sec === 'string') { try { sec = JSON.parse(sec || '[]'); } catch { sec = []; } }
+  if (!Array.isArray(sec)) sec = [];
+  const parts = sec.map(s => `${s.game}${s.hands > 1 ? ` ×${s.hands}` : ''}`);
+  return [primary, ...parts].join(' + ');
+}

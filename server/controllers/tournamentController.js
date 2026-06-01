@@ -27,6 +27,7 @@ exports.getAll = async (req, res) => {
         t.id, t.name, t.description, t.cost, t.start_time, t.estimated_end_time,
         t.stages, t.starting_stack, t.level_duration, t.is_recurring, t.day_of_week, t.status,
         t.is_boosted, t.boost_label, t.re_entry, t.late_reg_level, t.gtd, t.tournament_type, t.rake, t.rake_type,
+        t.platform, t.game_type, t.secondary_games,
         v.id AS venue_id, v.name AS venue_name, v.address AS venue_address,
         v.city AS venue_city, v.whatsapp_number, v.logo_url AS venue_logo
       FROM tournaments t
@@ -106,7 +107,7 @@ exports.create = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
-  const { venue_id, name, description, cost, start_time, estimated_end_time, stages, starting_stack, level_duration, is_recurring, day_of_week, re_entry, late_reg_level, gtd, tournament_type, rake, rake_type } = req.body;
+  const { venue_id, name, description, cost, start_time, estimated_end_time, stages, starting_stack, level_duration, is_recurring, day_of_week, re_entry, late_reg_level, gtd, tournament_type, rake, rake_type, platform, game_type, secondary_games } = req.body;
 
   try {
     const venueCheck = await pool.query(
@@ -123,13 +124,15 @@ exports.create = async (req, res) => {
 
     const result = await pool.query(
       `INSERT INTO tournaments
-        (venue_id, name, description, cost, start_time, estimated_end_time, stages, starting_stack, level_duration, is_recurring, day_of_week, re_entry, late_reg_level, gtd, tournament_type, rake, rake_type, created_by, status)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
+        (venue_id, name, description, cost, start_time, estimated_end_time, stages, starting_stack, level_duration, is_recurring, day_of_week, re_entry, late_reg_level, gtd, tournament_type, rake, rake_type, platform, game_type, secondary_games, created_by, status)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)
        RETURNING *`,
       [venue_id, name, description, cost, start_time, estimated_end_time,
        JSON.stringify(stages || []), starting_stack || null, level_duration || null, is_recurring || false, day_of_week,
        re_entry || null, late_reg_level || null, gtd || null, tournament_type || 'live',
-       rake || null, rake_type || 'amount', req.user.id, status]
+       rake || null, rake_type || 'amount',
+       platform || null, game_type || null, JSON.stringify(secondary_games || []),
+       req.user.id, status]
     );
 
     const newTournament = result.rows[0];
@@ -452,6 +455,7 @@ exports.updateTournament = async (req, res) => {
     name, description, cost, start_time, estimated_end_time,
     stages, starting_stack, level_duration, is_recurring, day_of_week,
     re_entry, late_reg_level, gtd, rake, rake_type,
+    platform, game_type, secondary_games,
   } = req.body;
 
   try {
@@ -475,8 +479,9 @@ exports.updateTournament = async (req, res) => {
          name = $1, description = $2, cost = $3, start_time = $4, estimated_end_time = $5,
          stages = $6, starting_stack = $7, level_duration = $8, is_recurring = $9,
          day_of_week = $10, re_entry = $11, late_reg_level = $12, gtd = $13,
-         rake = $14, rake_type = $15, updated_at = NOW()
-       WHERE id = $16
+         rake = $14, rake_type = $15,
+         platform = $16, game_type = $17, secondary_games = $18, updated_at = NOW()
+       WHERE id = $19
        RETURNING *`,
       [
         name, description, cost, start_time, estimated_end_time || null,
@@ -485,6 +490,7 @@ exports.updateTournament = async (req, res) => {
         is_recurring || false, day_of_week ?? null,
         re_entry || null, late_reg_level || null, gtd || null,
         rake || null, rake_type || 'amount',
+        platform || null, game_type || null, JSON.stringify(secondary_games || []),
         id,
       ]
     );
