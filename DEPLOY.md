@@ -70,13 +70,18 @@ railway run npm run setup-db
 
 ---
 
-## שלב 6 — חיבור הדומיין PokerIsrael.org
-1. בשירות השרת ב-Railway → **Settings → Networking → Custom Domain** → הזן `pokerisrael.org` (וגם `www.pokerisrael.org`).
-2. Railway ייתן לך רשומת **CNAME** (למשל `xxx.up.railway.app`).
-3. אצל **רשם הדומיין שלך** (תגיד לי איזה — Namecheap / GoDaddy / Cloudflare וכו') → בהגדרות DNS:
-   - `www` → CNAME → הערך מ-Railway
-   - הדומיין הראשי (`@`) → לפי הוראות Railway (CNAME flattening / ALIAS, או A record ל-IP שייתנו)
-4. המתן ל-propagation (דקות עד שעות). SSL מונפק אוטומטית ב-Railway.
+## שלב 6 — חיבור הדומיין PokerIsrael.org (רשם: GoDaddy)
+⚠️ ל-GoDaddy אין CNAME flattening — אי אפשר CNAME על השורש. לכן www יהיה הראשי + הפניה מהשורש.
+
+1. **Railway** → Settings → Networking → Custom Domain → הזן `www.pokerisrael.org`. העתק את יעד ה-CNAME (למשל `abc123.up.railway.app`).
+2. **GoDaddy** → Domains → pokerisrael.org → **DNS** → הוסף רשומה:
+   - Type: `CNAME` · Name: `www` · Value: היעד מ-Railway · TTL: ברירת מחדל
+3. **GoDaddy** → Domain Settings → **Forwarding** → Add:
+   - `pokerisrael.org` → `https://www.pokerisrael.org` · Permanent (301) · Forward only
+4. עדכן ב-Railway: `CLIENT_URL` ו-`SERVER_URL` = `https://www.pokerisrael.org`
+5. המתן ל-propagation (דקות עד שעה). SSL אוטומטי ב-Railway.
+
+> חלופה: להעביר DNS ל-Cloudflare (חינם) — תומך CNAME על השורש, ואז `pokerisrael.org` ללא www יכול להיות הראשי.
 
 ---
 
