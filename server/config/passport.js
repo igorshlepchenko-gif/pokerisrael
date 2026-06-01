@@ -2,7 +2,14 @@ const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const pool = require('./db');
 
-passport.use(
+// רושמים את אסטרטגיית Google רק אם ה-credentials מוגדרים (אחרת היא קורסת)
+const googleConfigured =
+  process.env.GOOGLE_CLIENT_ID &&
+  process.env.GOOGLE_CLIENT_SECRET &&
+  !process.env.GOOGLE_CLIENT_ID.includes('your-google');
+
+if (googleConfigured) {
+  passport.use(
   new GoogleStrategy(
     {
       clientID:     process.env.GOOGLE_CLIENT_ID,
@@ -57,7 +64,10 @@ passport.use(
       }
     }
   )
-);
+  );
+} else {
+  console.log('ℹ️  Google OAuth לא מוגדר — דילוג על רישום האסטרטגיה');
+}
 
 // ללא session — JWT בלבד
 passport.serializeUser((user, done) => done(null, user));
