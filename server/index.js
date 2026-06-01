@@ -13,6 +13,7 @@ const adminRoutes = require('./routes/admin');
 const uploadRoutes = require('./routes/upload');
 const registrationRoutes   = require('./routes/registrations');
 const blindTemplateRoutes  = require('./routes/blindTemplates');
+const eventTemplateRoutes  = require('./routes/eventTemplates');
 
 const app = express();
 
@@ -69,6 +70,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/registrations', registrationRoutes);
 app.use('/api/blind-templates', blindTemplateRoutes); // rate limit רק על POST — מוגדר בתוך הנתיב
+app.use('/api/event-templates', eventTemplateRoutes);
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', message: 'Poker Live Israel API' }));
 
@@ -92,6 +94,16 @@ app.get('/api/stats', async (req, res) => {
     res.status(500).json({ message: 'שגיאת שרת' });
   }
 });
+
+// ── הגשת הלקוח הבנוי בפרודקשן (SPA) ───────────────────────────
+if (process.env.NODE_ENV === 'production') {
+  const clientDist = path.join(__dirname, '../client/dist');
+  app.use(express.static(clientDist));
+  // כל נתיב שאינו /api או /uploads → index.html (React Router)
+  app.get(/^(?!\/api|\/uploads).*/, (req, res) => {
+    res.sendFile(path.join(clientDist, 'index.html'));
+  });
+}
 
 app.use((err, req, res, next) => {
   console.error(err.stack);

@@ -137,8 +137,12 @@ export default function TournamentForm({ venues, tournament = null, onSuccess, o
   const [tournamentType, setTournamentType] = useState(tournament?.tournament_type ?? 'live');
   const [onlineSubType, setOnlineSubType] = useState('tournament'); // 'tournament' | 'cash'
 
+  // אם למשתמש יש בדיוק מועדון מאושר אחד — בחר אותו אוטומטית
+  const approvedVenues = (venues || []).filter(v => v.is_approved);
+  const defaultVenueId = approvedVenues.length === 1 ? approvedVenues[0].id : '';
+
   const [form, setForm] = useState({
-    venue_id:            tournament?.venue_id       ?? '',
+    venue_id:            tournament?.venue_id       ?? defaultVenueId,
     name:                tournament?.name            ?? '',
     description:         tournament?.description     ?? '',
     cost:                tournament?.cost            ?? '',
@@ -154,6 +158,8 @@ export default function TournamentForm({ venues, tournament = null, onSuccess, o
     rake:                tournament?.rake            ?? '',
     rake_type:           tournament?.rake_type       ?? 'amount',
     platform:            tournament?.platform        ?? '',
+    cash_sb:             tournament?.cash_sb         ?? '',
+    cash_bb:             tournament?.cash_bb         ?? '',
   });
 
   // ── משחקי קאש: בחירה מרובה + ראשי/משני ─────────────────────────
@@ -189,6 +195,14 @@ export default function TournamentForm({ venues, tournament = null, onSuccess, o
   const [activePreset, setActivePreset] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // בחירת מועדון אוטומטית לפי סוג האירוע (אונליין→מועדון אונליין, אחרת→פיזי)
+  useEffect(() => {
+    if (isEdit) return;
+    const needed = tournamentType === 'online' ? 'online' : 'physical';
+    const matching = approvedVenues.filter(v => (v.venue_type || 'physical') === needed);
+    setForm(p => ({ ...p, venue_id: matching.length === 1 ? matching[0].id : (matching.some(v => v.id === p.venue_id) ? p.venue_id : '') }));
+  }, [tournamentType]); // eslint-disable-line
   // מצב ידני לזמן לשלב — פעיל אם הערך הקיים אינו בין ברירות המחדל
   const [customDuration, setCustomDuration] = useState(
     () => tournament?.level_duration != null && !PRESET_DURATIONS.includes(String(tournament.level_duration))
@@ -203,9 +217,28 @@ export default function TournamentForm({ venues, tournament = null, onSuccess, o
   const [saveMsg, setSaveMsg] = useState('');
   const templatesRef = useRef(null);
 
+  // ── תבניות אירוע מלאות ─────────────────────────────────────────
+  const [eventTemplates, setEventTemplates] = useState([]);
+  const [evtSaveMode, setEvtSaveMode] = useState(false);
+  const [evtSaveName, setEvtSaveName] = useState('');
+  const [evtSaveMsg, setEvtSaveMsg] = useState('');
+  const [showEvtTemplates, setShowEvtTemplates] = useState(false);
+  const evtTemplatesRef = useRef(null);
+
   useEffect(() => {
     api.get('/blind-templates').then(r => setTemplates(r.data)).catch(() => {});
+    api.get('/event-templates').then(r => setEventTemplates(r.data)).catch(() => {});
   }, []);
+
+  // סגירת dropdown תבניות אירוע בלחיצה מחוץ
+  useEffect(() => {
+    if (!showEvtTemplates) return;
+    const handler = (e) => {
+      if (evtTemplatesRef.current && !evtTemplatesRef.current.contains(e.target)) setShowEvtTemplates(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showEvtTemplates]);
 
   // סגירת dropdown בלחיצה מחוץ
   useEffect(() => {
@@ -222,6 +255,81 @@ export default function TournamentForm({ venues, tournament = null, onSuccess, o
     setBlinds(parseStages(tpl.stages));
     setActivePreset('');
     setShowTemplates(false);
+  };
+
+  // ── בניית תבנית אירוע מלאה מהמצב הנוכחי (ללא תאריך התחלה) ──────
+  const buildEventConfig = () => ({
+    tournamentType,
+    onlineSubType,
+    form: {
+      venue_id:           form.venue_id,
+      name:               form.name,
+      description:        form.description,
+      cost:               form.cost,
+      estimated_end_time: form.estimated_end_time, // תאריך סיום נשמר ומועבר
+      is_recurring:       form.is_recurring,
+      day_of_week:        form.day_of_week,
+      starting_stack:     form.starting_stack,
+      level_duration:     form.level_duration,
+      re_entry:           form.re_entry,
+      late_reg_level:     form.late_reg_level,
+      gtd:                form.gtd,
+      rake:               form.rake,
+      rake_type:          form.rake_type,
+      platform:           form.platform,
+      cash_sb:            form.cash_sb,
+      cash_bb:            form.cash_bb,
+    },
+    blinds,
+    selectedGames,
+    primaryGame,
+    secondaryHands,
+  });
+
+  // ── החלת תבנית אירוע — ממלא הכל חוץ מתאריך התחלה ──────────────
+  const applyEventTemplate = (tpl) => {
+    const c = tpl.config || {};
+    if (c.tournamentType) setTournamentType(c.tournamentType);
+    if (c.onlineSubType) setOnlineSubType(c.onlineSubType);
+    if (c.form) {
+      setForm(p => ({
+        ...p,
+        ...c.form,
+        start_time: p.start_time, // לא נדרס — המשתמש ממלא תאריך התחלה
+      }));
+    }
+    if (Array.isArray(c.blinds)) {
+      setBlinds(c.blinds);
+      setCustomDuration(false);
+      setActivePreset('');
+    }
+    if (Array.isArray(c.selectedGames)) setSelectedGames(c.selectedGames);
+    if (c.primaryGame) setPrimaryGame(c.primaryGame);
+    if (c.secondaryHands) setSecondaryHands(c.secondaryHands);
+    setShowEvtTemplates(false);
+    setError('');
+  };
+
+  const handleSaveEventTemplate = async () => {
+    if (!evtSaveName.trim()) return;
+    setEvtSaveMsg('');
+    try {
+      const res = await api.post('/event-templates', { name: evtSaveName.trim(), config: buildEventConfig() });
+      setEventTemplates(prev => [res.data, ...prev]);
+      setEvtSaveName('');
+      setEvtSaveMode(false);
+      setEvtSaveMsg('✓ התבנית נשמרה');
+      setTimeout(() => setEvtSaveMsg(''), 2500);
+    } catch (err) {
+      setEvtSaveMsg(err.response?.data?.message || 'שגיאה בשמירה');
+    }
+  };
+
+  const deleteEventTemplate = async (id, e) => {
+    e.stopPropagation();
+    if (!confirm('למחוק תבנית זו?')) return;
+    await api.delete(`/event-templates/${id}`);
+    setEventTemplates(prev => prev.filter(t => t.id !== id));
   };
 
   const deleteTemplate = async (id, e) => {
@@ -314,8 +422,10 @@ export default function TournamentForm({ venues, tournament = null, onSuccess, o
         re_entry:           form.re_entry || null,
         late_reg_level:     form.late_reg_level !== '' ? parseInt(form.late_reg_level) : null,
         gtd:                form.gtd !== '' ? parseInt(form.gtd) : null,
+        cash_sb:            showGameType && form.cash_sb !== '' ? parseInt(form.cash_sb) : null,
+        cash_bb:            showGameType && form.cash_bb !== '' ? parseInt(form.cash_bb) : null,
         tournament_type:    tournamentType,
-        venue_id:           tournamentType === 'live' ? parseInt(form.venue_id) : null,
+        venue_id:           form.venue_id ? parseInt(form.venue_id) : null,
         // משחקי קאש: ראשי + משניים עם ידיים בסיבוב
         game_type:          showGameType ? primaryGame : null,
         secondary_games:    showGameType
@@ -368,8 +478,41 @@ export default function TournamentForm({ venues, tournament = null, onSuccess, o
   const showGameType  = isCash || isOnlineCash; // סוג משחק
   const showRake      = !isCash;               // Rake — לא לקאש פיזי
 
+  // מועדונים מתאימים לסוג האירוע — אונליין→מועדון אונליין, אחרת→פיזי
+  const neededVenueType = isOnline ? 'online' : 'physical';
+  const matchingVenues  = approvedVenues.filter(v => (v.venue_type || 'physical') === neededVenueType);
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+
+      {/* ── טעינת תבנית אירוע שמורה ── */}
+      {!isEdit && eventTemplates.length > 0 && (
+        <div className="relative" ref={evtTemplatesRef}>
+          <button type="button"
+            onClick={() => setShowEvtTemplates(p => !p)}
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-dashed border-blue-500/50 bg-blue-600/10 text-blue-300 hover:bg-blue-600/20 text-sm font-bold transition-all">
+            ⚡ טען מתבנית שמורה ({eventTemplates.length}) — מלא הכל בלחיצה אחת
+          </button>
+          {showEvtTemplates && (
+            <div className="absolute right-0 left-0 top-full mt-1 z-50 bg-slate-800 border border-slate-600 rounded-xl shadow-2xl overflow-hidden max-h-64 overflow-y-auto">
+              <div className="px-3 py-2 text-[11px] text-slate-500 border-b border-slate-700">לחץ על תבנית — ימולא הכל חוץ מתאריך ההתחלה</div>
+              {eventTemplates.map(tpl => (
+                <div key={tpl.id} onClick={() => applyEventTemplate(tpl)}
+                  className="flex items-center justify-between px-3 py-2.5 hover:bg-slate-700/60 cursor-pointer group transition-colors">
+                  <div>
+                    <div className="text-sm font-semibold text-slate-200">{tpl.name}</div>
+                    <div className="text-[11px] text-slate-500">
+                      {tpl.config?.tournamentType === 'online' ? '💻 אונליין' : tpl.config?.tournamentType === 'cash' ? '♠️ קאש לייב' : '🏆 טורניר לייב'}
+                    </div>
+                  </div>
+                  <button type="button" onClick={(e) => deleteEventTemplate(tpl.id, e)}
+                    className="opacity-0 group-hover:opacity-100 text-slate-600 hover:text-red-400 transition-all text-xs px-1">🗑</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── סוג האירוע ── */}
       {!isEdit && (
@@ -377,10 +520,10 @@ export default function TournamentForm({ venues, tournament = null, onSuccess, o
           <label className="block text-sm font-semibold text-slate-300 mb-2">סוג האירוע *</label>
           <div className="grid grid-cols-3 gap-2">
             {[
-              { key: 'live',   icon: '🏠', label: 'טורניר לייב', sub: 'פיזי במועדון' },
-              { key: 'online', icon: '💻', label: 'אונליין', sub: 'ברשת' },
-              { key: 'cash',   icon: '🃏', label: 'קאש גיים', sub: 'משחק פרטי' },
-            ].map(({ key, icon, label, sub }) => (
+              { key: 'live',   icon: '🏆', label: 'טורניר לייב' },
+              { key: 'cash',   icon: '♠️', label: 'קאש גיים לייב' },
+              { key: 'online', icon: '💻', label: 'אונליין' },
+            ].map(({ key, icon, label }) => (
               <button key={key} type="button"
                 onClick={() => setTournamentType(key)}
                 className={`p-3 rounded-xl border-2 text-center transition-all ${
@@ -391,7 +534,6 @@ export default function TournamentForm({ venues, tournament = null, onSuccess, o
               >
                 <div className="text-2xl mb-1">{icon}</div>
                 <div className="text-sm font-bold">{label}</div>
-                <div className="text-[11px] opacity-60">{sub}</div>
               </button>
             ))}
           </div>
@@ -400,31 +542,35 @@ export default function TournamentForm({ venues, tournament = null, onSuccess, o
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
-        {/* מועדון — רק ללייב */}
-        {isLive && (
-          <div className="sm:col-span-2">
-            <label className="block text-sm font-semibold text-slate-300 mb-1">מועדון *</label>
-            {isEdit ? (
-              <div className="input-field bg-slate-700/40 text-slate-400 cursor-not-allowed">
-                {venues.find(v => v.id === form.venue_id)?.name || tournament.venue_name}
-                <span className="text-xs text-slate-500 mr-2">(לא ניתן לשינוי)</span>
-              </div>
-            ) : (
-              <>
-                <select value={form.venue_id} onChange={e => set('venue_id', e.target.value)}
-                  className="input-field" required>
-                  <option value="">בחר מועדון...</option>
-                  {venues.filter(v => v.is_approved).map(v => (
-                    <option key={v.id} value={v.id}>{v.name} — {v.city}</option>
-                  ))}
-                </select>
-                {venues.filter(v => !v.is_approved).length > 0 && (
-                  <p className="text-xs text-amber-400 mt-1">יש לך מועדונים ממתינים לאישור</p>
-                )}
-              </>
-            )}
-          </div>
-        )}
+        {/* מועדון — לפי סוג האירוע */}
+        <div className="sm:col-span-2">
+          <label className="block text-sm font-semibold text-slate-300 mb-1">
+            {isOnline ? 'מועדון אונליין *' : 'מועדון *'}
+          </label>
+          {isEdit ? (
+            <div className="input-field bg-slate-700/40 text-slate-400 cursor-not-allowed">
+              {venues.find(v => v.id === form.venue_id)?.name || tournament.venue_name}
+              <span className="text-xs text-slate-500 mr-2">(לא ניתן לשינוי)</span>
+            </div>
+          ) : (
+            <>
+              <select value={form.venue_id} onChange={e => set('venue_id', e.target.value)}
+                className="input-field" required>
+                <option value="">בחר מועדון...</option>
+                {matchingVenues.map(v => (
+                  <option key={v.id} value={v.id}>
+                    {v.venue_type === 'online' ? `${v.name} - ${v.club_number}` : `${v.name} — ${v.city}`}
+                  </option>
+                ))}
+              </select>
+              {matchingVenues.length === 0 && (
+                <p className="text-xs text-amber-400 mt-1">
+                  אין לך מועדון {isOnline ? 'אונליין' : 'פיזי'} מאושר — הוסף מועדון מתאים תחילה
+                </p>
+              )}
+            </>
+          )}
+        </div>
 
         {/* סוג משנה לאונליין */}
         {isOnline && (
@@ -471,15 +617,6 @@ export default function TournamentForm({ venues, tournament = null, onSuccess, o
               ))}
             </div>
             {!form.platform && <p className="text-xs text-red-400 mt-1">יש לבחור פלטפורמה</p>}
-          </div>
-        )}
-
-        {/* מיקום / מארגן — לקאש פיזי */}
-        {isCash && (
-          <div className="sm:col-span-2">
-            <label className="block text-sm font-semibold text-slate-300 mb-1">📍 מיקום / מארגן</label>
-            <input type="text" value={form.platform} onChange={e => set('platform', e.target.value)}
-              className="input-field" placeholder="למשל: דירה פרטית, מועדון X..." />
           </div>
         )}
 
@@ -551,6 +688,28 @@ export default function TournamentForm({ venues, tournament = null, onSuccess, o
           </div>
         )}
 
+        {/* בליינדים — קאש לייב + אונליין קאש */}
+        {showGameType && (
+          <div className="sm:col-span-2">
+            <label className="block text-sm font-semibold text-slate-300 mb-1">🎯 בליינדים *</label>
+            <div className="flex items-center gap-2">
+              <div className="flex-1">
+                <input type="number" min="0" value={form.cash_sb}
+                  onChange={e => set('cash_sb', e.target.value)}
+                  className="input-field text-center" placeholder="סמול בליינד" required />
+                <p className="text-[11px] text-slate-500 text-center mt-1">סמול בליינד (SB)</p>
+              </div>
+              <span className="text-slate-500 font-black text-lg pb-5">/</span>
+              <div className="flex-1">
+                <input type="number" min="0" value={form.cash_bb}
+                  onChange={e => set('cash_bb', e.target.value)}
+                  className="input-field text-center" placeholder="ביג בליינד" required />
+                <p className="text-[11px] text-slate-500 text-center mt-1">ביג בליינד (BB)</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="sm:col-span-2">
           <label className="block text-sm font-semibold text-slate-300 mb-1">
             {showGameType ? 'שם המשחק *' : 'שם הטורניר *'}
@@ -563,7 +722,7 @@ export default function TournamentForm({ venues, tournament = null, onSuccess, o
 
         <div>
           <label className="block text-sm font-semibold text-slate-300 mb-1">
-            {isCash ? 'Big Blind (₪)' : 'עלות (₪) *'}
+            {showGameType ? 'כניסה מינימום (₪) *' : 'עלות (₪) *'}
           </label>
           <input type="number" value={form.cost} onChange={e => set('cost', e.target.value)}
             className="input-field" placeholder="0" min="0" required />
@@ -1036,9 +1195,35 @@ export default function TournamentForm({ venues, tournament = null, onSuccess, o
         </div>
       )}
 
+      {/* שמירה כתבנית אירוע מלאה */}
+      {!isEdit && (
+        <div className="border-t border-slate-700/60 pt-3">
+          {!evtSaveMode ? (
+            <button type="button" onClick={() => { setEvtSaveMode(true); setEvtSaveMsg(''); }}
+              className="flex items-center gap-2 text-sm text-slate-400 hover:text-blue-300 transition-colors">
+              💾 שמור הגדרות אלו כתבנית לשימוש חוזר
+            </button>
+          ) : (
+            <div className="flex gap-2 items-center">
+              <input type="text" value={evtSaveName} onChange={e => setEvtSaveName(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleSaveEventTemplate(); } if (e.key === 'Escape') setEvtSaveMode(false); }}
+                placeholder="שם לתבנית (למשל: טורניר שישי קבוע)"
+                className="input-field flex-1 py-1.5 text-sm" autoFocus maxLength={100} />
+              <button type="button" onClick={handleSaveEventTemplate} disabled={!evtSaveName.trim()}
+                className="bg-blue-600/80 hover:bg-blue-600 disabled:opacity-40 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-all shrink-0">שמור</button>
+              <button type="button" onClick={() => { setEvtSaveMode(false); setEvtSaveName(''); }}
+                className="text-slate-500 hover:text-slate-300 text-xs px-2 py-1.5 shrink-0">ביטול</button>
+            </div>
+          )}
+          {evtSaveMsg && (
+            <div className={`text-xs mt-2 ${evtSaveMsg.startsWith('✓') ? 'text-poker-green-light' : 'text-red-400'}`}>{evtSaveMsg}</div>
+          )}
+        </div>
+      )}
+
       <div className="flex gap-3 pt-2">
         <button type="submit" disabled={loading} className="btn-primary flex-1">
-          {loading ? 'שומר...' : isEdit ? '💾 שמור שינויים' : '📤 שלח לאישור מנהל'}
+          {loading ? 'שומר...' : isEdit ? '💾 שמור שינויים' : '✓ אישור'}
         </button>
         <button type="button" onClick={onCancel} className="btn-ghost flex-1">ביטול</button>
       </div>

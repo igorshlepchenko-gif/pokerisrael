@@ -278,7 +278,11 @@ export default function AdminPanel() {
                         <div className="flex items-start justify-between flex-wrap gap-3">
                           <div>
                             <h3 className="font-bold text-slate-100">{v.name}</h3>
-                            <p className="text-sm text-slate-400">📍 {v.address}, {v.city}</p>
+                            {v.venue_type === 'online' ? (
+                              <p className="text-sm text-slate-400">💻 מועדון אונליין · מספר: <span className="text-slate-200 font-semibold">{v.club_number}</span>{v.agent_number ? ` · סוכן: ${v.agent_number}` : ''}</p>
+                            ) : (
+                              <p className="text-sm text-slate-400">📍 {v.address}, {v.city}</p>
+                            )}
                             <p className="text-sm text-slate-400">📱 {v.whatsapp_number}</p>
                             <p className="text-xs text-slate-500 mt-1">בעלים: {v.owner_name} · {v.owner_email} · {v.owner_phone}</p>
                             {v.description && <p className="text-sm text-slate-400 mt-1">{v.description}</p>}
@@ -358,7 +362,11 @@ export default function AdminPanel() {
                           {v.is_approved ? '✅ מאושר' : '⏳ ממתין לאישור'}
                         </span>
                       </div>
-                      <p className="text-base text-slate-300">📍 {v.address}, {v.city}</p>
+                      {v.venue_type === 'online' ? (
+                        <p className="text-base text-slate-300">💻 מועדון אונליין · מספר: <span className="font-bold">{v.club_number}</span>{v.agent_number ? ` · סוכן: ${v.agent_number}` : ''}</p>
+                      ) : (
+                        <p className="text-base text-slate-300">📍 {v.address}, {v.city}</p>
+                      )}
                       <p className="text-base text-slate-300">📱 {v.whatsapp_number}</p>
                       <p className="text-sm text-slate-500 pt-1">
                         👤 בעלים: <span className="text-slate-400">{v.owner_name}</span>

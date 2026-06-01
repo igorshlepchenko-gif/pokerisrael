@@ -4,19 +4,25 @@ const path = require('path');
 const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 
-const pool = new Pool({
-  host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT) || 5432,
-  database: process.env.DB_NAME || 'poker_live_israel',
-  user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD,
-});
+// פרודקשן: DATABASE_URL; פיתוח: משתנים נפרדים
+const pool = process.env.DATABASE_URL
+  ? new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } })
+  : new Pool({
+      host: process.env.DB_HOST || 'localhost',
+      port: parseInt(process.env.DB_PORT) || 5432,
+      database: process.env.DB_NAME || 'poker_live_israel',
+      user: process.env.DB_USER || 'postgres',
+      password: process.env.DB_PASSWORD,
+    });
 
 async function setup() {
   try {
-    const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
+    // schema_full.sql = הסכמה המלאה כולל כל העמודות שנוספו. נופל ל-schema.sql אם לא קיים.
+    const fullPath = path.join(__dirname, 'schema_full.sql');
+    const schemaPath = fs.existsSync(fullPath) ? fullPath : path.join(__dirname, 'schema.sql');
+    const schema = fs.readFileSync(schemaPath, 'utf8');
     await pool.query(schema);
-    console.log('✅ טבלאות נוצרו בהצלחה');
+    console.log(`✅ טבלאות נוצרו בהצלחה (${path.basename(schemaPath)})`);
 
     const adminEmail = process.env.ADMIN_EMAIL || 'admin@pokerliveisrael.co.il';
     const existing = await pool.query('SELECT id FROM users WHERE email = $1', [adminEmail]);

@@ -1,4 +1,4 @@
-import { buildWhatsAppLink, formatTime, formatDate, formatCost, DAYS_HE, getStageDurations, formatGames } from '../../utils/whatsapp';
+import { buildWhatsAppLink, formatTime, formatDate, formatCost, DAYS_HE, getStageDurations, formatGames, venueDisplayName, eventDisplayDate } from '../../utils/whatsapp';
 
 export default function TournamentListRow({ t, index, onClick }) {
   const waLink = buildWhatsAppLink(t.whatsapp_number, t);
@@ -25,7 +25,7 @@ export default function TournamentListRow({ t, index, onClick }) {
                 ? <img src={t.venue_logo} alt={t.venue_name} className="w-10 h-10 rounded-full object-cover shrink-0 ring-2 ring-slate-600" />
                 : <span className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-xl shrink-0">🏠</span>
               }
-              {t.venue_name}
+              {venueDisplayName(t.venue_name, t.venue_type, t.venue_club_number)}
             </div>
             <div className="text-xs text-slate-400">📍 {t.venue_address}, {t.venue_city}</div>
           </div>
@@ -34,8 +34,8 @@ export default function TournamentListRow({ t, index, onClick }) {
           </div>
         </div>
         <div className="flex items-center gap-4 text-xs text-slate-400">
-          <span>🕐 {formatTime(t.start_time)}</span>
-          <span>{formatDate(t.start_time)}</span>
+          <span>🕐 {formatTime(eventDisplayDate(t))}</span>
+          <span>{formatDate(eventDisplayDate(t))}</span>
           {t.is_recurring && t.day_of_week !== null && (
             <span className="text-poker-gold">כל {DAYS_HE[t.day_of_week]}</span>
           )}
@@ -70,7 +70,7 @@ export default function TournamentListRow({ t, index, onClick }) {
               ? <img src={t.venue_logo} alt={t.venue_name} className="w-10 h-10 rounded-full object-cover shrink-0 ring-2 ring-slate-600" />
               : <span className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-xl shrink-0">🏠</span>
             }
-            <span className="truncate">{t.venue_name}</span>
+            <span className="truncate">{venueDisplayName(t.venue_name, t.venue_type, t.venue_club_number)}</span>
           </div>
           {(t.starting_stack || t.level_duration || t.re_entry || t.late_reg_level || t.platform || t.game_type) && (
             <div className="flex gap-1 mt-1 flex-wrap">
@@ -82,6 +82,11 @@ export default function TournamentListRow({ t, index, onClick }) {
               {t.game_type && (
                 <span className="text-[10px] bg-violet-500/15 text-violet-300 border border-violet-500/40 px-1.5 py-0.5 rounded-full font-bold">
                   🃏 {formatGames(t.game_type, t.secondary_games)}
+                </span>
+              )}
+              {t.cash_sb != null && t.cash_bb != null && (
+                <span className="text-[10px] bg-emerald-500/15 text-emerald-300 border border-emerald-500/40 px-1.5 py-0.5 rounded-full font-bold">
+                  🎯 {Number(t.cash_sb).toLocaleString('he-IL')}/{Number(t.cash_bb).toLocaleString('he-IL')}
                 </span>
               )}
               {t.starting_stack && (
@@ -115,8 +120,8 @@ export default function TournamentListRow({ t, index, onClick }) {
 
         {/* Start time */}
         <div>
-          <div className="font-bold text-poker-green-light">{formatTime(t.start_time)}</div>
-          <div className="text-xs text-slate-500">{formatDate(t.start_time)}</div>
+          <div className="font-bold text-poker-green-light">{formatTime(eventDisplayDate(t))}</div>
+          <div className="text-xs text-slate-500">{formatDate(eventDisplayDate(t))}</div>
           {t.is_recurring && t.day_of_week !== null && (
             <div className="text-xs text-poker-gold">כל {DAYS_HE[t.day_of_week]}</div>
           )}
@@ -124,6 +129,7 @@ export default function TournamentListRow({ t, index, onClick }) {
 
         {/* Cost + Rake + GTD */}
         <div>
+          {t.game_type && <div className="text-[10px] text-slate-500">כניסה מינ׳</div>}
           <div className="font-black text-poker-gold">{formatCost(t.cost)}</div>
           {t.rake != null && t.rake !== '' && (
             <div className="text-[11px] text-slate-400 mt-0.5">

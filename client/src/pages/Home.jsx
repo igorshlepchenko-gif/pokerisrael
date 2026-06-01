@@ -125,27 +125,24 @@ export default function Home() {
       <div className="max-w-7xl mx-auto px-4 mb-6">
         <div className="flex gap-3 justify-center flex-wrap">
           {[
-            { key: 'all',    icon: '🌐', label: 'הכל',             desc: 'כל סוגי האירועים' },
-            { key: 'live',   icon: '🏠', label: 'טורניר לייב',    desc: 'מפגשים פיזיים במועדונים' },
-            { key: 'online', icon: '💻', label: 'טורניר אונליין',  desc: 'משחקים ברשת' },
-            { key: 'cash',   icon: '🃏', label: 'קאש גיים',        desc: 'משחקי קאש פרטיים' },
-          ].map(({ key, icon, label, desc }) => (
+            { key: 'all',    icon: '🌐', label: 'הכל' },
+            { key: 'live',   icon: '🏆', label: 'טורניר לייב' },
+            { key: 'cash',   icon: '♠️', label: 'קאש גיים לייב' },
+            { key: 'online', icon: '💻', label: 'טורניר אונליין' },
+          ].map(({ key, icon, label }) => (
             <button
               key={key}
               type="button"
               onClick={() => { setTournamentType(key); setSearch(''); setCity(''); setDay(''); setGtdMin(''); setSelectedVenues([]); }}
-              className={`flex items-center gap-3 px-6 py-3 rounded-2xl border-2 font-bold text-sm transition-all duration-200 hover:scale-105 ${
+              className={`flex items-center gap-2.5 px-6 py-3 rounded-2xl border-2 font-bold text-sm transition-all duration-200 hover:scale-105 ${
                 tournamentType === key
                   ? 'border-blue-500 bg-blue-600/20 text-white shadow-lg'
                   : 'border-slate-700 bg-slate-800/40 text-slate-400 hover:border-slate-500 hover:text-slate-200'
               }`}
               style={tournamentType === key ? { boxShadow: '0 0 20px rgba(29,78,216,0.35)' } : {}}
             >
-              <span className="text-2xl">{icon}</span>
-              <div className="text-right">
-                <div>{label}</div>
-                <div className="text-xs font-normal opacity-60">{desc}</div>
-              </div>
+              <span className="text-xl">{icon}</span>
+              <span>{label}</span>
               {tournamentType === key && <span className="text-blue-400 text-base mr-1">✓</span>}
             </button>
           ))}
@@ -225,7 +222,7 @@ export default function Home() {
                     className="text-sm text-slate-200 outline-none cursor-pointer"
                     style={{ background: '#0d1526' }}
                   >
-                    <option value="start_time"  style={{ background: '#0d1526', color: '#e2e8f0' }}>קרוב בזמן</option>
+                    <option value="start_time"  style={{ background: '#0d1526', color: '#e2e8f0' }}>הקרובים ביותר</option>
                     <option value="day"          style={{ background: '#0d1526', color: '#e2e8f0' }}>לפי יום בשבוע</option>
                     <option value="cost_asc"     style={{ background: '#0d1526', color: '#e2e8f0' }}>עלות: נמוך לגבוה</option>
                     <option value="cost_desc"    style={{ background: '#0d1526', color: '#e2e8f0' }}>עלות: גבוה לנמוך</option>

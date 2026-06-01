@@ -35,6 +35,46 @@ export function buildVenueContactLink(whatsappNumber, venueName) {
 
 export const DAYS_HE = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
 
+// מחזיר מחרוזת תאריך YYYY-MM-DD (זמן מקומי)
+function toDateStr(d) {
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+// מחשב את התאריך של המופע הקרוב הבא לאירוע שבועי קבוע
+// startTime: תאריך מקורי (לקביעת השעה), dayOfWeek: 0-6, skipped: מערך תאריכים לדילוג
+export function nextOccurrence(startTime, dayOfWeek, skipped = []) {
+  if (!startTime) return null;
+  const base = new Date(startTime);
+  const dow = (dayOfWeek === null || dayOfWeek === undefined) ? base.getDay() : Number(dayOfWeek);
+  const skipList = Array.isArray(skipped) ? skipped : (() => { try { return JSON.parse(skipped || '[]'); } catch { return []; } })();
+
+  const now = new Date();
+  const res = new Date(now);
+  res.setHours(base.getHours(), base.getMinutes(), 0, 0);
+
+  let daysAhead = (dow - res.getDay() + 7) % 7;
+  if (daysAhead === 0 && res <= now) daysAhead = 7; // היום אבל השעה עברה → שבוע הבא
+  res.setDate(res.getDate() + daysAhead);
+
+  // דילוג על תאריכים שסומנו (חגים וכו')
+  let guard = 0;
+  while (skipList.includes(toDateStr(res)) && guard < 60) {
+    res.setDate(res.getDate() + 7);
+    guard++;
+  }
+  return res;
+}
+
+// תאריך תצוגה לאירוע — חוזר שבועי מציג את המופע הבא, אחרת את התאריך המקורי
+export function eventDisplayDate(t) {
+  if (t.is_recurring) {
+    const next = nextOccurrence(t.start_time, t.day_of_week, t.skipped_dates);
+    return next ? next.toISOString() : t.start_time;
+  }
+  return t.start_time;
+}
+
 export function formatTime(dateStr) {
   if (!dateStr) return '';
   return new Date(dateStr).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
@@ -64,6 +104,12 @@ export function getStageDurations(stages, fallback) {
   ];
   if (durations.length > 0) return durations.join('/');
   return fallback ? String(fallback) : null;
+}
+
+// שם מועדון לתצוגה — למועדון אונליין מוסיף את מספר המועדון: "שם - 123456"
+export function venueDisplayName(name, venueType, clubNumber) {
+  if (venueType === 'online' && clubNumber) return `${name} - ${clubNumber}`;
+  return name;
 }
 
 // מחזיר מחרוזת תצוגה למשחקי קאש: "NLH" או "NLH + PLO5 ×2"

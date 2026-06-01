@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import api from '../utils/api';
 import TournamentForm from '../components/Tournament/TournamentForm';
-import { formatDate, formatTime, formatCost } from '../utils/whatsapp';
+import { formatDate, formatTime, formatCost, eventDisplayDate, DAYS_HE } from '../utils/whatsapp';
+import { useAuth } from '../context/AuthContext';
 
 const STATUS_LABELS = { pending: '⏳ ממתין', approved: '✅ מאושר', rejected: '❌ נדחה' };
 const STATUS_COLORS = { pending: 'text-amber-400 bg-amber-900/20', approved: 'text-green-400 bg-green-900/20', rejected: 'text-red-400 bg-red-900/20' };
@@ -170,13 +171,14 @@ function VideoManager({ venue }) {
 
 // --- Bulk uploader ---
 function BulkUploader({ venues, onSuccess }) {
+  const approvedVenues = venues.filter(v => v.is_approved);
   const [open, setOpen] = useState(false);
-  const [venueId, setVenueId] = useState('');
+  // אם יש מועדון מאושר אחד — בחר אותו אוטומטית
+  const [venueId, setVenueId] = useState(approvedVenues.length === 1 ? String(approvedVenues[0].id) : '');
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null); // { success, message, errors, tournaments }
   const inputRef = useRef();
-  const approvedVenues = venues.filter(v => v.is_approved);
 
   const downloadTemplate = async () => {
     try {
@@ -193,13 +195,11 @@ function BulkUploader({ venues, onSuccess }) {
   };
 
   const handleSubmit = async () => {
-    if (!venueId) return setResult({ success: false, message: 'יש לבחור מועדון תחילה' });
     if (!file) return setResult({ success: false, message: 'יש לבחור קובץ' });
     setLoading(true); setResult(null);
     try {
       const fd = new FormData();
       fd.append('file', file);
-      fd.append('venue_id', venueId);
       const res = await api.post('/tournaments/bulk', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
       setResult({ success: true, message: res.data.message, tournaments: res.data.tournaments });
       setFile(null);
@@ -217,8 +217,8 @@ function BulkUploader({ venues, onSuccess }) {
     <div className="card border-slate-700/50 overflow-hidden">
       <button onClick={() => setOpen(p => !p)}
         className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-slate-700/20 transition-colors text-sm font-semibold text-slate-300">
-        <span className="flex items-center gap-2">📊 העלאת טורנירים מקובץ Excel/CSV
-          <span className="text-xs font-normal text-slate-500">עד 10 טורנירים בבת אחת</span>
+        <span className="flex items-center gap-2">📊 העלאת אירועים מקובץ Excel
+          <span className="text-xs font-normal text-slate-500">טורנירים וקאש · עד 20 בבת אחת</span>
         </span>
         <span className="text-slate-500 text-xs">{open ? '▲ סגור' : '▼ פתח'}</span>
       </button>
@@ -229,8 +229,8 @@ function BulkUploader({ venues, onSuccess }) {
           {/* Template download */}
           <div className="flex items-center justify-between bg-slate-900/50 rounded-xl px-4 py-3">
             <div>
-              <p className="text-sm font-semibold text-slate-200">📥 הורד תבנית מלאה</p>
-              <p className="text-xs text-slate-500 mt-0.5">קובץ CSV עם כותרות + 3 שורות לדוגמה</p>
+              <p className="text-sm font-semibold text-slate-200">📥 הורד תבנית Excel מלאה</p>
+              <p className="text-xs text-slate-500 mt-0.5">עם רשימות נפתחות, דוגמאות וגיליון הוראות</p>
             </div>
             <button onClick={downloadTemplate}
               className="btn-ghost text-xs whitespace-nowrap">⬇️ הורד תבנית</button>
@@ -238,25 +238,12 @@ function BulkUploader({ venues, onSuccess }) {
 
           {/* Instructions */}
           <div className="text-xs text-slate-500 bg-slate-800/40 rounded-xl px-4 py-3 space-y-1 leading-relaxed">
-            <p className="font-semibold text-slate-400 mb-1.5">📋 הנחיות מילוי:</p>
-            <p>• <strong>שם טורניר</strong>, <strong>עלות</strong> ו-<strong>תאריך + שעת התחלה</strong> — שדות חובה</p>
-            <p>• תאריך בפורמט <span className="font-mono bg-slate-700 px-1 rounded">DD/MM/YYYY</span> · שעה בפורמט <span className="font-mono bg-slate-700 px-1 rounded">HH:MM</span></p>
-            <p>• <strong>חוזר שבועי:</strong> <span className="font-mono bg-slate-700 px-1 rounded">כן</span> / <span className="font-mono bg-slate-700 px-1 rounded">לא</span> · <strong>יום בשבוע:</strong> ראשון / שני / שלישי / רביעי / חמישי / שישי / שבת</p>
-            <p>• <strong>ערימה התחלתית:</strong> מספר צ'יפס (למשל: 20000)</p>
-            <p>• <strong>זמן לשלב:</strong> מספר דקות (למשל: 20)</p>
-            <p>• <strong>כניסה חוזרת:</strong> <span className="font-mono bg-slate-700 px-1 rounded">1X</span> / <span className="font-mono bg-slate-700 px-1 rounded">2X</span> / <span className="font-mono bg-slate-700 px-1 rounded">3X</span> / <span className="font-mono bg-slate-700 px-1 rounded">4X</span> / <span className="font-mono bg-slate-700 px-1 rounded">Unlimited</span></p>
-            <p>• <strong>Late Reg עד שלב:</strong> מספר שלב (למשל: 6) · ריק = ללא</p>
-            <p>• <strong>מבנה בליינדים:</strong> בחר מהרשימה — <span className="font-mono bg-slate-700 px-1 rounded">hyper</span> / <span className="font-mono bg-slate-700 px-1 rounded">turbo</span> / <span className="font-mono bg-slate-700 px-1 rounded">regular</span> או שם תבנית שמורה שלך</p>
-            <p>• מקסימום <strong>15 שורות</strong> בכל קובץ</p>
-          </div>
-
-          {/* Venue select */}
-          <div>
-            <label className="block text-xs text-slate-400 mb-1">בחר מועדון *</label>
-            <select value={venueId} onChange={e => setVenueId(e.target.value)} className="input-field text-sm">
-              <option value="">— בחר מועדון —</option>
-              {approvedVenues.map(v => <option key={v.id} value={v.id}>{v.name} ({v.city})</option>)}
-            </select>
+            <p className="font-semibold text-slate-400 mb-1.5">📋 הנחיות:</p>
+            <p>• כל שורה = אירוע. בחר <strong>סוג אירוע</strong> ו-<strong>מועדון</strong> מהרשימות הנפתחות בקובץ</p>
+            <p>• שדות חובה: <strong>סוג אירוע · מועדון · שם · עלות/כניסה · תאריך + שעה</strong></p>
+            <p>• כל סוג אירוע משתמש בשדות הרלוונטיים לו בלבד (טורניר = בליינדים/GTD, קאש = SB/BB/סוג משחק, אונליין = פלטפורמה)</p>
+            <p>• <strong>מבנה בליינדים</strong> (לטורניר): בחר <span className="font-mono bg-slate-700 px-1 rounded">regular/turbo/hyper</span> או תבנית שמורה שלך</p>
+            <p>• פירוט מלא בגיליון <strong>"הוראות"</strong> שבתוך הקובץ · מקסימום <strong>20 שורות</strong></p>
           </div>
 
           {/* File picker */}
@@ -292,9 +279,9 @@ function BulkUploader({ venues, onSuccess }) {
           )}
 
           {/* Submit */}
-          <button onClick={handleSubmit} disabled={loading || !file || !venueId}
+          <button onClick={handleSubmit} disabled={loading || !file}
             className="btn-primary w-full disabled:opacity-40 disabled:cursor-not-allowed">
-            {loading ? '⏳ שולח...' : `📤 שלח לאישור${file ? ` (${file.name})` : ''}`}
+            {loading ? '⏳ מעלה...' : `📤 העלה אירועים${file ? ` (${file.name})` : ''}`}
           </button>
         </div>
       )}
@@ -311,6 +298,9 @@ function VenueEditForm({ venue, onSuccess, onCancel }) {
     whatsapp_number:  venue.whatsapp_number  || '',
     description:      venue.description      || '',
     logo_url:         venue.logo_url         || '',
+    venue_type:       venue.venue_type       || 'physical',
+    club_number:      venue.club_number      || '',
+    agent_number:     venue.agent_number     || '',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState('');
@@ -334,6 +324,29 @@ function VenueEditForm({ venue, onSuccess, onCancel }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {/* סוג מועדון */}
+      <div>
+        <label className="block text-xs text-slate-400 mb-1.5">סוג מועדון *</label>
+        <div className="grid grid-cols-2 gap-2">
+          {[
+            { val: 'physical', icon: '🏢', label: 'פיזי', sub: 'מועדון במיקום פיזי' },
+            { val: 'online',   icon: '💻', label: 'אונליין', sub: 'מועדון באפליקציה' },
+          ].map(({ val, icon, label, sub }) => (
+            <button key={val} type="button"
+              onClick={() => set('venue_type', val)}
+              className={`p-3 rounded-xl border-2 text-center transition-all ${
+                form.venue_type === val
+                  ? 'border-blue-500 bg-blue-600/20 text-white'
+                  : 'border-slate-600 bg-slate-800/40 text-slate-400 hover:border-slate-500'
+              }`}>
+              <div className="text-xl mb-0.5">{icon}</div>
+              <div className="text-sm font-bold">{label}</div>
+              <div className="text-[11px] opacity-60">{sub}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+
       <LogoUploader value={form.logo_url} onChange={url => set('logo_url', url)} />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -342,16 +355,35 @@ function VenueEditForm({ venue, onSuccess, onCancel }) {
           <input type="text" value={form.name} onChange={e => set('name', e.target.value)}
             className="input-field text-sm" required />
         </div>
-        <div>
-          <label className="block text-xs text-slate-400 mb-1">עיר *</label>
-          <input type="text" value={form.city} onChange={e => set('city', e.target.value)}
-            className="input-field text-sm" required />
-        </div>
-        <div className="sm:col-span-2">
-          <label className="block text-xs text-slate-400 mb-1">כתובת מלאה *</label>
-          <input type="text" value={form.address} onChange={e => set('address', e.target.value)}
-            className="input-field text-sm" required />
-        </div>
+
+        {form.venue_type === 'online' ? (
+          <>
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">מספר מועדון באפליקציה *</label>
+              <input type="text" value={form.club_number} onChange={e => set('club_number', e.target.value)}
+                className="input-field text-sm" placeholder="למשל: 123456" dir="ltr" required />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-xs text-slate-400 mb-1">מספר סוכן <span className="text-slate-500">(לא חובה)</span></label>
+              <input type="text" value={form.agent_number} onChange={e => set('agent_number', e.target.value)}
+                className="input-field text-sm" placeholder="למשל: 7890" dir="ltr" />
+            </div>
+          </>
+        ) : (
+          <>
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">עיר *</label>
+              <input type="text" value={form.city} onChange={e => set('city', e.target.value)}
+                className="input-field text-sm" required />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-xs text-slate-400 mb-1">כתובת מלאה *</label>
+              <input type="text" value={form.address} onChange={e => set('address', e.target.value)}
+                className="input-field text-sm" required />
+            </div>
+          </>
+        )}
+
         <div>
           <label className="block text-xs text-slate-400 mb-1">מספר וואצאפ * (להרשמות)</label>
           <input type="tel" value={form.whatsapp_number} onChange={e => set('whatsapp_number', e.target.value)}
@@ -378,6 +410,7 @@ function VenueEditForm({ venue, onSuccess, onCancel }) {
 
 // --- Main Dashboard ---
 export default function Dashboard() {
+  const { user } = useAuth();
   const [tab, setTab] = useState('tournaments');
   const [tournaments, setTournaments] = useState([]);
   const [venues, setVenues] = useState([]);
@@ -388,6 +421,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [venueForm, setVenueForm] = useState({
     name: '', address: '', city: '', whatsapp_number: '', description: '', logo_url: '',
+    venue_type: 'physical', club_number: '', agent_number: '',
   });
   const [venueLoading, setVenueLoading] = useState(false);
   const [venueError, setVenueError] = useState('');
@@ -408,6 +442,27 @@ export default function Dashboard() {
     finally { setLoading(false); }
   };
 
+  const handleSkipNext = async (t) => {
+    const next = eventDisplayDate(t);
+    const dateStr = next ? new Date(next).toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' }) : '';
+    if (!confirm(`לדלג על המופע הקרוב (${dateStr})?\nהאירוע יציג במקום זאת את המופע שאחריו.`)) return;
+    try {
+      await api.post(`/tournaments/${t.id}/skip-next`);
+      fetchData();
+    } catch (err) {
+      alert(err.response?.data?.message || 'שגיאה בדילוג על המופע');
+    }
+  };
+
+  const handleClearSkips = async (id) => {
+    try {
+      await api.post(`/tournaments/${id}/clear-skips`);
+      fetchData();
+    } catch (err) {
+      alert(err.response?.data?.message || 'שגיאה באיפוס הדילוגים');
+    }
+  };
+
   const handleVenueSubmit = async (e) => {
     e.preventDefault();
     setVenueError('');
@@ -416,7 +471,7 @@ export default function Dashboard() {
       const res = await api.post('/tournaments/venues', venueForm);
       setVenueSuccess(res.data.message);
       setShowVenueForm(false);
-      setVenueForm({ name: '', address: '', city: '', whatsapp_number: '', description: '', logo_url: '' });
+      setVenueForm({ name: '', address: '', city: '', whatsapp_number: '', description: '', logo_url: '', venue_type: 'physical', club_number: '', agent_number: '' });
       fetchData();
     } catch (err) {
       setVenueError(err.response?.data?.message || 'שגיאה');
@@ -437,7 +492,9 @@ export default function Dashboard() {
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-black text-white">🏠 לוח ניהול</h1>
+        <h1 className="text-2xl font-black text-white">
+          📅 האירועים שלך{user?.name ? ` · ${user.name}` : ''}
+        </h1>
         <button onClick={() => setShowForm(true)} className="btn-primary">
           + הוסף אירוע
         </button>
@@ -451,7 +508,7 @@ export default function Dashboard() {
 
       {/* Tabs */}
       <div className="flex gap-1 mb-6 bg-slate-800 p-1 rounded-xl w-fit">
-        {[['tournaments', '🃏 טורנירים'], ['venues', '🏠 מועדונים']].map(([id, label]) => (
+        {[['tournaments', '🃏 אירועים'], ['venues', '🏠 מועדונים']].map(([id, label]) => (
           <button key={id} onClick={() => setTab(id)}
             className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${tab === id ? 'bg-poker-green text-white' : 'text-slate-400 hover:text-slate-200'}`}>
             {label}
@@ -463,7 +520,13 @@ export default function Dashboard() {
       {showForm && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
           <div className="card p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <h2 className="text-xl font-bold text-white mb-4">הוספת אירוע חדש</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-white">הוספת אירוע חדש</h2>
+              <button onClick={() => setShowForm(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-700 hover:bg-red-500/80 text-slate-300 hover:text-white transition-all text-sm">
+                ✕
+              </button>
+            </div>
             {venues.filter(v => v.is_approved).length === 0 ? (
               <div className="text-center py-6">
                 <p className="text-amber-400 mb-2">אין לך עדיין מועדונים מאושרים</p>
@@ -526,18 +589,39 @@ export default function Dashboard() {
                       <span className="text-[10px] bg-emerald-900/30 text-emerald-400 px-1.5 py-0.5 rounded-full">🔄 {t.re_entry}</span>
                     )}
                   </div>
-                  <p className="text-sm text-slate-400 mt-1">{t.venue_name} · {formatDate(t.start_time)} · {formatTime(t.start_time)}</p>
+                  <p className="text-sm text-slate-400 mt-1">
+                    {t.venue_name} · {formatDate(eventDisplayDate(t))} · {formatTime(eventDisplayDate(t))}
+                    {t.is_recurring && t.day_of_week !== null && (
+                      <span className="text-poker-gold"> · כל יום {DAYS_HE[t.day_of_week]}</span>
+                    )}
+                  </p>
                   <p className="text-sm text-poker-gold font-semibold">{formatCost(t.cost)}</p>
+                  {t.is_recurring && Array.isArray(t.skipped_dates) && t.skipped_dates.length > 0 && (
+                    <p className="text-xs text-amber-400 mt-1">⏭️ {t.skipped_dates.length} מופעים מדולגים ·
+                      <button onClick={() => handleClearSkips(t.id)} className="underline hover:text-amber-300 mr-1">בטל דילוגים</button>
+                    </p>
+                  )}
                   {t.rejection_reason && (
                     <p className="text-xs text-red-400 mt-1 bg-red-900/20 rounded px-2 py-1">סיבת דחייה: {t.rejection_reason}</p>
                   )}
                 </div>
-                <button
-                  onClick={() => setEditingTournament(t)}
-                  className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-600 text-slate-400 hover:border-poker-green hover:text-poker-green-light text-xs font-semibold transition-all hover:scale-105 active:scale-95"
-                >
-                  ✏️ עריכה
-                </button>
+                <div className="shrink-0 flex flex-col gap-1.5">
+                  <button
+                    onClick={() => setEditingTournament(t)}
+                    className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-600 text-slate-400 hover:border-poker-green hover:text-poker-green-light text-xs font-semibold transition-all hover:scale-105 active:scale-95"
+                  >
+                    ✏️ עריכה
+                  </button>
+                  {t.is_recurring && (
+                    <button
+                      onClick={() => handleSkipNext(t)}
+                      title="למשל כשהמופע נופל על חג"
+                      className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-600 text-slate-400 hover:border-amber-500 hover:text-amber-400 text-xs font-semibold transition-all hover:scale-105 active:scale-95"
+                    >
+                      ⏭️ דלג על המופע הבא
+                    </button>
+                  )}
+                </div>
               </div>
             );
           })}
@@ -559,6 +643,29 @@ export default function Dashboard() {
               <h3 className="font-bold text-white mb-4">הוספת מועדון חדש</h3>
               <form onSubmit={handleVenueSubmit} className="space-y-4">
 
+                {/* סוג מועדון */}
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1.5">סוג מועדון *</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { val: 'physical', icon: '🏢', label: 'פיזי', sub: 'מועדון במיקום פיזי' },
+                      { val: 'online',   icon: '💻', label: 'אונליין', sub: 'מועדון באפליקציה' },
+                    ].map(({ val, icon, label, sub }) => (
+                      <button key={val} type="button"
+                        onClick={() => setVenueForm(p => ({ ...p, venue_type: val }))}
+                        className={`p-3 rounded-xl border-2 text-center transition-all ${
+                          venueForm.venue_type === val
+                            ? 'border-blue-500 bg-blue-600/20 text-white'
+                            : 'border-slate-600 bg-slate-800/40 text-slate-400 hover:border-slate-500'
+                        }`}>
+                        <div className="text-xl mb-0.5">{icon}</div>
+                        <div className="text-sm font-bold">{label}</div>
+                        <div className="text-[11px] opacity-60">{sub}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 {/* Logo uploader */}
                 <LogoUploader
                   value={venueForm.logo_url}
@@ -572,18 +679,39 @@ export default function Dashboard() {
                       onChange={e => setVenueForm(p => ({ ...p, name: e.target.value }))}
                       className="input-field text-sm" required />
                   </div>
-                  <div>
-                    <label className="block text-xs text-slate-400 mb-1">עיר *</label>
-                    <input type="text" value={venueForm.city}
-                      onChange={e => setVenueForm(p => ({ ...p, city: e.target.value }))}
-                      className="input-field text-sm" required />
-                  </div>
-                  <div className="sm:col-span-2">
-                    <label className="block text-xs text-slate-400 mb-1">כתובת מלאה *</label>
-                    <input type="text" value={venueForm.address}
-                      onChange={e => setVenueForm(p => ({ ...p, address: e.target.value }))}
-                      className="input-field text-sm" required />
-                  </div>
+
+                  {venueForm.venue_type === 'online' ? (
+                    <>
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">מספר מועדון באפליקציה *</label>
+                        <input type="text" value={venueForm.club_number}
+                          onChange={e => setVenueForm(p => ({ ...p, club_number: e.target.value }))}
+                          className="input-field text-sm" placeholder="למשל: 123456" dir="ltr" required />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <label className="block text-xs text-slate-400 mb-1">מספר סוכן <span className="text-slate-500">(לא חובה)</span></label>
+                        <input type="text" value={venueForm.agent_number}
+                          onChange={e => setVenueForm(p => ({ ...p, agent_number: e.target.value }))}
+                          className="input-field text-sm" placeholder="למשל: 7890" dir="ltr" />
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div>
+                        <label className="block text-xs text-slate-400 mb-1">עיר *</label>
+                        <input type="text" value={venueForm.city}
+                          onChange={e => setVenueForm(p => ({ ...p, city: e.target.value }))}
+                          className="input-field text-sm" required />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <label className="block text-xs text-slate-400 mb-1">כתובת מלאה *</label>
+                        <input type="text" value={venueForm.address}
+                          onChange={e => setVenueForm(p => ({ ...p, address: e.target.value }))}
+                          className="input-field text-sm" required />
+                      </div>
+                    </>
+                  )}
+
                   <div>
                     <label className="block text-xs text-slate-400 mb-1">מספר וואצאפ * (להרשמות)</label>
                     <input type="tel" value={venueForm.whatsapp_number}
@@ -658,7 +786,14 @@ export default function Dashboard() {
                       ✏️ עריכה
                     </button>
                   </div>
-                  <p className="text-sm text-slate-400">📍 {v.address}, {v.city}</p>
+                  {v.venue_type === 'online' ? (
+                    <>
+                      <p className="text-sm text-slate-400">💻 מועדון אונליין · מספר: <span className="text-slate-200 font-semibold">{v.club_number}</span></p>
+                      {v.agent_number && <p className="text-sm text-slate-400">🪪 סוכן: {v.agent_number}</p>}
+                    </>
+                  ) : (
+                    <p className="text-sm text-slate-400">📍 {v.address}, {v.city}</p>
+                  )}
                   <p className="text-sm text-slate-400">📱 {v.whatsapp_number}</p>
 
                   {/* Video manager — only for approved venues */}

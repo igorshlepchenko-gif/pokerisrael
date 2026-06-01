@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { formatTime, formatDate, formatCost, DAYS_HE, buildWhatsAppLink, getStageDurations, formatGames } from '../../utils/whatsapp';
+import { formatTime, formatDate, formatCost, DAYS_HE, buildWhatsAppLink, getStageDurations, formatGames, venueDisplayName, eventDisplayDate } from '../../utils/whatsapp';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
 import RegistrationModal from './RegistrationModal';
@@ -79,7 +79,7 @@ export default function TournamentCard({ t, index, onClick }) {
         }
         <div className="min-w-0">
           <h3 className="font-bold text-lg text-slate-100 leading-tight truncate">{t.name}</h3>
-          <p className="text-poker-green-light font-semibold text-sm">{t.venue_name}</p>
+          <p className="text-poker-green-light font-semibold text-sm">{venueDisplayName(t.venue_name, t.venue_type, t.venue_club_number)}</p>
         </div>
       </div>
 
@@ -102,15 +102,20 @@ export default function TournamentCard({ t, index, onClick }) {
               🃏 {formatGames(t.game_type, t.secondary_games)}
             </span>
           )}
+          {t.cash_sb != null && t.cash_bb != null && (
+            <span className="text-xs bg-emerald-500/15 text-emerald-300 border border-emerald-500/40 px-2 py-0.5 rounded-full font-bold">
+              🎯 בליינדים: {Number(t.cash_sb).toLocaleString('he-IL')}/{Number(t.cash_bb).toLocaleString('he-IL')}
+            </span>
+          )}
         </div>
       )}
 
       {/* גריד מסודר: התחלה | סיום | עלות — שלושתם בשורה אחת */}
       <div className="grid grid-cols-3 gap-2 mb-3">
         <div className="bg-slate-900/50 rounded-lg p-2 text-center">
-          <div className="text-xs text-slate-500 mb-0.5">התחלה</div>
-          <div className="font-bold text-poker-green-light">{formatTime(t.start_time)}</div>
-          <div className="text-xs text-slate-400">{formatDate(t.start_time)}</div>
+          <div className="text-xs text-slate-500 mb-0.5">{t.is_recurring ? 'המופע הבא' : 'התחלה'}</div>
+          <div className="font-bold text-poker-green-light">{formatTime(eventDisplayDate(t))}</div>
+          <div className="text-xs text-slate-400">{formatDate(eventDisplayDate(t))}</div>
           {t.is_recurring && t.day_of_week !== null && (
             <div className="text-xs text-poker-gold">כל יום {DAYS_HE[t.day_of_week]}</div>
           )}
@@ -122,7 +127,7 @@ export default function TournamentCard({ t, index, onClick }) {
           </div>
         </div>
         <div className="bg-slate-900/50 rounded-lg p-2 text-center">
-          <div className="text-xs text-slate-500 mb-0.5">כניסה</div>
+          <div className="text-xs text-slate-500 mb-0.5">{t.game_type ? 'כניסה מינ׳' : 'כניסה'}</div>
           <div className="font-bold text-poker-gold">{formatCost(t.cost)}</div>
           {t.rake != null && t.rake !== '' && (
             <div className="text-[10px] text-slate-400 mt-0.5">

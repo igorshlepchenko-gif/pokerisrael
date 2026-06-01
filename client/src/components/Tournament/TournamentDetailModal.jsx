@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { buildVenueContactLink, buildWhatsAppLink, formatTime, formatDate, formatCost, DAYS_HE, getStageDurations } from '../../utils/whatsapp';
+import { buildVenueContactLink, buildWhatsAppLink, formatTime, formatDate, formatCost, DAYS_HE, getStageDurations, formatGames, venueDisplayName, eventDisplayDate } from '../../utils/whatsapp';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
 import RegistrationModal from './RegistrationModal';
@@ -77,7 +77,7 @@ export default function TournamentDetailModal({ tournament: t, onClose }) {
             }
             <div className="min-w-0">
               <h2 className="font-black text-white text-base leading-tight truncate">{t.name}</h2>
-              <p className="text-poker-green-light font-semibold text-sm truncate">{t.venue_name}</p>
+              <p className="text-poker-green-light font-semibold text-sm truncate">{venueDisplayName(t.venue_name, t.venue_type, t.venue_club_number)}</p>
             </div>
           </div>
           <button
@@ -110,9 +110,9 @@ export default function TournamentDetailModal({ tournament: t, onClose }) {
           {/* Time grid */}
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-slate-900/60 rounded-xl p-3 text-center">
-              <div className="text-[11px] text-slate-500 mb-1">📅 התחלה</div>
-              <div className="font-black text-poker-green-light text-2xl leading-none">{formatTime(t.start_time)}</div>
-              <div className="text-xs text-slate-400 mt-1">{formatDate(t.start_time)}</div>
+              <div className="text-[11px] text-slate-500 mb-1">📅 {t.is_recurring ? 'המופע הבא' : 'התחלה'}</div>
+              <div className="font-black text-poker-green-light text-2xl leading-none">{formatTime(eventDisplayDate(t))}</div>
+              <div className="text-xs text-slate-400 mt-1">{formatDate(eventDisplayDate(t))}</div>
               {t.is_recurring && t.day_of_week !== null && (
                 <div className="text-[11px] text-poker-gold mt-1 font-semibold">כל יום {DAYS_HE[t.day_of_week]}</div>
               )}
@@ -128,8 +128,33 @@ export default function TournamentDetailModal({ tournament: t, onClose }) {
           {/* Cost + stack + level badges */}
           <div className="flex flex-wrap gap-2">
             <span className="bg-slate-700/80 text-poker-gold font-black text-base px-4 py-2 rounded-xl border border-slate-600">
-              💰 {formatCost(t.cost)}
+              💰 {t.game_type ? 'כניסה מינ׳: ' : ''}{formatCost(t.cost)}
             </span>
+            {t.rake != null && t.rake !== '' && (
+              <span className="bg-slate-700/80 text-slate-200 px-3 py-2 rounded-xl font-bold text-sm border border-slate-600">
+                RAKE: {t.rake_type === 'percent' ? `${t.rake}%` : `₪${Number(t.rake).toLocaleString('he-IL')}`}
+              </span>
+            )}
+            {t.gtd > 0 && (
+              <span className="bg-amber-500/15 text-amber-300 border border-amber-500/40 px-3 py-2 rounded-xl font-black text-sm">
+                💰 GTD: ₪{Number(t.gtd).toLocaleString('he-IL')}
+              </span>
+            )}
+            {t.platform && (
+              <span className="bg-blue-500/15 text-blue-300 border border-blue-500/40 px-3 py-2 rounded-xl font-bold text-sm">
+                {t.tournament_type === 'online' ? '💻' : '📍'} {t.platform}
+              </span>
+            )}
+            {t.game_type && (
+              <span className="bg-violet-500/15 text-violet-300 border border-violet-500/40 px-3 py-2 rounded-xl font-bold text-sm">
+                🃏 {formatGames(t.game_type, t.secondary_games)}
+              </span>
+            )}
+            {t.cash_sb != null && t.cash_bb != null && (
+              <span className="bg-emerald-500/15 text-emerald-300 border border-emerald-500/40 px-3 py-2 rounded-xl font-bold text-sm">
+                🎯 בליינדים: {Number(t.cash_sb).toLocaleString('he-IL')}/{Number(t.cash_bb).toLocaleString('he-IL')}
+              </span>
+            )}
             {t.starting_stack && (
               <span className="bg-slate-700/80 text-poker-gold px-3 py-2 rounded-xl font-bold text-sm border border-slate-600">
                 🎯 ערימה: {t.starting_stack.toLocaleString()}

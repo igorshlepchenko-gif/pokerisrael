@@ -42,21 +42,32 @@ router.put('/:id', authenticate, requireRole('venue_owner', 'admin'), [
   body('start_time').isISO8601().withMessage('שעת התחלה לא תקינה'),
 ], ctrl.updateTournament);
 
+router.post('/:id/skip-next', authenticate, requireRole('venue_owner', 'admin'), ctrl.skipNextOccurrence);
+router.post('/:id/clear-skips', authenticate, requireRole('venue_owner', 'admin'), ctrl.clearSkips);
+
 const waValidation = body('whatsapp_number')
   .trim().notEmpty().withMessage('מספר וואצאפ הוא שדה חובה')
   .matches(/^[\d\s\-+()]{7,20}$/).withMessage('מספר וואצאפ לא תקין');
 
+// כתובת/עיר חובה רק למועדון פיזי
+const addressValidation = body('address')
+  .if(body('venue_type').not().equals('online'))
+  .trim().notEmpty().withMessage('כתובת היא שדה חובה');
+const cityValidation = body('city')
+  .if(body('venue_type').not().equals('online'))
+  .trim().notEmpty().withMessage('עיר היא שדה חובה');
+
 router.put('/venues/:id', authenticate, requireRole('venue_owner', 'admin'), [
   body('name').trim().notEmpty().withMessage('שם המועדון הוא שדה חובה'),
-  body('address').trim().notEmpty().withMessage('כתובת היא שדה חובה'),
-  body('city').trim().notEmpty().withMessage('עיר היא שדה חובה'),
+  addressValidation,
+  cityValidation,
   waValidation,
 ], ctrl.updateVenue);
 
 router.post('/venues', authenticate, requireRole('venue_owner', 'admin'), [
   body('name').trim().notEmpty().withMessage('שם המקום הוא שדה חובה'),
-  body('address').trim().notEmpty().withMessage('כתובת היא שדה חובה'),
-  body('city').trim().notEmpty().withMessage('עיר היא שדה חובה'),
+  addressValidation,
+  cityValidation,
   waValidation,
 ], ctrl.createVenue);
 
