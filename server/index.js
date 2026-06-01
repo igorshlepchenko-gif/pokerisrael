@@ -124,10 +124,15 @@ const cleanOldLogs = async () => {
     console.error('[CLEANUP] שגיאה במחיקת רשומות ישנות:', err.message);
   }
 };
-cleanOldLogs();
-setInterval(cleanOldLogs, 24 * 60 * 60 * 1000);
-
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`🂡 שרת פוקר לייב ישראל פועל על פורט ${PORT}`);
+
+// יצירת טבלאות אוטומטית בהפעלה הראשונה, ואז הפעלת השרת
+const ensureSchema = require('./database/ensureSchema');
+ensureSchema().then(() => {
+  cleanOldLogs();
+  setInterval(cleanOldLogs, 24 * 60 * 60 * 1000);
+
+  app.listen(PORT, () => {
+    console.log(`🂡 שרת פוקר לייב ישראל פועל על פורט ${PORT}`);
+  });
 });
