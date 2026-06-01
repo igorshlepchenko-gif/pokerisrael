@@ -141,21 +141,6 @@ export default function Register() {
           <p className="text-slate-400 text-sm mt-1">צעד {step} מתוך 2</p>
         </div>
 
-        {/* Google sign-in */}
-        <a
-          href="/api/auth/google"
-          className="flex items-center justify-center gap-3 w-full bg-white hover:bg-gray-50 text-gray-800 font-semibold py-2.5 px-4 rounded-xl border border-gray-300 transition-all hover:shadow-md mb-4 text-sm"
-        >
-          <GoogleIcon />
-          הרשמה מהירה עם Google
-        </a>
-
-        <div className="flex items-center gap-3 mb-6">
-          <div className="flex-1 h-px bg-slate-700" />
-          <span className="text-xs text-slate-500">או הרשמה עם פרטים</span>
-          <div className="flex-1 h-px bg-slate-700" />
-        </div>
-
         {/* Step indicator */}
         <div className="flex gap-2 mb-8">
           <div className={`flex-1 h-1.5 rounded-full transition-colors ${step >= 1 ? 'bg-poker-green' : 'bg-slate-700'}`} />

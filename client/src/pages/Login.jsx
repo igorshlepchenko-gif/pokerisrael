@@ -60,21 +60,6 @@ export default function Login() {
           <p className="text-slate-400 text-sm mt-1">ברוך השב לפוקר לייב ישראל</p>
         </div>
 
-        {/* Google sign-in */}
-        <a
-          href="/api/auth/google"
-          className="flex items-center justify-center gap-3 w-full bg-white hover:bg-gray-50 text-gray-800 font-semibold py-2.5 px-4 rounded-xl border border-gray-300 transition-all hover:shadow-md mb-4 text-sm"
-        >
-          <GoogleIcon />
-          התחבר עם Google
-        </a>
-
-        <div className="flex items-center gap-3 mb-4">
-          <div className="flex-1 h-px bg-slate-700" />
-          <span className="text-xs text-slate-500">או עם מייל וסיסמה</span>
-          <div className="flex-1 h-px bg-slate-700" />
-        </div>
-
         <div className="card p-6">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
