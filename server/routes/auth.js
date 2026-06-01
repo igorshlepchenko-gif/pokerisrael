@@ -45,10 +45,7 @@ router.post('/register', [
   body('name').trim().notEmpty().withMessage('שם הוא שדה חובה'),
   body('email').isEmail().withMessage('כתובת מייל לא תקינה'),
   body('password')
-    .isLength({ min: 8 }).withMessage('סיסמה חייבת להיות לפחות 8 תווים')
-    .matches(/[A-Z]/).withMessage('סיסמה חייבת להכיל לפחות אות גדולה')
-    .matches(/[0-9]/).withMessage('סיסמה חייבת להכיל לפחות ספרה')
-    .matches(/[!@#$%^&*]/).withMessage('סיסמה חייבת להכיל לפחות תו מיוחד'),
+    .isLength({ min: 6 }).withMessage('סיסמה חייבת להיות לפחות 6 תווים'),
   body('phone').trim().notEmpty().withMessage('מספר טלפון הוא שדה חובה'),
   body('role').isIn(['player', 'venue_owner']).withMessage('סוג משתמש לא תקין'),
 ], register);

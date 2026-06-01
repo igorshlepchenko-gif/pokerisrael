@@ -35,6 +35,9 @@ export default function Register() {
   const handleRegister = async (e) => {
     e.preventDefault();
     setError('');
+    if (form.password.length < 6) {
+      return setError('סיסמה חייבת להיות לפחות 6 תווים');
+    }
     if (form.password !== form.confirmPassword) {
       return setError('הסיסמאות אינן תואמות');
     }
@@ -74,12 +77,12 @@ export default function Register() {
   };
 
   const passwordStrength = (p) => {
-    let s = 0;
+    if (!p) return 0;
+    let s = 1;                       // 6+ תווים = בסיסי
     if (p.length >= 8) s++;
-    if (/[A-Z]/.test(p)) s++;
-    if (/[0-9]/.test(p)) s++;
-    if (/[!@#$%^&*]/.test(p)) s++;
-    return s;
+    if (/[A-Z]/.test(p) || /[!@#$%^&*]/.test(p)) s++;
+    if (p.length >= 10 && /[0-9]/.test(p)) s++;
+    return Math.min(s, 4);
   };
   const strength = passwordStrength(form.password);
   const strengthColors = ['bg-red-500', 'bg-orange-500', 'bg-yellow-500', 'bg-poker-green'];
@@ -217,7 +220,7 @@ export default function Register() {
                   <input type={showPass ? 'text' : 'password'} value={form.password}
                     onChange={e => set('password', englishOnly(e.target.value))}
                     onKeyDown={e => { if (/[^\x20-\x7E]/.test(e.key)) e.preventDefault(); }}
-                    className="input-field pl-10" placeholder="לפחות 8 תווים, אות גדולה, ספרה ותו מיוחד" required dir="ltr" />
+                    className="input-field pl-10" placeholder="לפחות 6 תווים" required dir="ltr" />
                   <button type="button" onClick={() => setShowPass(p => !p)}
                     className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200">
                     {showPass ? '🙈' : '👁️'}
