@@ -11,6 +11,14 @@ const { authenticate, requireRole } = require('../middleware/auth');
 
 const router = express.Router();
 
+// ── ודא שתיקיות ההעלאה קיימות (חשוב בפרודקשן — הן ב-gitignore) ────
+const UPLOADS_DIR = path.join(__dirname, '../uploads');
+const LOGOS_DIR  = path.join(UPLOADS_DIR, 'logos');
+const VIDEOS_DIR = path.join(UPLOADS_DIR, 'videos');
+for (const dir of [UPLOADS_DIR, LOGOS_DIR, VIDEOS_DIR]) {
+  try { fs.mkdirSync(dir, { recursive: true }); } catch { /* ignore */ }
+}
+
 // ── Magic bytes maps ──────────────────────────────────────────────
 const ALLOWED_IMAGE_MIMES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp']);
 const ALLOWED_VIDEO_MIMES = new Set(['video/mp4', 'video/webm', 'video/quicktime']);
