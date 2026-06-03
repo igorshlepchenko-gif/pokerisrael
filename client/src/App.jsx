@@ -9,6 +9,10 @@ import Register from './pages/Register';
 import VerifyEmail from './pages/VerifyEmail';
 import Dashboard from './pages/Dashboard';
 import AdminPanel from './pages/AdminPanel';
+import Privacy from './pages/Privacy';
+import Accessibility from './pages/Accessibility';
+import CookieConsent from './components/CookieConsent';
+import AccessibilityWidget from './components/AccessibilityWidget';
 
 function ProtectedRoute({ children, roles }) {
   const { user, loading } = useAuth();
@@ -21,13 +25,16 @@ function ProtectedRoute({ children, roles }) {
 function AppRoutes() {
   return (
     <div className="min-h-screen flex flex-col">
+      <a href="#main-content" className="skip-link">דלג לתוכן הראשי</a>
       <Navbar />
-      <main className="flex-1">
+      <main id="main-content" className="flex-1">
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/verify-email" element={<VerifyEmail />} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/accessibility" element={<Accessibility />} />
           <Route path="/dashboard" element={
             <ProtectedRoute roles={['venue_owner', 'admin']}>
               <Dashboard />
@@ -42,6 +49,8 @@ function AppRoutes() {
         </Routes>
       </main>
       <Footer />
+      <CookieConsent />
+      <AccessibilityWidget />
     </div>
   );
 }

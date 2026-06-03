@@ -3,7 +3,7 @@ export function buildWhatsAppLink(whatsappNumber, tournament, registrantName = '
 
   // תמיכה לאחור — אם עברו string במקום object
   if (typeof tournament === 'string') {
-    const msg = `שלום, הגעתי אליכם מאתר פוקר לייב ישראל. ברצוני להירשם לטורניר ${tournament}.`;
+    const msg = `שלום, הגעתי אליכם מאתר פוקר ישראל. ברצוני להירשם לטורניר ${tournament}.`;
     return `https://api.whatsapp.com/send?phone=${clean}&text=${encodeURIComponent(msg)}`;
   }
 
@@ -23,13 +23,13 @@ export function buildWhatsAppLink(whatsappNumber, tournament, registrantName = '
     if (registrantPhone) senderLine += ` | טלפון: ${registrantPhone}`;
   }
 
-  const msg = `שלום, הגעתי אליכם מאתר פוקר לייב ישראל.\nברצוני להירשם לטורניר ${name} ${whenStr}.${senderLine}\nאשמח לאישור השתתפות `;
+  const msg = `שלום, הגעתי אליכם מאתר פוקר ישראל.\nברצוני להירשם לטורניר ${name} ${whenStr}.${senderLine}\nאשמח לאישור השתתפות `;
   return `https://api.whatsapp.com/send?phone=${clean}&text=${encodeURIComponent(msg)}%F0%9F%99%8F`;
 }
 
 export function buildVenueContactLink(whatsappNumber, venueName) {
   const clean = whatsappNumber.replace(/\D/g, '').replace(/^0/, '972');
-  const msg = `שלום ${venueName}, הגעתי אליכם מאתר פוקר לייב ישראל. אשמח לקבל מידע נוסף על המועדון.`;
+  const msg = `שלום ${venueName}, הגעתי אליכם מאתר פוקר ישראל. אשמח לקבל מידע נוסף על המועדון.`;
   return `https://api.whatsapp.com/send?phone=${clean}&text=${encodeURIComponent(msg)}`;
 }
 

@@ -140,7 +140,7 @@ export default function Register() {
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="text-5xl mb-2">🂡</div>
-          <h1 className="text-2xl font-black text-white">הרשמה לפוקר לייב ישראל</h1>
+          <h1 className="text-2xl font-black text-white">הרשמה לפוקר ישראל</h1>
           <p className="text-slate-400 text-sm mt-1">צעד {step} מתוך 2</p>
         </div>
 

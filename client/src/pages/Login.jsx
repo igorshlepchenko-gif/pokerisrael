@@ -57,7 +57,7 @@ export default function Login() {
         <div className="text-center mb-8">
           <div className="text-5xl mb-2">🂡</div>
           <h1 className="text-2xl font-black text-white">התחברות</h1>
-          <p className="text-slate-400 text-sm mt-1">ברוך השב לפוקר לייב ישראל</p>
+          <p className="text-slate-400 text-sm mt-1">ברוך השב לפוקר ישראל</p>
         </div>
 
         <div className="card p-6">

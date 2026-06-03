@@ -5,13 +5,61 @@
 @layer base {
   * { direction: rtl; }
 
+  html { font-size: var(--a11y-font-scale, 100%); }
+
   body {
     font-family: 'Heebo', sans-serif;
     background-color: #06091a;
     color: #f1f5f9;
     transition: background-color 0.3s, color 0.3s;
   }
+
+  /* מיקוד מקלדת נראה — נגישות */
+  *:focus-visible {
+    outline: 2px solid #60a5fa;
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
 }
+
+/* ===== מצבי נגישות ===== */
+body.a11y-contrast { filter: contrast(1.35) saturate(1.15); }
+body.a11y-links a {
+  text-decoration: underline !important;
+  text-underline-offset: 3px;
+  font-weight: 700 !important;
+}
+body.a11y-readable, body.a11y-readable * {
+  font-family: Arial, 'Heebo', sans-serif !important;
+  letter-spacing: 0.02em;
+  line-height: 1.7 !important;
+}
+.a11y-btn {
+  flex: 1;
+  background: rgba(30,41,59,0.6);
+  border: 1px solid #334155;
+  color: #e2e8f0;
+  border-radius: 0.5rem;
+  padding: 0.4rem 0;
+  font-weight: 700;
+  font-size: 0.95rem;
+  transition: all 0.15s;
+}
+.a11y-btn:hover { border-color: #60a5fa; color: #fff; }
+
+/* קישור דילוג לתוכן */
+.skip-link {
+  position: absolute;
+  right: -9999px;
+  top: 8px;
+  z-index: 100;
+  background: #1d4ed8;
+  color: #fff;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 700;
+}
+.skip-link:focus { right: 8px; }
 
 /* ===== Light mode ===== */
 .light body { background-color: #f1f5f9; color: #0f172a; }
