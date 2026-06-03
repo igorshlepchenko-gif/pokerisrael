@@ -268,7 +268,7 @@ export default function TournamentCard({ t, index, onClick }) {
         className="wa-btn flex items-center justify-center gap-2 w-full bg-[#25D366] hover:bg-[#1da851] text-white font-bold py-2.5 px-4 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95 text-sm shadow-lg"
       >
         <WaIcon />
-        הרשמה לטורניר
+        {t.tournament_type === 'cash' || t.tournament_type === 'online_cash' ? 'הצטרפות למשחק' : 'הרשמה לטורניר'}
       </button>
 
       {/* קישור לאתר המקום */}

@@ -311,6 +311,13 @@ function VenueEditForm({ venue, onSuccess, onCancel }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    if (form.website) {
+      const urlPattern = /^(https?:\/\/)?([\w-]+\.)+[\w-]{2,}(\/\S*)?$/i;
+      if (!urlPattern.test(form.website.trim())) {
+        setError('כתובת האתר אינה תקינה — לדוגמה: www.example.com');
+        return;
+      }
+    }
     setLoading(true);
     try {
       const res = await api.put(`/tournaments/venues/${venue.id}`, form);
@@ -392,8 +399,8 @@ function VenueEditForm({ venue, onSuccess, onCancel }) {
         </div>
         <div className="sm:col-span-2">
           <label className="block text-xs text-slate-400 mb-1">קישור לאתר המקום (אופציונלי)</label>
-          <input type="url" value={form.website} onChange={e => set('website', e.target.value)}
-            className="input-field text-sm" placeholder="https://example.com" dir="ltr" />
+          <input type="text" value={form.website} onChange={e => set('website', e.target.value)}
+            className="input-field text-sm" placeholder="www.example.com" dir="ltr" />
         </div>
         <div className="sm:col-span-2">
           <label className="block text-xs text-slate-400 mb-1">תארו את המועדון שלכם, במה אתם ייחודיים ומה אתם מציעים</label>
@@ -472,6 +479,13 @@ export default function Dashboard() {
   const handleVenueSubmit = async (e) => {
     e.preventDefault();
     setVenueError('');
+    if (venueForm.website) {
+      const urlPattern = /^(https?:\/\/)?([\w-]+\.)+[\w-]{2,}(\/\S*)?$/i;
+      if (!urlPattern.test(venueForm.website.trim())) {
+        setVenueError('כתובת האתר אינה תקינה — לדוגמה: www.example.com');
+        return;
+      }
+    }
     setVenueLoading(true);
     try {
       const res = await api.post('/tournaments/venues', venueForm);
@@ -726,9 +740,9 @@ export default function Dashboard() {
                   </div>
                   <div className="sm:col-span-2">
                     <label className="block text-xs text-slate-400 mb-1">קישור לאתר המקום (אופציונלי)</label>
-                    <input type="url" value={venueForm.website}
+                    <input type="text" value={venueForm.website}
                       onChange={e => setVenueForm(p => ({ ...p, website: e.target.value }))}
-                      className="input-field text-sm" placeholder="https://example.com" dir="ltr" />
+                      className="input-field text-sm" placeholder="www.example.com" dir="ltr" />
                   </div>
                   <div className="sm:col-span-2">
                     <label className="block text-xs text-slate-400 mb-1">תארו את המועדון שלכם, במה אתם ייחודיים ומה אתם מציעים</label>

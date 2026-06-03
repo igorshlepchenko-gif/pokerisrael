@@ -48,7 +48,7 @@ export default function TournamentListRow({ t, index, onClick }) {
         <a href={waLink} target="_blank" rel="noopener noreferrer"
           onClick={(e) => e.stopPropagation()}
           className="wa-btn flex items-center justify-center gap-2 w-full bg-[#25D366] hover:bg-[#1da851] text-white font-bold py-2 px-4 rounded-xl text-sm transition-all">
-          <WaIcon /> הרשמה לטורניר
+          <WaIcon /> {t.tournament_type === 'cash' || t.tournament_type === 'online_cash' ? 'הצטרפות למשחק' : 'הרשמה לטורניר'}
         </a>
       </div>
 

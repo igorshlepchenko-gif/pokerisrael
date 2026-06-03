@@ -42,7 +42,9 @@ export default function RegistrationModal({ tournament, onClose, onSubmit }) {
         {/* כותרת */}
         <div className="flex items-center justify-between mb-5">
           <div>
-            <h3 className="font-black text-white text-lg">הרשמה לטורניר</h3>
+            <h3 className="font-black text-white text-lg">
+              {tournament.tournament_type === 'cash' || tournament.tournament_type === 'online_cash' ? 'הצטרפות למשחק קאש' : 'הרשמה לטורניר'}
+            </h3>
             <p className="text-poker-green-light text-sm font-semibold truncate max-w-[220px]">{tournament.name}</p>
           </div>
           <button onClick={onClose}

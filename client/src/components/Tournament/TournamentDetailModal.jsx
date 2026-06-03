@@ -290,7 +290,7 @@ export default function TournamentDetailModal({ tournament: t, onClose }) {
             className="flex items-center justify-center gap-2 w-full bg-[#25D366] hover:bg-[#1da851] text-white font-bold py-3 px-4 rounded-xl transition-all duration-200 hover:scale-[1.02] active:scale-95 text-base shadow-lg"
           >
             <WaIcon />
-            הרשמה לטורניר בוואטסאפ
+            {t.tournament_type === 'cash' || t.tournament_type === 'online_cash' ? 'הצטרפות למשחק בוואטסאפ' : 'הרשמה לטורניר בוואטסאפ'}
           </button>
           {/* כפתור שניוני — פנייה ישירה למועדון */}
           <a

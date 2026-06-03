@@ -7,12 +7,16 @@ export function buildWhatsAppLink(whatsappNumber, tournament, registrantName = '
     return `https://api.whatsapp.com/send?phone=${clean}&text=${encodeURIComponent(msg)}`;
   }
 
-  const { name, start_time, is_recurring, day_of_week } = tournament;
+  const { name, start_time, is_recurring, day_of_week, tournament_type } = tournament;
   const time = start_time ? formatTime(start_time) : '';
+
+  const isCash = tournament_type === 'cash' || tournament_type === 'online_cash';
 
   let whenStr = '';
   if (is_recurring && day_of_week !== null && day_of_week !== undefined) {
-    whenStr = `המתקיים כל יום ${DAYS_HE[day_of_week]} בשעה ${time}`;
+    whenStr = isCash
+      ? `המתקיים כל יום ${DAYS_HE[day_of_week]} בשעה ${time}`
+      : `המתקיים כל יום ${DAYS_HE[day_of_week]} בשעה ${time}`;
   } else if (start_time) {
     whenStr = `ביום ${formatDate(start_time)} בשעה ${time}`;
   }
@@ -23,7 +27,9 @@ export function buildWhatsAppLink(whatsappNumber, tournament, registrantName = '
     if (registrantPhone) senderLine += ` | טלפון: ${registrantPhone}`;
   }
 
-  const msg = `שלום, הגעתי אליכם מאתר פוקר ישראל.\nברצוני להירשם לטורניר ${name} ${whenStr}.${senderLine}\nאשמח לאישור השתתפות `;
+  const msg = isCash
+    ? `שלום, הגעתי אליכם מאתר פוקר ישראל.\nברצוני להצטרף למשחק הקאש ${name} ${whenStr}.${senderLine}\nאשמח לאישור השתתפות `
+    : `שלום, הגעתי אליכם מאתר פוקר ישראל.\nברצוני להירשם לטורניר ${name} ${whenStr}.${senderLine}\nאשמח לאישור השתתפות `;
   return `https://api.whatsapp.com/send?phone=${clean}&text=${encodeURIComponent(msg)}%F0%9F%99%8F`;
 }
 
