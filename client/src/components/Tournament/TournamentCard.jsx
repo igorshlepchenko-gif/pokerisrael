@@ -271,6 +271,19 @@ export default function TournamentCard({ t, index, onClick }) {
         הרשמה לטורניר
       </button>
 
+      {/* קישור לאתר המקום */}
+      {t.venue_website && (
+        <a
+          href={/^https?:\/\//i.test(t.venue_website) ? t.venue_website : `https://${t.venue_website}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-2 flex items-center justify-center gap-1.5 text-xs text-slate-400 hover:text-blue-400 transition-colors"
+        >
+          <span>🌐</span>
+          <span>לאתר המקום</span>
+        </a>
+      )}
+
       {showRegModal && (
         <RegistrationModal
           tournament={t}

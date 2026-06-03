@@ -302,6 +302,17 @@ export default function TournamentDetailModal({ tournament: t, onClose }) {
             <WaIcon small />
             💬 פנייה ישירה למועדון
           </a>
+          {/* קישור לאתר המקום */}
+          {t.venue_website && (
+            <a
+              href={/^https?:\/\//i.test(t.venue_website) ? t.venue_website : `https://${t.venue_website}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-1.5 w-full text-slate-400 hover:text-blue-400 font-semibold py-1.5 px-4 rounded-xl transition-colors text-sm"
+            >
+              🌐 לאתר המקום
+            </a>
+          )}
         </div>
 
         {showRegModal && (

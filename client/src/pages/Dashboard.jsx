@@ -301,6 +301,7 @@ function VenueEditForm({ venue, onSuccess, onCancel }) {
     venue_type:       venue.venue_type       || 'physical',
     club_number:      venue.club_number      || '',
     agent_number:     venue.agent_number     || '',
+    website:          venue.website          || '',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState('');
@@ -390,6 +391,11 @@ function VenueEditForm({ venue, onSuccess, onCancel }) {
             className="input-field text-sm" placeholder="050-0000000" dir="ltr" required />
         </div>
         <div className="sm:col-span-2">
+          <label className="block text-xs text-slate-400 mb-1">קישור לאתר המקום (אופציונלי)</label>
+          <input type="url" value={form.website} onChange={e => set('website', e.target.value)}
+            className="input-field text-sm" placeholder="https://example.com" dir="ltr" />
+        </div>
+        <div className="sm:col-span-2">
           <label className="block text-xs text-slate-400 mb-1">תארו את המועדון שלכם, במה אתם ייחודיים ומה אתם מציעים</label>
           <textarea value={form.description} onChange={e => set('description', e.target.value)}
             className="input-field text-sm resize-none" rows={2} />
@@ -421,7 +427,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [venueForm, setVenueForm] = useState({
     name: '', address: '', city: '', whatsapp_number: '', description: '', logo_url: '',
-    venue_type: 'physical', club_number: '', agent_number: '',
+    venue_type: 'physical', club_number: '', agent_number: '', website: '',
   });
   const [venueLoading, setVenueLoading] = useState(false);
   const [venueError, setVenueError] = useState('');
@@ -471,7 +477,7 @@ export default function Dashboard() {
       const res = await api.post('/tournaments/venues', venueForm);
       setVenueSuccess(res.data.message);
       setShowVenueForm(false);
-      setVenueForm({ name: '', address: '', city: '', whatsapp_number: '', description: '', logo_url: '', venue_type: 'physical', club_number: '', agent_number: '' });
+      setVenueForm({ name: '', address: '', city: '', whatsapp_number: '', description: '', logo_url: '', venue_type: 'physical', club_number: '', agent_number: '', website: '' });
       fetchData();
     } catch (err) {
       setVenueError(err.response?.data?.message || 'שגיאה');
@@ -717,6 +723,12 @@ export default function Dashboard() {
                     <input type="tel" value={venueForm.whatsapp_number}
                       onChange={e => setVenueForm(p => ({ ...p, whatsapp_number: e.target.value }))}
                       className="input-field text-sm" placeholder="050-0000000" dir="ltr" required />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs text-slate-400 mb-1">קישור לאתר המקום (אופציונלי)</label>
+                    <input type="url" value={venueForm.website}
+                      onChange={e => setVenueForm(p => ({ ...p, website: e.target.value }))}
+                      className="input-field text-sm" placeholder="https://example.com" dir="ltr" />
                   </div>
                   <div className="sm:col-span-2">
                     <label className="block text-xs text-slate-400 mb-1">תארו את המועדון שלכם, במה אתם ייחודיים ומה אתם מציעים</label>

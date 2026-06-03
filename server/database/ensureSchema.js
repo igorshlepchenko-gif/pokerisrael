@@ -16,6 +16,14 @@ async function ensureSchema() {
       console.log('✅ טבלאות נוצרו בהצלחה');
     }
 
+    // ── מיגרציות אוטומטיות — עמודות חדשות (idempotent, רץ בכל הפעלה) ──
+    const MIGRATIONS = [
+      `ALTER TABLE venues ADD COLUMN IF NOT EXISTS website VARCHAR(300)`,
+    ];
+    for (const sql of MIGRATIONS) {
+      try { await pool.query(sql); } catch (e) { console.error('migration failed:', e.message); }
+    }
+
     // ודא שמשתמש אדמין קיים (תמיד — לא רק ביצירה ראשונה)
     const adminEmail = process.env.ADMIN_EMAIL || 'admin@pokerisrael.org';
     const adminPassword = process.env.ADMIN_PASSWORD || 'Aa123456!';

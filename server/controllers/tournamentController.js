@@ -30,7 +30,7 @@ exports.getAll = async (req, res) => {
         t.platform, t.game_type, t.secondary_games, t.cash_sb, t.cash_bb, t.skipped_dates,
         v.id AS venue_id, v.name AS venue_name, v.address AS venue_address,
         v.city AS venue_city, v.whatsapp_number, v.logo_url AS venue_logo,
-        v.venue_type AS venue_type, v.club_number AS venue_club_number
+        v.venue_type AS venue_type, v.club_number AS venue_club_number, v.website AS venue_website
       FROM tournaments t
       JOIN venues v ON t.venue_id = v.id
     `;
@@ -651,7 +651,7 @@ exports.updateVenue = async (req, res) => {
   if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
   const { id } = req.params;
-  const { name, address, city, whatsapp_number, description, logo_url, venue_type, club_number, agent_number } = req.body;
+  const { name, address, city, whatsapp_number, description, logo_url, venue_type, club_number, agent_number, website } = req.body;
 
   try {
     const ownerCheck = await pool.query(
@@ -675,11 +675,12 @@ exports.updateVenue = async (req, res) => {
       `UPDATE venues SET
          name = $1, address = $2, city = $3,
          whatsapp_number = $4, description = $5, logo_url = $6,
-         venue_type = $7, club_number = $8, agent_number = $9
-       WHERE id = $10 RETURNING *`,
+         venue_type = $7, club_number = $8, agent_number = $9, website = $10
+       WHERE id = $11 RETURNING *`,
       [name, isOnline ? null : address, isOnline ? null : city,
        whatsapp_number, description || null, logo_url || null,
-       venue_type || 'physical', isOnline ? club_number : null, isOnline ? (agent_number || null) : null, id]
+       venue_type || 'physical', isOnline ? club_number : null, isOnline ? (agent_number || null) : null,
+       website || null, id]
     );
 
     const newData = result.rows[0];
@@ -702,7 +703,7 @@ exports.createVenue = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
-  const { name, address, city, whatsapp_number, description, logo_url, venue_type, club_number, agent_number } = req.body;
+  const { name, address, city, whatsapp_number, description, logo_url, venue_type, club_number, agent_number, website } = req.body;
 
   try {
     const isOnline = venue_type === 'online';
@@ -711,11 +712,12 @@ exports.createVenue = async (req, res) => {
     }
 
     const result = await pool.query(
-      `INSERT INTO venues (owner_id, name, address, city, whatsapp_number, description, logo_url, venue_type, club_number, agent_number)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+      `INSERT INTO venues (owner_id, name, address, city, whatsapp_number, description, logo_url, venue_type, club_number, agent_number, website)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
       [req.user.id, name, isOnline ? null : address, isOnline ? null : city,
        whatsapp_number, description, logo_url || null,
-       venue_type || 'physical', isOnline ? club_number : null, isOnline ? (agent_number || null) : null]
+       venue_type || 'physical', isOnline ? club_number : null, isOnline ? (agent_number || null) : null,
+       website || null]
     );
     const newVenue = result.rows[0];
 
