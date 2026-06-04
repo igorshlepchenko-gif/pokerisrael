@@ -15,7 +15,7 @@ export default function Home() {
 
   const [tournaments, setTournaments] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [tournamentType, setTournamentType] = useState('all');
+  const [tournamentType, setTournamentType] = useState('live');
   const [search, setSearch] = useState('');
   const [city, setCity] = useState('');
   const [day, setDay] = useState('');
@@ -185,33 +185,14 @@ export default function Home() {
         <HandLoggerSection />
       </div>
 
-      {/* ── Type selector (קאש מוסתר — יפתח בעתיד) ── */}
+      {/* ── Type selector (מוסתר זמנית — רק טורניר לייב מוצג) ── */}
+      {/* להפעיל בעתיד:
       <div className="max-w-7xl mx-auto px-4 mb-6">
         <div className="flex gap-3 justify-center flex-wrap">
-          {[
-            { key: 'all',    icon: '🌐', label: 'הכל' },
-            { key: 'live',   icon: '🏆', label: 'טורניר לייב' },
-            { key: 'online', icon: '💻', label: 'טורניר אונליין' },
-            // { key: 'cash', icon: '♠️', label: 'קאש גיים לייב' }, // יופעל בעתיד
-          ].map(({ key, icon, label }) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => { setTournamentType(key); setSearch(''); setCity(''); setDay(''); setGtdMin(''); setSelectedVenues([]); }}
-              className={`flex items-center gap-2.5 px-6 py-3 rounded-2xl border-2 font-bold text-sm transition-all duration-200 hover:scale-105 ${
-                tournamentType === key
-                  ? 'border-blue-500 bg-blue-600/20 text-white shadow-lg'
-                  : 'border-slate-700 bg-slate-800/40 text-slate-400 hover:border-slate-500 hover:text-slate-200'
-              }`}
-              style={tournamentType === key ? { boxShadow: '0 0 20px rgba(29,78,216,0.35)' } : {}}
-            >
-              <span className="text-xl">{icon}</span>
-              <span>{label}</span>
-              {tournamentType === key && <span className="text-blue-400 text-base mr-1">✓</span>}
-            </button>
-          ))}
+          { all / live / cash / online tabs }
         </div>
       </div>
+      */}
 
       {/* Filters */}
       <div className="max-w-7xl mx-auto px-4 mb-8">
