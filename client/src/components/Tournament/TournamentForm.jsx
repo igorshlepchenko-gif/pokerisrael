@@ -731,7 +731,7 @@ export default function TournamentForm({ venues, tournament = null, onSuccess, o
         {/* RAKE — רק ללייב ואונליין (לא לקאש פיזי) */}
         {showRake && (
           <div>
-            <label className="block text-sm font-semibold text-slate-300 mb-1">RAKE</label>
+            <label className="block text-sm font-semibold text-slate-300 mb-1">RAKE <span className="text-slate-500 font-normal text-xs">(אופציונלי)</span></label>
             <div className="flex gap-2">
               {/* Toggle ₪ / % */}
               <div className="flex rounded-xl overflow-hidden border border-slate-600 shrink-0">
@@ -758,7 +758,6 @@ export default function TournamentForm({ venues, tournament = null, onSuccess, o
                   min="0"
                   max={form.rake_type === 'percent' ? 100 : undefined}
                   step={form.rake_type === 'percent' ? 0.5 : 1}
-                  required
                 />
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm pointer-events-none">
                   {form.rake_type === 'percent' ? '%' : '₪'}
