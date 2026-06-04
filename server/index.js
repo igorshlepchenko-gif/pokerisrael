@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -14,6 +14,7 @@ const uploadRoutes = require('./routes/upload');
 const registrationRoutes   = require('./routes/registrations');
 const blindTemplateRoutes  = require('./routes/blindTemplates');
 const eventTemplateRoutes  = require('./routes/eventTemplates');
+const handHistoryRoutes    = require('./routes/handHistories');
 
 const app = express();
 
@@ -71,6 +72,7 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/registrations', registrationRoutes);
 app.use('/api/blind-templates', blindTemplateRoutes); // rate limit רק על POST — מוגדר בתוך הנתיב
 app.use('/api/event-templates', eventTemplateRoutes);
+app.use('/api/hand-histories', handHistoryRoutes);
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', message: 'Poker Live Israel API' }));
 

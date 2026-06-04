@@ -19,6 +19,28 @@ async function ensureSchema() {
     // ── מיגרציות אוטומטיות — עמודות חדשות (idempotent, רץ בכל הפעלה) ──
     const MIGRATIONS = [
       `ALTER TABLE venues ADD COLUMN IF NOT EXISTS website VARCHAR(300)`,
+      `CREATE TABLE IF NOT EXISTS hand_histories (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        game_type VARCHAR(20) NOT NULL,
+        tournament_stage VARCHAR(30),
+        blind_sb INTEGER,
+        blind_bb INTEGER,
+        ante INTEGER DEFAULT 0,
+        cash_stakes VARCHAR(20),
+        players_count INTEGER NOT NULL DEFAULT 2,
+        hero_position VARCHAR(10) NOT NULL,
+        hero_stack INTEGER NOT NULL,
+        hero_cards JSONB NOT NULL DEFAULT '[]',
+        hand_data JSONB NOT NULL DEFAULT '{}',
+        result VARCHAR(10) NOT NULL DEFAULT 'unknown',
+        hero_profit INTEGER,
+        narrative TEXT,
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT NOW()
+      )`,
+      `CREATE INDEX IF NOT EXISTS hand_histories_user_id_idx ON hand_histories(user_id, created_at DESC)`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS hand_logger_access BOOLEAN DEFAULT false`,
     ];
     for (const sql of MIGRATIONS) {
       try { await pool.query(sql); } catch (e) { console.error('migration failed:', e.message); }

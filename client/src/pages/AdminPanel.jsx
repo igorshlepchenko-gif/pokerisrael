@@ -253,6 +253,7 @@ export default function AdminPanel() {
           ['users', `👥 משתמשים${lockedCount > 0 ? ` 🔒${lockedCount}` : ''}`],
           ['changelog', '📋 יומן שינויים'],
           ['registrations', `📝 הרשמות${regTotal > 0 ? ` (${regTotal})` : ''}`],
+          ['hand-logger', '🃏 רישום ידיים'],
         ].map(([id, label]) => (
           <button key={id} onClick={() => setTab(id)}
             className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${tab === id ? 'bg-poker-green text-white' : 'text-slate-400 hover:text-slate-200'}`}>
@@ -627,6 +628,81 @@ export default function AdminPanel() {
           )}
 
           {/* Users */}
+          {tab === 'hand-logger' && (
+            <div className="space-y-4">
+              {/* Header */}
+              <div className="rounded-2xl p-5 border border-blue-500/20"
+                style={{ background: 'linear-gradient(135deg, rgba(13,21,38,0.95), rgba(6,9,26,0.95))' }}>
+                <div className="flex items-center gap-3 mb-2" dir="rtl">
+                  <span className="text-3xl">🃏</span>
+                  <div>
+                    <h2 className="text-lg font-black text-white">ניהול גישה — מודול רישום ידיים</h2>
+                    <p className="text-sm text-slate-400">אפשר או חסום גישה למודול לכל משתמש בנפרד</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 mt-3 flex-wrap" dir="rtl">
+                  <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                    ✅ {users.filter(u => u.hand_logger_access).length} משתמשים עם גישה
+                  </span>
+                  <span className="px-3 py-1 rounded-full text-xs font-bold bg-slate-700 text-slate-400">
+                    {users.filter(u => !u.hand_logger_access && u.role !== 'admin').length} ללא גישה
+                  </span>
+                </div>
+              </div>
+
+              {/* Users list */}
+              <div className="space-y-2">
+                {users.filter(u => u.role !== 'admin').map(u => {
+                  const hasAccess = !!u.hand_logger_access;
+                  return (
+                    <div key={u.id}
+                      className={`rounded-2xl border p-4 flex items-center justify-between gap-4 transition-all
+                        ${hasAccess
+                          ? 'border-blue-500/30 bg-blue-500/5'
+                          : 'border-slate-700/60 bg-slate-800/40'}`}>
+                      <div dir="rtl">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-bold text-slate-100">{u.name}</span>
+                          <span className="text-xs text-slate-500 bg-slate-700 px-2 py-0.5 rounded-full">
+                            {u.role === 'venue_owner' ? '🏠 מועדון' : '🃏 שחקן'}
+                          </span>
+                          {hasAccess && (
+                            <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                              ✅ גישה פעילה
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm text-slate-500 mt-0.5">{u.email}</p>
+                      </div>
+
+                      {/* Toggle button */}
+                      <button
+                        onClick={async () => {
+                          try {
+                            const res = await api.patch(`/admin/users/${u.id}/hand-logger-access`);
+                            setUsers(prev => prev.map(p => p.id === u.id
+                              ? { ...p, hand_logger_access: res.data.hand_logger_access }
+                              : p
+                            ));
+                          } catch { alert('שגיאה בעדכון'); }
+                        }}
+                        className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors flex-shrink-0
+                          ${hasAccess ? 'bg-blue-600' : 'bg-slate-600'}`}>
+                        <span className={`inline-block h-6 w-6 rounded-full bg-white shadow-lg transform transition-transform
+                          ${hasAccess ? 'translate-x-7' : 'translate-x-1'}`} />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Admin note */}
+              <p className="text-xs text-slate-600 text-center" dir="rtl">
+                * אדמינים תמיד בעלי גישה מלאה · שינויים נכנסים לתוקף מיד
+              </p>
+            </div>
+          )}
+
           {tab === 'users' && (
             <div className="space-y-2">
               {lockedCount > 0 && (

@@ -11,6 +11,7 @@ import Dashboard from './pages/Dashboard';
 import AdminPanel from './pages/AdminPanel';
 import Privacy from './pages/Privacy';
 import Accessibility from './pages/Accessibility';
+import HandHistoryPage from './pages/HandHistoryPage';
 import CookieConsent from './components/CookieConsent';
 import AccessibilityWidget from './components/AccessibilityWidget';
 
@@ -43,6 +44,11 @@ function AppRoutes() {
           <Route path="/admin" element={
             <ProtectedRoute roles={['admin']}>
               <AdminPanel />
+            </ProtectedRoute>
+          } />
+          <Route path="/hands" element={
+            <ProtectedRoute>
+              <HandHistoryPage />
             </ProtectedRoute>
           } />
           <Route path="*" element={<Navigate to="/" replace />} />

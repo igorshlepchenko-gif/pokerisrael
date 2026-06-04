@@ -8,7 +8,7 @@ const authenticate = async (req, res, next) => {
     if (!token) return res.status(401).json({ message: 'נדרשת הזדהות' });
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const result = await pool.query('SELECT id, name, email, phone, role, is_active FROM users WHERE id = $1', [decoded.id]);
+    const result = await pool.query('SELECT id, name, email, phone, role, is_active, hand_logger_access FROM users WHERE id = $1', [decoded.id]);
 
     if (!result.rows[0] || !result.rows[0].is_active) {
       return res.status(401).json({ message: 'משתמש לא קיים או מושבת' });

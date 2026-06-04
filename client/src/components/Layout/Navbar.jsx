@@ -16,6 +16,7 @@ export default function Navbar() {
 
   const navLinks = [
     { to: '/', label: 'בית', show: true },
+    { to: '/hands', label: '🃏 הידיים שלי', show: !!user },
     { to: '/dashboard', label: 'ניהול', show: user && (user.role === 'venue_owner' || user.role === 'admin') },
     { to: '/admin', label: 'ניהול מערכת', show: user?.role === 'admin', amber: true },
   ].filter(l => l.show);

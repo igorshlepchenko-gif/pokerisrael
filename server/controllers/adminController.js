@@ -109,7 +109,8 @@ exports.getAllUsers = async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT id, name, email, phone, role, is_active,
-              is_locked, failed_login_attempts, locked_at, created_at
+              is_locked, failed_login_attempts, locked_at, created_at,
+              hand_logger_access
        FROM users
        ORDER BY is_locked DESC, created_at DESC`
     );
@@ -148,6 +149,22 @@ exports.unlockUser = async (req, res) => {
     );
     res.json({ message: 'החשבון שוחרר בהצלחה' });
   } catch (err) {
+    res.status(500).json({ message: 'שגיאת שרת' });
+  }
+};
+
+exports.toggleHandLoggerAccess = async (req, res) => {
+  try {
+    const r = await pool.query(
+      `UPDATE users SET hand_logger_access = NOT COALESCE(hand_logger_access, false)
+       WHERE id = $1 RETURNING id, name, hand_logger_access`,
+      [req.params.id]
+    );
+    if (!r.rows[0]) return res.status(404).json({ message: 'משתמש לא נמצא' });
+    const { name, hand_logger_access } = r.rows[0];
+    res.json({ hand_logger_access, message: `${name}: גישה לרישום ידיים ${hand_logger_access ? 'הופעלה' : 'כובתה'}` });
+  } catch (err) {
+    console.error(err);
     res.status(500).json({ message: 'שגיאת שרת' });
   }
 };
