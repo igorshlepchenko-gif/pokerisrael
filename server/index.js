@@ -15,6 +15,8 @@ const registrationRoutes   = require('./routes/registrations');
 const blindTemplateRoutes  = require('./routes/blindTemplates');
 const eventTemplateRoutes  = require('./routes/eventTemplates');
 const handHistoryRoutes    = require('./routes/handHistories');
+const importRoutes         = require('./routes/imports');
+const agentRoutes          = require('./routes/agent');
 
 const app = express();
 
@@ -33,17 +35,19 @@ app.use(cors({
 // ── Rate limiting כלל-מערכתי ──────────────────────────────────────
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 דקות
-  max: 300,                  // 300 בקשות לחלון
+  max: 2000,                 // הועלה — כלי אדמין עם polling; login עדיין מוגן ע"י authLimiter
   standardHeaders: true,
   legacyHeaders: false,
   message: { message: 'יותר מדי בקשות — נסה שוב בעוד כמה דקות' },
+  // נתיבי אדמין ו-agent מוגנים בעצמם ע"י requireRole — לא נספרים כנגד המכסה הגלובלית
+  skip: (req) => req.path.startsWith('/agent/') || req.path.startsWith('/admin') || req.path.startsWith('/imports'),
 });
 app.use('/api', globalLimiter);
 
 // ── Rate limiting מחמיר על Auth ──────────────────────────────────
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 20, // 20 ניסיונות login/register בחלון 15 דק׳
+  max: 40, // 40 ניסיונות login/register בחלון 15 דק׳
   standardHeaders: true,
   legacyHeaders: false,
   message: { message: 'יותר מדי ניסיונות התחברות — נסה שוב בעוד 15 דקות' },
@@ -73,6 +77,8 @@ app.use('/api/registrations', registrationRoutes);
 app.use('/api/blind-templates', blindTemplateRoutes); // rate limit רק על POST — מוגדר בתוך הנתיב
 app.use('/api/event-templates', eventTemplateRoutes);
 app.use('/api/hand-histories', handHistoryRoutes);
+app.use('/api/imports',       importRoutes);
+app.use('/api/agent',         agentRoutes);
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', message: 'Poker Live Israel API' }));
 
@@ -136,5 +142,11 @@ ensureSchema().then(() => {
 
   app.listen(PORT, () => {
     console.log(`🂡 שרת פוקר לייב ישראל פועל על פורט ${PORT}`);
+    // Start the import agent (Telegram bot + daily cron)
+    const { startAgent } = require('./services/importAgent');
+    startAgent();
+    // Start WhatsApp listener (only if WHATSAPP_ENABLED=true)
+    const { startWhatsApp } = require('./services/whatsappListener');
+    startWhatsApp();
   });
 });

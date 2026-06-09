@@ -160,6 +160,7 @@ export default function TournamentForm({ venues, tournament = null, onSuccess, o
     platform:            tournament?.platform        ?? '',
     cash_sb:             tournament?.cash_sb         ?? '',
     cash_bb:             tournament?.cash_bb         ?? '',
+    external_registration_url: tournament?.external_registration_url ?? '',
   });
 
   // ── משחקי קאש: בחירה מרובה + ראשי/משני ─────────────────────────
@@ -1219,6 +1220,20 @@ export default function TournamentForm({ venues, tournament = null, onSuccess, o
           )}
         </div>
       )}
+
+      {/* קישור חיצוני להרשמה */}
+      <div className="border border-slate-700 rounded-xl p-4 space-y-2">
+        <label className="block text-sm font-semibold text-slate-300">🔗 קישור חיצוני להרשמה <span className="text-slate-500 font-normal text-xs">(אופציונלי)</span></label>
+        <p className="text-xs text-slate-500">אם יש לך מערכת הרשמה חיצונית, הכנס כאן קישור. הוא יופיע בצורה בולטת בדף הטורניר.</p>
+        <input
+          type="url"
+          value={form.external_registration_url}
+          onChange={e => set('external_registration_url', e.target.value)}
+          placeholder="https://example.com/register"
+          dir="ltr"
+          className="input-field text-sm"
+        />
+      </div>
 
       <div className="flex gap-3 pt-2">
         <button type="submit" disabled={loading} className="btn-primary flex-1">

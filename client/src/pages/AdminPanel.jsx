@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import api from '../utils/api';
 import { formatDate, formatTime, formatCost } from '../utils/whatsapp';
+import VenueEditForm from '../components/VenueEditForm';
 
 // ---- helpers for change log diff ----
 const VENUE_LABELS = {
@@ -117,6 +118,8 @@ export default function AdminPanel() {
   const [users, setUsers] = useState([]);
   const [allTournaments, setAllTournaments] = useState([]);
   const [allVenues, setAllVenues] = useState([]);
+  const [editingVenue, setEditingVenue] = useState(null);
+  const [editVenueSuccess, setEditVenueSuccess] = useState('');
   const [changeLogs, setChangeLogs] = useState([]);
   const [changeLogsTotal, setChangeLogsTotal] = useState(0);
   const [clEntityType, setClEntityType] = useState('');
@@ -135,7 +138,55 @@ export default function AdminPanel() {
   const [deleteVenueModal, setDeleteVenueModal] = useState(null); // venue object
   const [deleteLoading, setDeleteLoading] = useState(false);
 
+  // ── Import tab state ──────────────────────────────────────────────────────
+  const [importText,    setImportText]    = useState('');
+  const [importSource,  setImportSource]  = useState('whatsapp');
+  const [importParsing, setImportParsing] = useState(false);
+  const [importResult,  setImportResult]  = useState(null);   // { parsed, matched_venue, venues }
+  const [importFields,  setImportFields]  = useState({});     // editable override fields
+  const [importVenueId, setImportVenueId] = useState('');
+  const [importSaving,  setImportSaving]  = useState(false);
+  const [importDone,    setImportDone]    = useState(null);   // { tournament_id }
+  const [importHistory,    setImportHistory]    = useState([]);
+  const [importError,      setImportError]      = useState('');
+  const [agentSources,     setAgentSources]     = useState([]);
+  const [agentRunning,     setAgentRunning]     = useState(false);
+  const [newSource,        setNewSource]        = useState({ platform: 'whatsapp', name: '', identifier: '' });
+  const [waStatus,         setWaStatus]         = useState(null);
+  const [waPolling,        setWaPolling]        = useState(false);
+  const [pendingImports,   setPendingImports]   = useState([]);
+  const [pendingVenues,    setPendingVenues]    = useState({});   // { [importId]: venueId }
+  const [pendingDates,     setPendingDates]     = useState({});   // { [importId]: { date, start_time } }
+  const [pendingVenueList, setPendingVenueList] = useState([]);
+  const [expandedImport,   setExpandedImport]   = useState(null);
+
   useEffect(() => { fetchData(); }, [tab, clEntityType, clAction, clDateFrom, clDateTo, clSearch, regSearch]);
+
+  // Poll WhatsApp connection status while on imports tab.
+  // Stops polling once connected ('ready') or disconnected to avoid hammering the API.
+  useEffect(() => {
+    if (tab !== 'imports') return;
+    let alive = true;
+    const poll = async () => {
+      try {
+        const r = await api.get('/agent/whatsapp/status');
+        if (alive) setWaStatus(r.data);
+        // Only keep polling while actively connecting (qr / authenticating)
+        return r.data?.status;
+      } catch { return null; }
+    };
+    let iv;
+    const tick = async () => {
+      const st = await poll();
+      // Stop the fast poll once we reach a stable state
+      if (st === 'ready' || st === 'disconnected' || st === 'error') {
+        if (iv) { clearInterval(iv); iv = null; }
+      }
+    };
+    tick();
+    iv = setInterval(tick, 6000);
+    return () => { alive = false; if (iv) clearInterval(iv); };
+  }, [tab, waStatus?.status]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -168,6 +219,17 @@ export default function AdminPanel() {
         });
         setRegistrations(res.data.registrations);
         setRegTotal(res.data.total);
+      } else if (tab === 'imports') {
+        const [hist, src, pend, venues] = await Promise.all([
+          api.get('/imports?status=approved'),
+          api.get('/agent/sources'),
+          api.get('/imports?status=pending'),
+          api.get('/admin/venues/all'),
+        ]);
+        setImportHistory(hist.data);
+        setAgentSources(src.data);
+        setPendingImports(pend.data);
+        setPendingVenueList(venues.data);
       } else {
         const res = await api.get('/admin/users');
         setUsers(res.data);
@@ -254,6 +316,7 @@ export default function AdminPanel() {
           ['changelog', '📋 יומן שינויים'],
           ['registrations', `📝 הרשמות${regTotal > 0 ? ` (${regTotal})` : ''}`],
           ['hand-logger', '🃏 רישום ידיים'],
+          ['imports', '📥 ייבוא מפרסומים'],
         ].map(([id, label]) => (
           <button key={id} onClick={() => setTab(id)}
             className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${tab === id ? 'bg-poker-green text-white' : 'text-slate-400 hover:text-slate-200'}`}>
@@ -336,8 +399,33 @@ export default function AdminPanel() {
           )}
 
           {/* All venues */}
+          {/* Edit venue modal */}
+          {editingVenue && (
+            <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+              <div className="card p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-bold text-white">✏️ עריכת מועדון — {editingVenue.name}</h3>
+                  <button onClick={() => setEditingVenue(null)}
+                    className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-700 hover:bg-red-500/80 text-slate-300 hover:text-white transition-all text-sm">
+                    ✕
+                  </button>
+                </div>
+                <VenueEditForm
+                  venue={editingVenue}
+                  onSuccess={(msg) => { setEditVenueSuccess(msg); setEditingVenue(null); fetchData(); }}
+                  onCancel={() => setEditingVenue(null)}
+                />
+              </div>
+            </div>
+          )}
+
           {tab === 'venues' && (
             <div className="space-y-4">
+              {editVenueSuccess && (
+                <div className="bg-green-900/30 border border-green-700/50 text-green-400 rounded-xl p-3 text-sm">
+                  ✅ {editVenueSuccess}
+                </div>
+              )}
               {allVenues.length === 0 && (
                 <div className="card p-12 text-center text-slate-500">אין מועדונים רשומים</div>
               )}
@@ -385,6 +473,12 @@ export default function AdminPanel() {
                       {!v.is_approved && (
                         <button onClick={() => approveVenue(v.id)} className="btn-primary">✅ אשר מועדון</button>
                       )}
+                      <button
+                        onClick={() => { setEditVenueSuccess(''); setEditingVenue(v); }}
+                        className="bg-blue-900/30 hover:bg-blue-900/60 text-blue-400 font-semibold py-2 px-4 rounded-xl transition-all text-center text-sm"
+                      >
+                        ✏️ ערוך מועדון
+                      </button>
                       <button
                         onClick={() => setDeleteVenueModal(v)}
                         className="bg-red-900/30 hover:bg-red-900/60 text-red-400 font-semibold py-2 px-4 rounded-xl transition-all text-center text-sm"
@@ -702,6 +796,573 @@ export default function AdminPanel() {
               </p>
             </div>
           )}
+
+          {/* ══ IMPORTS TAB ══════════════════════════════════════════════════ */}
+          {tab === 'imports' && (() => {
+            const SOURCES = [
+              { key: 'whatsapp', icon: '💬', label: 'WhatsApp' },
+              { key: 'facebook', icon: '📘', label: 'Facebook' },
+              { key: 'telegram', icon: '📨', label: 'Telegram' },
+              { key: 'sms',      icon: '📱', label: 'SMS' },
+              { key: 'manual',   icon: '✏️', label: 'ידני' },
+            ];
+
+            const FIELD_META = [
+              { key: 'name',           label: 'שם הטורניר',      type: 'text' },
+              { key: 'date',           label: 'תאריך',            type: 'date' },
+              { key: 'start_time',     label: 'שעת התחלה',       type: 'time' },
+              { key: 'cost',           label: 'עלות (₪)',         type: 'number' },
+              { key: 'gtd',            label: 'GTD (₪)',          type: 'number' },
+              { key: 'starting_stack', label: 'ערימת פתיחה',     type: 'number' },
+              { key: 'level_duration', label: 'משך שלב (דקות)',  type: 'number' },
+              { key: 'late_reg_level', label: 'Late Reg שלב',    type: 'number' },
+              { key: 'whatsapp_number',label: 'וואטסאפ',         type: 'text' },
+              { key: 'description',    label: 'תיאור',            type: 'textarea' },
+            ];
+
+            const fval = (key) =>
+              importFields[key] !== undefined
+                ? importFields[key]
+                : (importResult?.parsed?.[key] ?? '');
+
+            const setFval = (key, val) =>
+              setImportFields(prev => ({ ...prev, [key]: val }));
+
+            const handleParse = async () => {
+              if (!importText.trim()) return;
+              setImportParsing(true);
+              setImportResult(null);
+              setImportError('');
+              setImportDone(null);
+              setImportFields({});
+              setImportVenueId('');
+              try {
+                const res = await api.post('/imports/parse', {
+                  text: importText, source: importSource,
+                });
+                setImportResult(res.data);
+                if (res.data.matched_venue) setImportVenueId(String(res.data.matched_venue.id));
+              } catch (e) {
+                setImportError(e?.response?.data?.message || 'שגיאה בניתוח');
+              } finally {
+                setImportParsing(false);
+              }
+            };
+
+            const handleCreate = async () => {
+              if (!importVenueId) { setImportError('בחר מועדון'); return; }
+              setImportSaving(true);
+              setImportError('');
+              try {
+                const merged = { ...importResult?.parsed, ...importFields };
+                // Save import record
+                const saveRes = await api.post('/imports', {
+                  source: importSource,
+                  raw_text: importText,
+                  parsed_data: merged,
+                  venue_id: parseInt(importVenueId),
+                });
+                // Auto-approve immediately
+                const apvRes = await api.patch(`/imports/${saveRes.data.id}/approve`, {
+                  ...merged,
+                  venue_id: parseInt(importVenueId),
+                });
+                setImportDone(apvRes.data);
+                setImportText('');
+                setImportResult(null);
+                setImportFields({});
+                setImportVenueId('');
+                // Refresh history
+                api.get('/imports?status=approved').then(r => setImportHistory(r.data)).catch(() => {});
+              } catch (e) {
+                setImportError(e?.response?.data?.message || e?.response?.data?.detail || 'שגיאה ביצירת הטורניר');
+              } finally {
+                setImportSaving(false);
+              }
+            };
+
+            const handleApprovePending = async (imp) => {
+              const venueId = pendingVenues[imp.id] || imp.venue_id;
+              if (!venueId) { alert('בחר מועדון לפני האישור'); return; }
+              const d = imp.parsed_data || {};
+              const dateOverride = pendingDates[imp.id]?.date || d.date;
+              const timeOverride = pendingDates[imp.id]?.start_time || d.start_time;
+              if (!dateOverride || !timeOverride) {
+                alert('יש להזין תאריך ושעה לפני האישור');
+                return;
+              }
+              try {
+                const r = await api.patch(`/imports/${imp.id}/approve`, {
+                  venue_id: parseInt(venueId),
+                  date: dateOverride,
+                  start_time: timeOverride,
+                });
+                setPendingImports(p => p.filter(i => i.id !== imp.id));
+                alert(`✅ טורניר נוצר! #${r.data.tournament_id}`);
+              } catch(e) { alert('שגיאה: ' + (e?.response?.data?.message || e.message)); }
+            };
+
+            const handleRejectPending = async (id) => {
+              try {
+                await api.patch(`/imports/${id}/reject`);
+                setPendingImports(p => p.filter(i => i.id !== id));
+              } catch(e) { alert('שגיאה: ' + e.message); }
+            };
+
+            return (
+              <div className="space-y-5" dir="rtl">
+                {/* Header */}
+                <div className="rounded-2xl border border-blue-500/20 p-5"
+                  style={{ background: 'linear-gradient(135deg,rgba(13,21,38,.95),rgba(6,9,26,.95))' }}>
+                  <div className="flex items-center gap-3 mb-1">
+                    <span className="text-3xl">📥</span>
+                    <div>
+                      <h2 className="text-lg font-black text-white">ייבוא טורנירים מפרסומים</h2>
+                      <p className="text-sm text-slate-400">הדבק פרסום מוואטסאפ / פייסבוק / טלגרם — AI מחלץ את הפרטים אוטומטית</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ── Pending imports from scraper ── */}
+                {pendingImports.length > 0 && (
+                  <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-5 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-amber-400 font-bold bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+                        {pendingImports.length} ממתינים
+                      </span>
+                      <h3 className="text-base font-black text-white">⏳ ממתינים לאישורך</h3>
+                    </div>
+
+                    <div className="space-y-3 max-h-[600px] overflow-y-auto pl-1">
+                      {pendingImports.map(imp => {
+                        const d = imp.parsed_data || {};
+                        const conf = Math.round((d.confidence || 0) * 100);
+                        const confColor = conf >= 80 ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10'
+                                        : conf >= 50 ? 'text-amber-400 border-amber-500/30 bg-amber-500/10'
+                                        :              'text-red-400 border-red-500/30 bg-red-500/10';
+                        const srcIcon = imp.source === 'telegram' ? '💬' : imp.source === 'whatsapp' ? '📱' : '🌐';
+                        return (
+                          <div key={imp.id} className="rounded-xl border border-slate-700/60 bg-slate-800/50 p-4 space-y-3">
+                            {/* Header row */}
+                            <div className="flex items-start justify-between gap-2 flex-wrap">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-sm font-bold text-white">
+                                  {d.name || '(שם לא זוהה)'}
+                                </span>
+                                {d.date && <span className="text-xs text-slate-400">📅 {d.date}{d.start_time ? ` ${d.start_time}` : ''}</span>}
+                                {d.cost && <span className="text-xs text-slate-400">💰 ₪{d.cost}</span>}
+                                {d.gtd  && <span className="text-xs text-slate-400">🏆 GTD ₪{d.gtd}</span>}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs">{srcIcon}</span>
+                                <span className={`text-xs px-2 py-0.5 rounded-full border font-bold ${confColor}`}>
+                                  {conf}%
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Venue & city hint */}
+                            {(d.venue_name || d.venue_city) && (
+                              <div className="text-xs text-slate-500">
+                                📍 {[d.venue_name, d.venue_city].filter(Boolean).join(' · ')}
+                              </div>
+                            )}
+
+                            {/* Raw text toggle */}
+                            <button
+                              onClick={() => setExpandedImport(expandedImport === imp.id ? null : imp.id)}
+                              className="text-xs text-slate-500 hover:text-slate-300 transition-colors">
+                              {expandedImport === imp.id ? '▲ הסתר טקסט' : '▼ הצג טקסט מקורי'}
+                            </button>
+                            {expandedImport === imp.id && (
+                              <div className="text-xs text-slate-400 bg-slate-900/60 rounded-lg p-3 max-h-32 overflow-y-auto leading-relaxed whitespace-pre-wrap">
+                                {imp.raw_text}
+                              </div>
+                            )}
+
+                            {/* Date/time — mandatory */}
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <div className="flex items-center gap-1 flex-1 min-w-[180px]">
+                                <span className="text-xs text-slate-400 shrink-0">📅</span>
+                                <input
+                                  type="date"
+                                  value={pendingDates[imp.id]?.date || d.date || ''}
+                                  onChange={e => setPendingDates(p => ({ ...p, [imp.id]: { ...p[imp.id], date: e.target.value } }))}
+                                  className="flex-1 px-2 py-1 rounded-lg bg-slate-900 border border-slate-600 text-slate-200 text-sm focus:border-blue-500 focus:outline-none"
+                                  dir="ltr"
+                                />
+                              </div>
+                              <div className="flex items-center gap-1 min-w-[110px]">
+                                <span className="text-xs text-slate-400 shrink-0">🕐</span>
+                                <input
+                                  type="time"
+                                  value={pendingDates[imp.id]?.start_time || d.start_time || ''}
+                                  onChange={e => setPendingDates(p => ({ ...p, [imp.id]: { ...p[imp.id], start_time: e.target.value } }))}
+                                  className="flex-1 px-2 py-1 rounded-lg bg-slate-900 border border-slate-600 text-slate-200 text-sm focus:border-blue-500 focus:outline-none"
+                                  dir="ltr"
+                                />
+                              </div>
+                            </div>
+
+                            {/* Venue selector + actions */}
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <select
+                                value={pendingVenues[imp.id] || imp.venue_id || ''}
+                                onChange={e => setPendingVenues(p => ({ ...p, [imp.id]: e.target.value }))}
+                                className="flex-1 min-w-[160px] px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-600 text-slate-200 text-sm focus:border-blue-500 focus:outline-none">
+                                <option value="">-- בחר מועדון --</option>
+                                {pendingVenueList.map(v => (
+                                  <option key={v.id} value={v.id}>{v.name}{v.city ? ` (${v.city})` : ''}</option>
+                                ))}
+                              </select>
+                              <button
+                                onClick={() => handleApprovePending(imp)}
+                                className="px-4 py-1.5 rounded-lg bg-emerald-600/80 hover:bg-emerald-600 text-white text-sm font-bold transition-all">
+                                ✅ אשר
+                              </button>
+                              <button
+                                onClick={() => handleRejectPending(imp.id)}
+                                className="px-4 py-1.5 rounded-lg bg-red-900/50 hover:bg-red-900/80 text-red-300 text-sm font-bold transition-all">
+                                ❌ דחה
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Source selector */}
+                <div>
+                  <label className="block text-sm font-bold text-slate-400 mb-2">מקור הפרסום</label>
+                  <div className="flex gap-2 flex-wrap">
+                    {SOURCES.map(s => (
+                      <button key={s.key} onClick={() => setImportSource(s.key)}
+                        className={`flex items-center gap-1.5 px-4 py-2 rounded-xl border text-sm font-bold transition-all
+                          ${importSource === s.key ? 'border-blue-400 bg-blue-600/20 text-white' : 'border-slate-600 text-slate-400 hover:border-slate-500'}`}>
+                        <span>{s.icon}</span>{s.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Text area */}
+                <div>
+                  <label className="block text-sm font-bold text-slate-400 mb-2">טקסט הפרסום</label>
+                  <textarea
+                    rows={6}
+                    placeholder="הדבק כאן את הפרסום..."
+                    value={importText}
+                    onChange={e => setImportText(e.target.value)}
+                    className="w-full px-4 py-3 rounded-2xl bg-slate-900 border border-slate-700 text-slate-200 text-sm text-right resize-none focus:border-blue-500 focus:outline-none leading-relaxed"
+                  />
+                  <div className="flex justify-between items-center mt-2">
+                    <span className="text-xs text-slate-600">{importText.length} / 8000 תווים</span>
+                    <button
+                      onClick={handleParse}
+                      disabled={importParsing || importText.trim().length < 15}
+                      className="flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm text-white disabled:opacity-40 transition-all hover:scale-105 active:scale-95"
+                      style={{ background: 'linear-gradient(135deg,#1d4ed8,#2563eb)', boxShadow: '0 0 20px rgba(29,78,216,.4)' }}>
+                      {importParsing ? (
+                        <><span className="animate-spin">⏳</span> מנתח עם AI...</>
+                      ) : (
+                        <><span>🤖</span> נתח עם AI</>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Error */}
+                {importError && (
+                  <div className="rounded-xl bg-red-900/20 border border-red-500/30 px-4 py-3 text-red-300 text-sm font-bold">
+                    ⚠️ {importError}
+                  </div>
+                )}
+
+                {/* Success */}
+                {importDone && (
+                  <div className="rounded-xl bg-emerald-900/20 border border-emerald-500/30 px-4 py-4 text-center">
+                    <div className="text-2xl mb-1">✅</div>
+                    <p className="text-emerald-300 font-black text-lg">הטורניר נוצר בהצלחה!</p>
+                    <p className="text-slate-400 text-sm mt-1">מזהה: #{importDone.tournament_id}</p>
+                    <button onClick={() => setImportDone(null)}
+                      className="mt-3 px-4 py-1.5 rounded-lg border border-emerald-500/30 text-emerald-400 text-sm hover:bg-emerald-500/10 transition-all">
+                      ייבוא נוסף
+                    </button>
+                  </div>
+                )}
+
+                {/* Parsed results */}
+                {importResult && !importDone && (
+                  <div className="rounded-2xl border border-blue-500/20 bg-slate-800/40 p-5 space-y-4">
+                    {/* Confidence badge */}
+                    <div className="flex items-center justify-between">
+                      <span className={`px-3 py-1 rounded-full text-xs font-black border
+                        ${(importResult.parsed.confidence || 0) >= 0.8
+                          ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                          : 'bg-amber-500/20 text-amber-300 border-amber-500/30'}`}>
+                        {Math.round((importResult.parsed.confidence || 0) * 100)}% ביטחון
+                      </span>
+                      <h3 className="text-sm font-black text-white">✏️ עריכה לפני אישור</h3>
+                    </div>
+
+                    {/* Editable fields grid */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {FIELD_META.map(f => (
+                        f.type === 'textarea' ? (
+                          <div key={f.key} className="sm:col-span-2">
+                            <label className="block text-xs text-slate-500 mb-1">{f.label}</label>
+                            <textarea rows={2}
+                              value={fval(f.key)}
+                              onChange={e => setFval(f.key, e.target.value)}
+                              className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-slate-200 text-sm text-right resize-none focus:border-blue-500 focus:outline-none"
+                            />
+                          </div>
+                        ) : (
+                          <div key={f.key}>
+                            <label className="block text-xs text-slate-500 mb-1">{f.label}</label>
+                            <input type={f.type}
+                              value={fval(f.key)}
+                              onChange={e => setFval(f.key, e.target.value)}
+                              className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-slate-200 text-sm text-right focus:border-blue-500 focus:outline-none"
+                            />
+                          </div>
+                        )
+                      ))}
+
+                      {/* Re-entry + Recurring */}
+                      <div className="flex gap-4 items-center pt-1">
+                        {[['re_entry','Re-Entry'], ['is_recurring','שבועי קבוע']].map(([k,l]) => (
+                          <label key={k} className="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox"
+                              checked={!!fval(k)}
+                              onChange={e => setFval(k, e.target.checked)}
+                              className="w-4 h-4 rounded border-slate-600 bg-slate-900 text-blue-500"
+                            />
+                            <span className="text-sm text-slate-300">{l}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Venue selector */}
+                    <div>
+                      <label className="block text-sm font-bold text-slate-300 mb-2">
+                        מועדון
+                        {importResult.matched_venue && (
+                          <span className="mr-2 text-xs font-normal text-emerald-400">
+                            ✅ זוהה: {importResult.matched_venue.name}
+                          </span>
+                        )}
+                      </label>
+                      <select
+                        value={importVenueId}
+                        onChange={e => setImportVenueId(e.target.value)}
+                        className="w-full px-3 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-slate-200 text-sm focus:border-blue-500 focus:outline-none">
+                        <option value="">-- בחר מועדון --</option>
+                        {importResult.venues.map(v => (
+                          <option key={v.id} value={v.id}>
+                            {v.name}{v.city ? ` (${v.city})` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Create button */}
+                    <button
+                      onClick={handleCreate}
+                      disabled={importSaving || !importVenueId}
+                      className="w-full py-3 rounded-2xl font-black text-lg text-white disabled:opacity-40 transition-all hover:scale-[1.02] active:scale-[.98]"
+                      style={{ background: 'linear-gradient(135deg,#059669,#10b981)', boxShadow: '0 0 24px rgba(16,185,129,.4)' }}>
+                      {importSaving ? '⏳ יוצר טורניר...' : '✅ צור טורניר ← אשר אוטומטית'}
+                    </button>
+                  </div>
+                )}
+
+                {/* ── Agent Sources ── */}
+                <div className="rounded-2xl border border-slate-700/60 bg-slate-800/30 p-5 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <button
+                      onClick={async () => {
+                        setAgentRunning(true);
+                        try {
+                          const r = await api.post('/agent/run');
+                          alert(`✅ סריקה הסתיימה\nנסרקו: ${r.data.scanned} הודעות\nנמצאו: ${r.data.found} פרסומי פוקר`);
+                        } catch(e) { alert('שגיאה: ' + (e?.response?.data?.message || e.message)); }
+                        finally { setAgentRunning(false); }
+                      }}
+                      disabled={agentRunning}
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-600 text-slate-300 text-sm font-bold hover:border-blue-500/50 disabled:opacity-40 transition-all">
+                      {agentRunning ? '⏳ סורק...' : '▶ הרץ סריקה עכשיו'}
+                    </button>
+                    <h3 className="text-base font-black text-white">🤖 ניהול מקורות אוטומטיים</h3>
+                  </div>
+
+                  {/* ── WhatsApp connection ── */}
+                  <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
+                    {(() => {
+                      const st = waStatus?.status || 'disconnected';
+                      const STATUS_UI = {
+                        disconnected: { icon: '⚪', label: 'מנותק',     color: 'text-slate-400' },
+                        authenticating:{icon: '🟡', label: 'מתחבר...',  color: 'text-amber-400' },
+                        qr:           { icon: '📱', label: 'ממתין לסריקת QR', color: 'text-blue-400' },
+                        ready:        { icon: '🟢', label: 'מחובר',      color: 'text-emerald-400' },
+                        error:        { icon: '🔴', label: 'שגיאה',      color: 'text-red-400' },
+                      };
+                      const ui = STATUS_UI[st] || STATUS_UI.disconnected;
+                      return (
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              {st === 'disconnected' && (
+                                <button onClick={async () => {
+                                  await api.post('/agent/whatsapp/connect');
+                                  setWaStatus({ status: 'authenticating' });
+                                }}
+                                  className="px-4 py-1.5 rounded-lg bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-500 transition-all">
+                                  🔗 התחבר לוואטסאפ
+                                </button>
+                              )}
+                              {st === 'ready' && (
+                                <button onClick={async () => {
+                                  if (!confirm('להתנתק מוואטסאפ?')) return;
+                                  await api.post('/agent/whatsapp/logout');
+                                  setWaStatus({ status: 'disconnected' });
+                                }}
+                                  className="px-3 py-1.5 rounded-lg border border-red-500/30 text-red-400 text-sm font-bold hover:bg-red-500/10 transition-all">
+                                  התנתק
+                                </button>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 text-right">
+                              <div>
+                                <span className={`text-sm font-bold ${ui.color}`}>{ui.icon} WhatsApp: {ui.label}</span>
+                                {waStatus?.info?.pushname && (
+                                  <div className="text-xs text-slate-500">{waStatus.info.pushname} · {waStatus.info.number}</div>
+                                )}
+                                {waStatus?.error && <div className="text-xs text-red-400/70">{waStatus.error}</div>}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* QR code */}
+                          {st === 'qr' && waStatus?.qr && (
+                            <div className="flex flex-col items-center gap-2 py-2">
+                              <img src={waStatus.qr} alt="WhatsApp QR" className="w-56 h-56 rounded-xl bg-white p-2" />
+                              <p className="text-xs text-slate-400 text-center max-w-xs">
+                                📱 פתח WhatsApp בטלפון ← הגדרות ← מכשירים מקושרים ← קשר מכשיר ← סרוק את הקוד
+                              </p>
+                            </div>
+                          )}
+                          {st === 'authenticating' && (
+                            <div className="text-center py-3 text-slate-400 text-sm">
+                              <span className="animate-pulse">⏳ מאתחל חיבור... (טוען QR בעוד רגע)</span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  {/* Add new source */}
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
+                    <select value={newSource.platform}
+                      onChange={e => setNewSource(p => ({...p, platform: e.target.value}))}
+                      className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-slate-200 text-sm focus:border-blue-500 focus:outline-none">
+                      <option value="telegram">💬 Telegram</option>
+                      <option value="whatsapp">📱 WhatsApp</option>
+                      <option value="website">🌐 אתר</option>
+                    </select>
+                    <input placeholder="שם ידידותי" value={newSource.name}
+                      onChange={e => setNewSource(p => ({...p, name: e.target.value}))}
+                      className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-slate-200 text-sm text-right focus:border-blue-500 focus:outline-none" />
+                    <input
+                      placeholder={newSource.platform==='telegram' ? '@channel_name או chat_id' : newSource.platform==='website' ? 'https://...' : 'מספר טלפון'}
+                      value={newSource.identifier}
+                      onChange={e => setNewSource(p => ({...p, identifier: e.target.value}))}
+                      className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-slate-200 text-sm text-right focus:border-blue-500 focus:outline-none" />
+                    <button
+                      onClick={async () => {
+                        if (!newSource.name || !newSource.identifier) return;
+                        try {
+                          const r = await api.post('/agent/sources', newSource);
+                          setAgentSources(p => [...p, r.data]);
+                          setNewSource(p => ({...p, name:'', identifier:''}));
+                        } catch(e) { alert(e?.response?.data?.message || 'שגיאה'); }
+                      }}
+                      className="px-4 py-2 rounded-xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-500 transition-all">
+                      + הוסף מקור
+                    </button>
+                  </div>
+
+                  {/* Sources list */}
+                  {agentSources.length > 0 ? (
+                    <div className="space-y-2">
+                      {agentSources.map(s => (
+                        <div key={s.id} className={`flex items-center justify-between gap-3 px-4 py-3 rounded-xl border transition-all
+                          ${s.active ? 'border-blue-500/20 bg-blue-500/5' : 'border-slate-700/40 bg-slate-800/20 opacity-50'}`}>
+                          <div className="flex items-center gap-2">
+                            <button onClick={async () => {
+                              const r = await api.patch(`/agent/sources/${s.id}/toggle`);
+                              setAgentSources(p => p.map(x => x.id===s.id ? r.data : x));
+                            }} className={`text-xs px-2 py-0.5 rounded-full font-bold border transition-all
+                              ${s.active ? 'border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10' : 'border-slate-600 text-slate-500 hover:text-slate-300'}`}>
+                              {s.active ? '✅ פעיל' : '⏸ מושבת'}
+                            </button>
+                            <button onClick={async () => {
+                              if (!confirm(`מחק את "${s.name}"?`)) return;
+                              await api.delete(`/agent/sources/${s.id}`);
+                              setAgentSources(p => p.filter(x => x.id !== s.id));
+                            }} className="text-xs text-red-400/50 hover:text-red-400 transition-colors px-1">✕</button>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-sm font-bold text-slate-200">{s.name}</div>
+                            <div className="text-xs text-slate-500 font-mono">{s.platform} · {s.identifier}</div>
+                            {s.last_checked && <div className="text-xs text-slate-600">נסרק: {new Date(s.last_checked).toLocaleString('he-IL')}</div>}
+                          </div>
+                          <span className="text-lg">{s.platform === 'telegram' ? '💬' : s.platform === 'website' ? '🌐' : '📱'}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-slate-500 text-center py-3">לא הוגדרו מקורות עדיין — הוסף ערוץ טלגרם או מספר וואטסאפ</p>
+                  )}
+
+                  {/* WhatsApp webhook info */}
+                  <div className="rounded-xl bg-slate-900/60 border border-slate-700 p-3 text-xs text-slate-500 text-right">
+                    <p className="font-bold text-slate-400 mb-1">📱 WhatsApp Webhook URL:</p>
+                    <code className="text-blue-400 text-xs break-all">
+                      {window.location.origin.replace(':5173','') || 'https://www.pokerisrael.org'}/api/agent/whatsapp-webhook
+                    </code>
+                    <p className="mt-1">הגדר URL זה ב-Twilio / CallMeBot / Zapier כדי לקבל הודעות וואטסאפ אוטומטית</p>
+                  </div>
+                </div>
+
+                {/* Import history */}
+                {importHistory.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-400 mb-3">⏱ ייבואים אחרונים</h3>
+                    <div className="space-y-2">
+                      {importHistory.slice(0, 8).map(imp => (
+                        <div key={imp.id} className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-slate-800/40 border border-slate-700/60 text-sm">
+                          <div className="text-slate-500 text-xs">
+                            {new Date(imp.created_at).toLocaleDateString('he-IL')}
+                          </div>
+                          <div className="flex-1 text-slate-300 text-right truncate">
+                            {imp.parsed_data?.name || imp.raw_text?.slice(0, 40) + '…'}
+                          </div>
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold flex-shrink-0">
+                            {imp.source}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {tab === 'users' && (
             <div className="space-y-2">

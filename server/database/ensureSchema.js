@@ -41,6 +41,35 @@ async function ensureSchema() {
       )`,
       `CREATE INDEX IF NOT EXISTS hand_histories_user_id_idx ON hand_histories(user_id, created_at DESC)`,
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS hand_logger_access BOOLEAN DEFAULT false`,
+      `CREATE TABLE IF NOT EXISTS tournament_imports (
+        id            SERIAL PRIMARY KEY,
+        source        VARCHAR(30)  NOT NULL DEFAULT 'manual',
+        raw_text      TEXT         NOT NULL,
+        parsed_data   JSONB        NOT NULL DEFAULT '{}',
+        venue_id      INTEGER      REFERENCES venues(id) ON DELETE SET NULL,
+        tournament_id INTEGER      REFERENCES tournaments(id) ON DELETE SET NULL,
+        status        VARCHAR(20)  NOT NULL DEFAULT 'pending',
+        created_by    INTEGER      REFERENCES users(id),
+        created_at    TIMESTAMP    DEFAULT NOW()
+      )`,
+      `CREATE INDEX IF NOT EXISTS tournament_imports_status_idx ON tournament_imports(status, created_at DESC)`,
+      // Agent monitored sources
+      `CREATE TABLE IF NOT EXISTS agent_sources (
+        id           SERIAL PRIMARY KEY,
+        platform     VARCHAR(20) NOT NULL,
+        name         VARCHAR(200) NOT NULL,
+        identifier   VARCHAR(300) NOT NULL,
+        active       BOOLEAN DEFAULT true,
+        last_checked TIMESTAMP,
+        last_msg_id  BIGINT,
+        created_by   INTEGER REFERENCES users(id),
+        created_at   TIMESTAMP DEFAULT NOW()
+      )`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS agent_sources_platform_ident ON agent_sources(platform, identifier)`,
+      // Web scraper deduplication
+      `ALTER TABLE tournament_imports ADD COLUMN IF NOT EXISTS content_hash VARCHAR(64)`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS tournament_imports_content_hash ON tournament_imports(content_hash) WHERE content_hash IS NOT NULL`,
+      `ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS external_registration_url VARCHAR(500)`,
     ];
     for (const sql of MIGRATIONS) {
       try { await pool.query(sql); } catch (e) { console.error('migration failed:', e.message); }

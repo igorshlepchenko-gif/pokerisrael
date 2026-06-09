@@ -271,6 +271,21 @@ export default function TournamentCard({ t, index, onClick }) {
         {t.tournament_type === 'cash' || t.tournament_type === 'online_cash' ? 'הצטרפות למשחק' : 'הרשמה לטורניר'}
       </button>
 
+      {/* קישור חיצוני להרשמה */}
+      {t.external_registration_url && (
+        <a
+          href={t.external_registration_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-center gap-2 w-full font-bold py-2.5 px-4 rounded-xl text-sm
+            text-white bg-gradient-to-l from-blue-600 to-indigo-600
+            shadow-[0_0_14px_rgba(99,102,241,0.6)] hover:shadow-[0_0_22px_rgba(99,102,241,0.9)]
+            hover:scale-105 active:scale-95 transition-all duration-200 animate-pulse-slow"
+        >
+          🔗 הרשמה אונליין
+        </a>
+      )}
+
       {/* קישור לאתר המקום */}
       {t.venue_website && (
         <a

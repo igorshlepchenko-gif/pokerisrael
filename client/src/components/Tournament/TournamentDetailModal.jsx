@@ -302,6 +302,21 @@ export default function TournamentDetailModal({ tournament: t, onClose }) {
             <WaIcon small />
             💬 פנייה ישירה למועדון
           </a>
+          {/* קישור חיצוני להרשמה */}
+          {t.external_registration_url && (
+            <a
+              href={t.external_registration_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 w-full font-bold py-3 px-4 rounded-xl text-base
+                text-white bg-gradient-to-l from-blue-600 to-indigo-600
+                shadow-[0_0_16px_rgba(99,102,241,0.65)] hover:shadow-[0_0_26px_rgba(99,102,241,1)]
+                hover:scale-[1.02] active:scale-95 transition-all duration-200 animate-pulse-slow"
+            >
+              🔗 הרשמה אונליין
+            </a>
+          )}
+
           {/* קישור לאתר המקום */}
           {t.venue_website && (
             <a
