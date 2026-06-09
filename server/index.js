@@ -20,6 +20,9 @@ const agentRoutes          = require('./routes/agent');
 
 const app = express();
 
+// ── Trust proxy (Railway / Heroku / nginx) ────────────────────────
+app.set('trust proxy', 1);
+
 // ── Security headers ──────────────────────────────────────────────
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' }, // מאפשר הגשת תמונות/לוגואים
