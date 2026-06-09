@@ -256,6 +256,7 @@ export default function Dashboard() {
   const [aiImportVenue, setAiImportVenue] = useState(null);
   const [aiImportFile, setAiImportFile] = useState(null);
   const [aiImportPreview, setAiImportPreview] = useState(null);
+  const [aiDragOver, setAiDragOver] = useState(false);
   const [aiImportLoading, setAiImportLoading] = useState(false);
   const [aiImportResult, setAiImportResult] = useState(null);
   const [aiImportEdits, setAiImportEdits] = useState({});
@@ -288,13 +289,24 @@ export default function Dashboard() {
     setAiImportDone('');
   };
 
-  const handleAiImageSelect = (e) => {
-    const file = e.target.files[0];
+  const acceptAiFile = (file) => {
     if (!file) return;
+    if (!file.type.startsWith('image/')) { alert('יש להעלות קובץ תמונה (JPG, PNG, WEBP)'); return; }
+    if (file.size > 10 * 1024 * 1024) { alert('הקובץ גדול מדי — מקסימום 10MB'); return; }
     setAiImportFile(file);
     setAiImportPreview(URL.createObjectURL(file));
     setAiImportResult(null);
     setAiImportEdits({});
+  };
+
+  const handleAiImageSelect = (e) => {
+    acceptAiFile(e.target.files[0]);
+  };
+
+  const handleAiDrop = (e) => {
+    e.preventDefault();
+    setAiDragOver(false);
+    acceptAiFile(e.dataTransfer.files[0]);
   };
 
   const handleAiParse = async () => {
@@ -746,11 +758,25 @@ export default function Dashboard() {
                     <label className="block text-sm text-slate-400">העלה תמונת פרסום (לוח שבועי, פוסטר וכו׳)</label>
                     <div
                       onClick={() => document.getElementById('ai-img-input').click()}
-                      className="border-2 border-dashed border-slate-600 hover:border-blue-500 rounded-xl p-8 text-center cursor-pointer transition-colors"
+                      onDragOver={e => { e.preventDefault(); setAiDragOver(true); }}
+                      onDragLeave={e => { e.preventDefault(); setAiDragOver(false); }}
+                      onDrop={handleAiDrop}
+                      className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all ${
+                        aiDragOver
+                          ? 'border-blue-400 bg-blue-500/10 scale-[1.01]'
+                          : 'border-slate-600 hover:border-blue-500'
+                      }`}
                     >
                       {aiImportPreview
-                        ? <img src={aiImportPreview} alt="preview" className="max-h-64 mx-auto rounded-lg object-contain" />
-                        : <div className="text-slate-500 space-y-2"><div className="text-4xl">🖼️</div><p>לחץ לבחירת תמונה</p><p className="text-xs">JPG, PNG, WEBP עד 10MB</p></div>
+                        ? <div className="space-y-2">
+                            <img src={aiImportPreview} alt="preview" className="max-h-64 mx-auto rounded-lg object-contain pointer-events-none" />
+                            <p className="text-xs text-slate-500">לחץ או גרור קובץ אחר להחלפה</p>
+                          </div>
+                        : <div className="text-slate-500 space-y-2 pointer-events-none">
+                            <div className="text-4xl">{aiDragOver ? '📥' : '🖼️'}</div>
+                            <p className="font-semibold">{aiDragOver ? 'שחרר כאן את הקובץ' : 'גרור תמונה לכאן או לחץ לבחירה'}</p>
+                            <p className="text-xs">JPG, PNG, WEBP עד 10MB</p>
+                          </div>
                       }
                     </div>
                     <input id="ai-img-input" type="file" accept="image/*" className="hidden" onChange={handleAiImageSelect} />
