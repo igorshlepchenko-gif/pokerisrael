@@ -252,6 +252,22 @@ export default function Dashboard() {
   const [showVenueForm, setShowVenueForm] = useState(false);
   const [editingVenue, setEditingVenue] = useState(null);
   const [loading, setLoading] = useState(true);
+  // AI Image Import
+  const [aiImportVenue, setAiImportVenue] = useState(null);
+  const [aiImportFile, setAiImportFile] = useState(null);
+  const [aiImportPreview, setAiImportPreview] = useState(null);
+  const [aiImportLoading, setAiImportLoading] = useState(false);
+  const [aiImportResult, setAiImportResult] = useState(null);
+  const [aiImportEdits, setAiImportEdits] = useState({});
+  const [aiImportSaving, setAiImportSaving] = useState(false);
+  const [aiImportDone, setAiImportDone] = useState('');
+  // Event Brands
+  const [brandVenue, setBrandVenue] = useState(null);
+  const [brandList, setBrandList] = useState([]);
+  const [brandName, setBrandName] = useState('');
+  const [brandLogo, setBrandLogo] = useState('');
+  const [brandLoading, setBrandLoading] = useState(false);
+  const brandFileRef = useRef();
   const [venueForm, setVenueForm] = useState({
     name: '', address: '', city: '', whatsapp_number: '', description: '', logo_url: '',
     venue_type: 'physical', club_number: '', agent_number: '', website: '',
@@ -261,6 +277,118 @@ export default function Dashboard() {
   const [venueSuccess, setVenueSuccess] = useState('');
 
   useEffect(() => { fetchData(); }, []);
+
+  // ── AI Image Import ──────────────────────────────────────────────
+  const openAiImport = (venue) => {
+    setAiImportVenue(venue);
+    setAiImportFile(null);
+    setAiImportPreview(null);
+    setAiImportResult(null);
+    setAiImportEdits({});
+    setAiImportDone('');
+  };
+
+  const handleAiImageSelect = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setAiImportFile(file);
+    setAiImportPreview(URL.createObjectURL(file));
+    setAiImportResult(null);
+    setAiImportEdits({});
+  };
+
+  const handleAiParse = async () => {
+    if (!aiImportFile) return;
+    setAiImportLoading(true);
+    try {
+      const fd = new FormData();
+      fd.append('image', aiImportFile);
+      const res = await api.post('/tournaments/import-image', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const tournaments = res.data.tournaments || [];
+      setAiImportResult(tournaments);
+      // init edits with AI result
+      const edits = {};
+      tournaments.forEach((t, i) => { edits[i] = { ...t, venue_id: aiImportVenue.id, selected: true }; });
+      setAiImportEdits(edits);
+    } catch (err) {
+      alert(err.response?.data?.message || 'שגיאה בניתוח התמונה');
+    } finally {
+      setAiImportLoading(false);
+    }
+  };
+
+  const handleAiConfirm = async () => {
+    const selected = Object.values(aiImportEdits).filter(t => t.selected);
+    if (selected.length === 0) { alert('לא נבחרו טורנירים'); return; }
+    setAiImportSaving(true);
+    let created = 0, failed = 0;
+    for (const t of selected) {
+      try {
+        const startTime = (t.date && t.start_time) ? `${t.date}T${t.start_time}:00` : null;
+        if (!startTime) { failed++; continue; }
+        await api.post('/tournaments', {
+          venue_id: aiImportVenue.id,
+          name: t.name,
+          cost: t.cost || 0,
+          start_time: startTime,
+          gtd: t.gtd || null,
+          starting_stack: t.starting_stack || null,
+          level_duration: t.level_duration || null,
+          is_recurring: t.is_recurring || false,
+          day_of_week: t.day_of_week ?? null,
+          description: t.description || null,
+          tournament_type: 'live',
+        });
+        created++;
+      } catch { failed++; }
+    }
+    setAiImportSaving(false);
+    setAiImportDone(`✅ נוצרו ${created} טורנירים${failed ? ` · ${failed} נכשלו (חסר תאריך/שעה?)` : ''}`);
+    fetchData();
+  };
+
+  // ── Event Brands ─────────────────────────────────────────────────
+  const openBrands = async (venue) => {
+    setBrandVenue(venue);
+    setBrandName('');
+    setBrandLogo('');
+    setBrandLoading(true);
+    try {
+      const res = await api.get(`/tournaments/venues/${venue.id}/brands`);
+      setBrandList(res.data);
+    } catch { setBrandList([]); }
+    finally { setBrandLoading(false); }
+  };
+
+  const handleAddBrand = async (e) => {
+    e.preventDefault();
+    if (!brandName.trim()) return;
+    try {
+      const res = await api.post(`/tournaments/venues/${brandVenue.id}/brands`, { name: brandName.trim(), logo_url: brandLogo || null });
+      setBrandList(p => [...p, res.data]);
+      setBrandName('');
+      setBrandLogo('');
+    } catch (err) { alert(err.response?.data?.message || 'שגיאה'); }
+  };
+
+  const handleUploadBrandLogo = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const fd = new FormData();
+    fd.append('logo', file);
+    try {
+      const res = await api.post('/upload/logo', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      setBrandLogo(res.data.url);
+    } catch { alert('שגיאה בהעלאת לוגו'); }
+  };
+
+  const handleDeleteBrand = async (id) => {
+    if (!confirm('למחוק?')) return;
+    try {
+      await api.delete(`/tournaments/brands/${id}`);
+      setBrandList(p => p.filter(b => b.id !== id));
+    } catch (err) { alert('שגיאה'); }
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -603,6 +731,149 @@ export default function Dashboard() {
             </div>
           )}
 
+          {/* ── AI Image Import Modal ── */}
+          {aiImportVenue && (
+            <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+              <div className="card p-6 w-full max-w-2xl max-h-[92vh] overflow-y-auto space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-black text-white">🤖 ייבוא טורנירים באמצעות AI — {aiImportVenue.name}</h3>
+                  <button onClick={() => setAiImportVenue(null)} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-700 hover:bg-red-500/80 text-slate-300 hover:text-white transition-all text-sm">✕</button>
+                </div>
+
+                {/* Upload */}
+                {!aiImportResult && (
+                  <div className="space-y-3">
+                    <label className="block text-sm text-slate-400">העלה תמונת פרסום (לוח שבועי, פוסטר וכו׳)</label>
+                    <div
+                      onClick={() => document.getElementById('ai-img-input').click()}
+                      className="border-2 border-dashed border-slate-600 hover:border-blue-500 rounded-xl p-8 text-center cursor-pointer transition-colors"
+                    >
+                      {aiImportPreview
+                        ? <img src={aiImportPreview} alt="preview" className="max-h-64 mx-auto rounded-lg object-contain" />
+                        : <div className="text-slate-500 space-y-2"><div className="text-4xl">🖼️</div><p>לחץ לבחירת תמונה</p><p className="text-xs">JPG, PNG, WEBP עד 10MB</p></div>
+                      }
+                    </div>
+                    <input id="ai-img-input" type="file" accept="image/*" className="hidden" onChange={handleAiImageSelect} />
+                    {aiImportFile && (
+                      <button onClick={handleAiParse} disabled={aiImportLoading}
+                        className="btn-primary w-full text-base py-3">
+                        {aiImportLoading ? '⏳ מנתח עם AI...' : '🤖 נתח תמונה'}
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* Results */}
+                {aiImportResult && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-green-400 font-bold">✅ נמצאו {aiImportResult.length} טורנירים</p>
+                      <button onClick={() => { setAiImportResult(null); setAiImportFile(null); setAiImportPreview(null); }}
+                        className="text-xs text-slate-500 hover:text-slate-300">↩ תמונה אחרת</button>
+                    </div>
+                    {aiImportResult.map((t, i) => {
+                      const edit = aiImportEdits[i] || t;
+                      return (
+                        <div key={i} className={`rounded-xl border p-3 space-y-2 transition-all ${edit.selected !== false ? 'border-blue-500/40 bg-blue-900/10' : 'border-slate-700 opacity-50'}`}>
+                          <div className="flex items-center gap-2">
+                            <input type="checkbox" checked={edit.selected !== false}
+                              onChange={e => setAiImportEdits(p => ({ ...p, [i]: { ...p[i], selected: e.target.checked } }))}
+                              className="w-4 h-4 rounded accent-blue-500" />
+                            <span className="text-xs font-bold text-blue-400">{Math.round((t.confidence||0)*100)}% ביטחון</span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="text-xs text-slate-500">שם</label>
+                              <input value={edit.name||''} onChange={e => setAiImportEdits(p => ({...p,[i]:{...p[i],name:e.target.value}}))}
+                                className="input-field text-sm w-full" />
+                            </div>
+                            <div>
+                              <label className="text-xs text-slate-500">עלות (₪)</label>
+                              <input type="number" value={edit.cost||''} onChange={e => setAiImportEdits(p => ({...p,[i]:{...p[i],cost:e.target.value}}))}
+                                className="input-field text-sm w-full" />
+                            </div>
+                            <div>
+                              <label className="text-xs text-slate-500">תאריך *</label>
+                              <input type="date" value={edit.date||''} onChange={e => setAiImportEdits(p => ({...p,[i]:{...p[i],date:e.target.value}}))}
+                                className="input-field text-sm w-full" dir="ltr" />
+                            </div>
+                            <div>
+                              <label className="text-xs text-slate-500">שעה *</label>
+                              <input type="time" value={edit.start_time||''} onChange={e => setAiImportEdits(p => ({...p,[i]:{...p[i],start_time:e.target.value}}))}
+                                className="input-field text-sm w-full" dir="ltr" />
+                            </div>
+                          </div>
+                          {(!edit.date || !edit.start_time) && edit.selected !== false && (
+                            <p className="text-xs text-amber-400">⚠️ יש להזין תאריך ושעה</p>
+                          )}
+                        </div>
+                      );
+                    })}
+                    {aiImportDone
+                      ? <p className="text-green-400 font-bold text-center py-2">{aiImportDone}</p>
+                      : <button onClick={handleAiConfirm} disabled={aiImportSaving}
+                          className="btn-primary w-full text-base py-3">
+                          {aiImportSaving ? '⏳ יוצר טורנירים...' : `✅ צור ${Object.values(aiImportEdits).filter(t=>t.selected!==false).length} טורנירים`}
+                        </button>
+                    }
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ── Brand Management Modal ── */}
+          {brandVenue && (
+            <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+              <div className="card p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-black text-white">🏷️ לוגואי אירועים — {brandVenue.name}</h3>
+                  <button onClick={() => setBrandVenue(null)} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-700 hover:bg-red-500/80 text-slate-300 hover:text-white transition-all text-sm">✕</button>
+                </div>
+                <p className="text-xs text-slate-400">כשטורניר מכיל את שם האירוע — הלוגו שלו יופיע אוטומטית בכרטיס</p>
+
+                {/* Brand list */}
+                {brandLoading ? <p className="text-slate-400 text-sm text-center">טוען...</p> : (
+                  <div className="space-y-2">
+                    {brandList.length === 0 && <p className="text-slate-500 text-sm text-center py-3">אין לוגואים עדיין</p>}
+                    {brandList.map(b => (
+                      <div key={b.id} className="flex items-center gap-3 rounded-xl bg-slate-800/60 border border-slate-700 p-3">
+                        {b.logo_url
+                          ? <img src={b.logo_url} alt={b.name} className="w-10 h-10 rounded-lg object-contain bg-slate-900 p-0.5 shrink-0" />
+                          : <div className="w-10 h-10 rounded-lg bg-slate-700 flex items-center justify-center text-lg shrink-0">🏷️</div>
+                        }
+                        <span className="flex-1 font-semibold text-slate-200 text-sm">{b.name}</span>
+                        <button onClick={() => handleDeleteBrand(b.id)} className="text-red-400 hover:text-red-300 text-xs px-2 py-1 rounded-lg hover:bg-red-900/20 transition-all">🗑️</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Add brand form */}
+                <form onSubmit={handleAddBrand} className="space-y-3 border-t border-slate-700 pt-4">
+                  <p className="text-sm font-bold text-slate-300">+ הוסף אירוע</p>
+                  <div>
+                    <label className="text-xs text-slate-400 mb-1 block">שם האירוע *</label>
+                    <input value={brandName} onChange={e => setBrandName(e.target.value)}
+                      placeholder='למשל: כבש הכבשים' className="input-field text-sm w-full" required />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-400 mb-1 block">לוגו</label>
+                    <div className="flex gap-2 items-center">
+                      {brandLogo && <img src={brandLogo} alt="logo" className="w-10 h-10 rounded-lg object-contain bg-slate-900 p-0.5 shrink-0" />}
+                      <button type="button" onClick={() => brandFileRef.current?.click()}
+                        className="btn-ghost text-xs flex-1">
+                        {brandLogo ? '🔄 החלף לוגו' : '📷 העלה לוגו'}
+                      </button>
+                      <input ref={brandFileRef} type="file" accept="image/*" className="hidden" onChange={handleUploadBrandLogo} />
+                    </div>
+                  </div>
+                  <button type="submit" className="btn-primary w-full text-sm">➕ הוסף</button>
+                </form>
+              </div>
+            </div>
+          )}
+
           {/* Venue list */}
           {venues.length === 0 && !showVenueForm ? (
             <div className="card p-12 text-center">
@@ -641,6 +912,24 @@ export default function Dashboard() {
                     <p className="text-sm text-slate-400">📍 {v.address}, {v.city}</p>
                   )}
                   <p className="text-sm text-slate-400">📱 {v.whatsapp_number}</p>
+
+                  {/* AI Import + Brand buttons — only for approved venues */}
+                  {v.is_approved && (
+                    <div className="flex gap-2 mt-2 flex-wrap">
+                      <button
+                        onClick={() => openAiImport(v)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/40 border border-indigo-500/30 hover:border-indigo-500 text-indigo-300 hover:text-white text-xs font-semibold transition-all"
+                      >
+                        🤖 ייבוא טורנירים AI
+                      </button>
+                      <button
+                        onClick={() => openBrands(v)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-600/20 hover:bg-amber-600/40 border border-amber-500/30 hover:border-amber-500 text-amber-300 hover:text-white text-xs font-semibold transition-all"
+                      >
+                        🏷️ לוגואי אירועים
+                      </button>
+                    </div>
+                  )}
 
                   {/* Video manager — only for approved venues */}
                   {v.is_approved && <VideoManager venue={v} />}

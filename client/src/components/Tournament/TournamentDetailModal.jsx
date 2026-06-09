@@ -4,7 +4,11 @@ import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
 import RegistrationModal from './RegistrationModal';
 
-export default function TournamentDetailModal({ tournament: t, onClose }) {
+export default function TournamentDetailModal({ tournament: t, onClose, brands = [] }) {
+  const matchedBrand = brands.find(b =>
+    b.venue_id === t.venue_id && t.name?.toLowerCase().includes(b.name.toLowerCase())
+  );
+  const displayLogo = matchedBrand?.logo_url || t.venue_logo;
   // סגירה ב-Escape
   useEffect(() => {
     const handler = (e) => { if (e.key === 'Escape') onClose(); };
@@ -71,8 +75,8 @@ export default function TournamentDetailModal({ tournament: t, onClose }) {
         {/* Header sticky */}
         <div className="sticky top-0 z-10 bg-slate-800/95 backdrop-blur border-b border-slate-700 px-5 py-4 flex items-center justify-between gap-3 shrink-0">
           <div className="flex items-center gap-3 min-w-0">
-            {t.venue_logo
-              ? <img src={t.venue_logo} alt={t.venue_name} className="w-12 h-12 rounded-full object-cover ring-2 ring-slate-600 shrink-0" />
+            {displayLogo
+              ? <img src={displayLogo} alt={matchedBrand?.name || t.venue_name} className="w-12 h-12 rounded-full object-cover ring-2 ring-slate-600 shrink-0" />
               : <span className="w-12 h-12 rounded-full bg-slate-700 flex items-center justify-center text-2xl shrink-0">🏠</span>
             }
             <div className="min-w-0">

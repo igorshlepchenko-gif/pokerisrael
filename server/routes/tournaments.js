@@ -71,4 +71,24 @@ router.post('/venues', authenticate, requireRole('venue_owner', 'admin'), [
   waValidation,
 ], ctrl.createVenue);
 
+// ── ייבוא מתמונה עם AI ──────────────────────────────────────────
+const imageUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  fileFilter: (req, file, cb) => {
+    const allowed = ['image/jpeg','image/png','image/webp','image/gif'];
+    if (allowed.includes(file.mimetype)) cb(null, true);
+    else cb(new Error('פורמט תמונה לא נתמך'));
+  },
+});
+router.post('/import-image', authenticate, requireRole('venue_owner', 'admin'), imageUpload.single('image'), ctrl.importFromImage);
+
+// ── לוגואי אירועים (event brands) ───────────────────────────────
+router.get('/venues/:id/brands',    authenticate, requireRole('venue_owner', 'admin'), ctrl.getBrands);
+router.post('/venues/:id/brands',   authenticate, requireRole('venue_owner', 'admin'), ctrl.createBrand);
+router.delete('/brands/:id',        authenticate, requireRole('venue_owner', 'admin'), ctrl.deleteBrand);
+
+// ── קבלת brands לתצוגה ציבורית (לטורנירים) ──────────────────────
+router.get('/all-brands', ctrl.getAllBrandsPublic);
+
 module.exports = router;

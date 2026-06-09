@@ -2,6 +2,12 @@ const pool = require('../config/db');
 const { validationResult } = require('express-validator');
 const ExcelJS = require('exceljs');
 const { BLIND_PRESETS, presetToStages } = require('../config/blindPresets');
+const Groq = require('groq-sdk');
+
+function getGroq() {
+  if (!process.env.GROQ_API_KEY) return null;
+  return new Groq({ apiKey: process.env.GROQ_API_KEY });
+}
 
 const DAYS_MAP_HE = { 'ראשון': 0, 'שני': 1, 'שלישי': 2, 'רביעי': 3, 'חמישי': 4, 'שישי': 5, 'שבת': 6 };
 
@@ -700,6 +706,112 @@ exports.updateVenue = async (req, res) => {
     console.error(err);
     res.status(500).json({ message: 'שגיאת שרת' });
   }
+};
+
+// ── ייבוא מתמונה עם AI ─────────────────────────────────────────────────────
+exports.importFromImage = async (req, res) => {
+  if (!req.file) return res.status(400).json({ message: 'לא נשלחה תמונה' });
+  const groq = getGroq();
+  if (!groq) return res.status(503).json({ message: 'GROQ_API_KEY לא מוגדר' });
+
+  try {
+    const base64 = req.file.buffer.toString('base64');
+    const mimeType = req.file.mimetype;
+
+    const venuesRes = await pool.query('SELECT id, name, city FROM venues WHERE is_approved=true ORDER BY name');
+    const venueList = venuesRes.rows.map(v => `${v.id}: ${v.name}${v.city ? ` (${v.city})` : ''}`).join('\n');
+
+    const prompt = `You are an expert at parsing Hebrew poker tournament schedules from images.
+Extract ALL tournaments visible in this image and return ONLY a valid JSON array.
+
+Registered venues:
+${venueList}
+
+Return an array of objects (null for missing fields):
+{"name":string,"date":"YYYY-MM-DD"|null,"start_time":"HH:MM"|null,"cost":number|null,"gtd":number|null,"starting_stack":number|null,"level_duration":number|null,"is_recurring":boolean,"day_of_week":0-6|null,"venue_id":number|null,"description":string|null,"confidence":number}
+
+Rules:
+- day_of_week: ראשון=0,שני=1,שלישי=2,רביעי=3,חמישי=4,שישי=5,שבת=6,מוצ"ש=6
+- Extract EVERY tournament shown.
+- If weekly schedule image: set is_recurring=true, set day_of_week per event.
+- Match venue_id from registered venues list if possible.
+- Return ONLY the JSON array, no markdown, no explanation.`;
+
+    const response = await groq.chat.completions.create({
+      model: 'llama-3.2-11b-vision-preview',
+      messages: [{ role: 'user', content: [
+        { type: 'text', text: prompt },
+        { type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64}` } },
+      ]}],
+      max_tokens: 2000,
+      temperature: 0.1,
+    });
+
+    let raw = (response.choices[0]?.message?.content || '[]').trim();
+    raw = raw.replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
+
+    let tournaments;
+    try { tournaments = JSON.parse(raw); }
+    catch { return res.status(422).json({ message: 'לא ניתן לנתח תגובת AI', raw }); }
+
+    if (!Array.isArray(tournaments)) tournaments = [tournaments];
+    res.json({ tournaments, count: tournaments.length });
+  } catch (err) {
+    console.error('[importFromImage]', err?.message);
+    if (err?.status === 429) return res.status(429).json({ message: 'Groq rate limit — נסה שוב בעוד דקה' });
+    res.status(500).json({ message: 'שגיאת שרת', detail: err?.message });
+  }
+};
+
+// ── Event Brands ────────────────────────────────────────────────────────────
+exports.getBrands = async (req, res) => {
+  const { id } = req.params;
+  try {
+    if (req.user.role !== 'admin') {
+      const ok = await pool.query('SELECT id FROM venues WHERE id=$1 AND owner_id=$2', [id, req.user.id]);
+      if (!ok.rows[0]) return res.status(403).json({ message: 'אין הרשאה' });
+    }
+    const result = await pool.query('SELECT * FROM event_brands WHERE venue_id=$1 ORDER BY name', [id]);
+    res.json(result.rows);
+  } catch (err) { res.status(500).json({ message: 'שגיאת שרת' }); }
+};
+
+exports.createBrand = async (req, res) => {
+  const { id } = req.params;
+  const { name, logo_url } = req.body;
+  if (!name?.trim()) return res.status(400).json({ message: 'שם האירוע הוא שדה חובה' });
+  try {
+    if (req.user.role !== 'admin') {
+      const ok = await pool.query('SELECT id FROM venues WHERE id=$1 AND owner_id=$2', [id, req.user.id]);
+      if (!ok.rows[0]) return res.status(403).json({ message: 'אין הרשאה' });
+    }
+    const result = await pool.query(
+      'INSERT INTO event_brands (venue_id, name, logo_url) VALUES ($1,$2,$3) RETURNING *',
+      [id, name.trim(), logo_url || null]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) { res.status(500).json({ message: 'שגיאת שרת' }); }
+};
+
+exports.deleteBrand = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const brand = await pool.query(
+      'SELECT b.id, v.owner_id FROM event_brands b JOIN venues v ON b.venue_id=v.id WHERE b.id=$1', [id]
+    );
+    if (!brand.rows[0]) return res.status(404).json({ message: 'לא נמצא' });
+    if (req.user.role !== 'admin' && brand.rows[0].owner_id !== req.user.id)
+      return res.status(403).json({ message: 'אין הרשאה' });
+    await pool.query('DELETE FROM event_brands WHERE id=$1', [id]);
+    res.json({ message: 'נמחק' });
+  } catch (err) { res.status(500).json({ message: 'שגיאת שרת' }); }
+};
+
+exports.getAllBrandsPublic = async (req, res) => {
+  try {
+    const result = await pool.query('SELECT id, venue_id, name, logo_url FROM event_brands ORDER BY venue_id, name');
+    res.json(result.rows);
+  } catch (err) { res.status(500).json({ message: 'שגיאת שרת' }); }
 };
 
 exports.createVenue = async (req, res) => {

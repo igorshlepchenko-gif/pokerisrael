@@ -70,6 +70,14 @@ async function ensureSchema() {
       `ALTER TABLE tournament_imports ADD COLUMN IF NOT EXISTS content_hash VARCHAR(64)`,
       `CREATE UNIQUE INDEX IF NOT EXISTS tournament_imports_content_hash ON tournament_imports(content_hash) WHERE content_hash IS NOT NULL`,
       `ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS external_registration_url VARCHAR(500)`,
+      `CREATE TABLE IF NOT EXISTS event_brands (
+        id         SERIAL PRIMARY KEY,
+        venue_id   INTEGER NOT NULL REFERENCES venues(id) ON DELETE CASCADE,
+        name       VARCHAR(200) NOT NULL,
+        logo_url   VARCHAR(500),
+        created_at TIMESTAMP DEFAULT NOW()
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_event_brands_venue ON event_brands(venue_id)`,
     ];
     for (const sql of MIGRATIONS) {
       try { await pool.query(sql); } catch (e) { console.error('migration failed:', e.message); }

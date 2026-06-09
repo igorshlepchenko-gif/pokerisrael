@@ -194,6 +194,8 @@ export default function TournamentForm({ venues, tournament = null, onSuccess, o
 
   const [blinds, setBlinds] = useState(() => parseStages(tournament?.stages));
   const [activePreset, setActivePreset] = useState('');
+  const [dragIdx, setDragIdx] = useState(null);
+  const [dragOverIdx, setDragOverIdx] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -398,6 +400,17 @@ export default function TournamentForm({ venues, tournament = null, onSuccess, o
     setActivePreset('');
   };
 
+  const moveBlindRow = (from, to) => {
+    if (from === null || to === null || from === to) return;
+    setBlinds(prev => {
+      const arr = [...prev];
+      const [item] = arr.splice(from, 1);
+      arr.splice(to, 0, item);
+      return arr;
+    });
+    setActivePreset('');
+  };
+
   const clearBlinds = () => { setBlinds([]); setActivePreset(''); };
 
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
@@ -522,8 +535,9 @@ export default function TournamentForm({ venues, tournament = null, onSuccess, o
           <div className="grid grid-cols-3 gap-2">
             {[
               { key: 'live',   icon: '🏆', label: 'טורניר לייב' },
-              { key: 'cash',   icon: '♠️', label: 'קאש גיים לייב' },
-              { key: 'online', icon: '💻', label: 'אונליין' },
+              // קאש גיים לייב ואונליין מוסתרים זמנית
+              // { key: 'cash',   icon: '♠️', label: 'קאש גיים לייב' },
+              // { key: 'online', icon: '💻', label: 'אונליין' },
             ].map(({ key, icon, label }) => (
               <button key={key} type="button"
                 onClick={() => setTournamentType(key)}
@@ -1005,7 +1019,16 @@ export default function TournamentForm({ venues, tournament = null, onSuccess, o
                     const displayLevel = isBreak ? null : lvl;
 
                     const mainRow = isBreak ? (
-                      <tr key={`r${i}`} className="bg-amber-500/5 border-y border-amber-500/20">
+                      <tr key={`r${i}`}
+                        draggable
+                        onDragStart={() => { setDragIdx(i); setDragOverIdx(null); }}
+                        onDragOver={e => { e.preventDefault(); setDragOverIdx(i); }}
+                        onDrop={() => { moveBlindRow(dragIdx, i); setDragIdx(null); setDragOverIdx(null); }}
+                        onDragEnd={() => { setDragIdx(null); setDragOverIdx(null); }}
+                        className={`bg-amber-500/5 border-y border-amber-500/20 transition-all cursor-grab active:cursor-grabbing
+                          ${dragOverIdx === i && dragIdx !== i ? 'outline outline-2 outline-blue-500/60 outline-offset-[-1px]' : ''}
+                          ${dragIdx === i ? 'opacity-40' : ''}`}
+                      >
                         <td className="py-1.5 px-2 text-center">
                           <span className="text-amber-400 text-[11px]">☕</span>
                         </td>
@@ -1026,11 +1049,23 @@ export default function TournamentForm({ venues, tournament = null, onSuccess, o
                         </td>
                       </tr>
                     ) : (
-                      <tr key={`r${i}`} className="hover:bg-slate-700/20 transition-colors group/row">
+                      <tr key={`r${i}`}
+                        draggable
+                        onDragStart={() => { setDragIdx(i); setDragOverIdx(null); }}
+                        onDragOver={e => { e.preventDefault(); setDragOverIdx(i); }}
+                        onDrop={() => { moveBlindRow(dragIdx, i); setDragIdx(null); setDragOverIdx(null); }}
+                        onDragEnd={() => { setDragIdx(null); setDragOverIdx(null); }}
+                        className={`hover:bg-slate-700/20 transition-all group/row cursor-grab active:cursor-grabbing
+                          ${dragOverIdx === i && dragIdx !== i ? 'outline outline-2 outline-blue-500/60 outline-offset-[-1px]' : ''}
+                          ${dragIdx === i ? 'opacity-40' : ''}`}
+                      >
                         <td className="py-1.5 px-1 text-center">
-                          <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-700 text-poker-green-light font-black text-[11px] select-none">
-                            {displayLevel}
-                          </span>
+                          <div className="flex items-center justify-center gap-0.5">
+                            <span className="text-slate-600 group-hover/row:text-slate-400 transition-colors text-[10px] leading-none select-none">⠿</span>
+                            <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-700 text-poker-green-light font-black text-[11px] select-none">
+                              {displayLevel}
+                            </span>
+                          </div>
                         </td>
                         <td className="py-1 px-1">
                           <input type="number" value={row.small_blind} min="0"

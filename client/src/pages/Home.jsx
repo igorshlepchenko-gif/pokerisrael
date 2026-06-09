@@ -27,6 +27,7 @@ export default function Home() {
   const [allVenues, setAllVenues] = useState([]);
   const [selectedVenues, setSelectedVenues] = useState([]);
   const [stats, setStats] = useState({ tournaments: null, venues: null, users: null });
+  const [allBrands, setAllBrands] = useState([]);
 
   useEffect(() => {
     api.get('/tournaments/public-venues')
@@ -34,6 +35,9 @@ export default function Home() {
       .catch(() => {});
     api.get('/stats')
       .then(res => setStats(res.data))
+      .catch(() => {});
+    api.get('/tournaments/all-brands')
+      .then(res => setAllBrands(res.data))
       .catch(() => {});
   }, []);
 
@@ -74,6 +78,7 @@ export default function Home() {
         <TournamentDetailModal
           tournament={selectedTournament}
           onClose={() => setSelectedTournament(null)}
+          brands={allBrands}
         />
       )}
       {/* Hero */}
@@ -297,7 +302,7 @@ export default function Home() {
             {viewMode === 'grid' && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {tournaments.map((t, i) => (
-                  <TournamentCard key={t.id} t={t} index={i} onClick={() => setSelectedTournament(t)} />
+                  <TournamentCard key={t.id} t={t} index={i} onClick={() => setSelectedTournament(t)} brands={allBrands} />
                 ))}
               </div>
             )}

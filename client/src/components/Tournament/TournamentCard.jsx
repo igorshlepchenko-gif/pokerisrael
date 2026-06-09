@@ -19,10 +19,16 @@ function randomSuit(id) {
   return { suit: SUITS[id % 4], color: SUIT_COLORS[id % 4] };
 }
 
-export default function TournamentCard({ t, index, onClick }) {
+export default function TournamentCard({ t, index, onClick, brands = [] }) {
   const { suit, color } = randomSuit(index);
   const { user } = useAuth();
   const [showRegModal, setShowRegModal] = useState(false);
+
+  // מצא brand logo לפי שם הטורניר
+  const matchedBrand = brands.find(b =>
+    b.venue_id === t.venue_id && t.name?.toLowerCase().includes(b.name.toLowerCase())
+  );
+  const displayLogo = matchedBrand?.logo_url || t.venue_logo;
 
   const openWhatsApp = (name, phone) => {
     api.post('/registrations', {
@@ -73,8 +79,8 @@ export default function TournamentCard({ t, index, onClick }) {
 
       {/* Header — לוגו + שם מועדון + שם טורניר */}
       <div className="flex items-center gap-3 mb-3">
-        {t.venue_logo
-          ? <img src={t.venue_logo} alt={t.venue_name} className="w-14 h-14 rounded-full object-cover shrink-0 ring-2 ring-slate-600" />
+        {displayLogo
+          ? <img src={displayLogo} alt={matchedBrand?.name || t.venue_name} className="w-14 h-14 rounded-full object-cover shrink-0 ring-2 ring-slate-600" />
           : <span className="w-14 h-14 rounded-full bg-slate-700 flex items-center justify-center text-2xl shrink-0">🏠</span>
         }
         <div className="min-w-0">
