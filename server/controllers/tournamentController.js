@@ -738,7 +738,7 @@ Rules:
 - Return ONLY the JSON array, no markdown, no explanation.`;
 
     const response = await groq.chat.completions.create({
-      model: 'llama-3.2-11b-vision-preview',
+      model: 'meta-llama/llama-4-scout-17b-16e-instruct',
       messages: [{ role: 'user', content: [
         { type: 'text', text: prompt },
         { type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64}` } },
