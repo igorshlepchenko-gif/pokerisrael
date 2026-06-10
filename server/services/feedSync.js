@@ -3,6 +3,7 @@
 const crypto = require('crypto');
 const axios = require('axios');
 const pool = require('../config/db');
+const { assertSafeUrl, SAFE_AXIOS } = require('../utils/safeUrl');
 
 const DAY_NAME_MAP = { sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6 };
 
@@ -89,12 +90,9 @@ async function syncFeed(feed) {
   const sourceKey = feed.source_key || 'feed';
   const status = feed.auto_publish ? 'approved' : 'pending';
 
-  // 1. משיכת הפיד
-  const { data } = await axios.get(feed.url, {
-    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; PokerIsraelBot/1.0)' },
-    timeout: 20000,
-    maxContentLength: 10 * 1024 * 1024,
-  });
+  // 1. משיכת הפיד (עם הגנת SSRF)
+  await assertSafeUrl(feed.url);
+  const { data } = await axios.get(feed.url, SAFE_AXIOS);
   let raw = data;
   if (typeof raw === 'string') { try { raw = JSON.parse(raw); } catch { /* */ } }
   const list = Array.isArray(raw?.tournaments) ? raw.tournaments : Array.isArray(raw) ? raw : null;
@@ -162,13 +160,24 @@ async function syncFeed(feed) {
 
   // 4. מחיקה — טורנירים שירדו מהפיד (הסתיימו / בוטלו)
   const toRemove = existingRes.rows.filter(r => !feedIds.has(r.external_id));
-  for (const r of toRemove) {
-    try {
-      await pool.query('DELETE FROM tournaments WHERE id = $1', [r.id]);
-      result.removed++;
-    } catch (e) {
-      console.error('[feedSync] delete error:', e.message);
-      result.errors++;
+  const existingCount = existingRes.rows.length;
+
+  // הגנה: פיד ריק או ירידה חשודה → אל תמחק (כנראה תקלה אצל הספק, לא ביטול אמיתי)
+  if (normalized.length === 0) {
+    console.warn('[feedSync] feed returned 0 valid tournaments — skipping all deletions');
+    result.removeSkipped = toRemove.length;
+  } else if (existingCount >= 4 && toRemove.length > existingCount * 0.5) {
+    console.warn(`[feedSync] suspicious drop (${toRemove.length}/${existingCount} > 50%) — skipping deletions`);
+    result.removeSkipped = toRemove.length;
+  } else {
+    for (const r of toRemove) {
+      try {
+        await pool.query('DELETE FROM tournaments WHERE id = $1', [r.id]);
+        result.removed++;
+      } catch (e) {
+        console.error('[feedSync] delete error:', e.message);
+        result.errors++;
+      }
     }
   }
 
@@ -181,7 +190,8 @@ async function syncAllFeeds() {
   for (const feed of feeds.rows) {
     try {
       const r = await syncFeed(feed);
-      const summary = `✅ +${r.added} ~${r.updated} -${r.removed} (${r.skipped} ללא שינוי)`;
+      const warn = r.removeSkipped ? ` ⚠️ דילוג על ${r.removeSkipped} מחיקות (פיד חשוד)` : '';
+      const summary = `✅ +${r.added} ~${r.updated} -${r.removed} (${r.skipped} ללא שינוי)${warn}`;
       await pool.query('UPDATE feed_sources SET last_synced=NOW(), last_result=$1 WHERE id=$2', [summary, feed.id]);
       console.log(`[feedSync] feed#${feed.id} (${feed.label || feed.url}): ${summary}`);
     } catch (e) {

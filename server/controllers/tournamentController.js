@@ -760,11 +760,10 @@ exports.importFromUrl = async (req, res) => {
   }
   try {
     const axios = require('axios');
-    const { data } = await axios.get(url, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; PokerIsraelBot/1.0)' },
-      timeout: 15000,
-      maxContentLength: 10 * 1024 * 1024,
-    });
+    const { assertSafeUrl, SAFE_AXIOS } = require('../utils/safeUrl');
+    try { await assertSafeUrl(url); }
+    catch (e) { return res.status(400).json({ message: e.message }); }
+    const { data } = await axios.get(url, SAFE_AXIOS);
 
     let raw = data;
     if (typeof raw === 'string') { try { raw = JSON.parse(raw); } catch { /* not json */ } }
@@ -839,7 +838,8 @@ exports.syncFeedNow = async (req, res) => {
     if (req.user.role !== 'admin' && fs.rows[0].owner_id !== req.user.id) return res.status(403).json({ message: 'אין הרשאה' });
     const { syncFeed } = require('../services/feedSync');
     const result = await syncFeed(fs.rows[0]);
-    const summary = `✅ +${result.added} ~${result.updated} -${result.removed} (${result.skipped} ללא שינוי)`;
+    const warn = result.removeSkipped ? ` ⚠️ דילוג על ${result.removeSkipped} מחיקות (פיד חשוד)` : '';
+    const summary = `✅ +${result.added} ~${result.updated} -${result.removed} (${result.skipped} ללא שינוי)${warn}`;
     await pool.query('UPDATE feed_sources SET last_synced=NOW(), last_result=$1 WHERE id=$2', [summary, id]);
     res.json({ result, summary });
   } catch (err) { console.error('[syncFeedNow]', err.message); res.status(500).json({ message: 'שגיאה בסנכרון', detail: err.message }); }
