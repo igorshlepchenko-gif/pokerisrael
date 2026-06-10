@@ -78,6 +78,24 @@ async function ensureSchema() {
         created_at TIMESTAMP DEFAULT NOW()
       )`,
       `CREATE INDEX IF NOT EXISTS idx_event_brands_venue ON event_brands(venue_id)`,
+      // סנכרון פיד חיצוני — זיהוי טורנירים שמקורם בפיד
+      `ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS external_source VARCHAR(50)`,
+      `ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS external_id VARCHAR(100)`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS tournaments_external_uniq ON tournaments(external_source, external_id) WHERE external_id IS NOT NULL`,
+      `CREATE TABLE IF NOT EXISTS feed_sources (
+        id           SERIAL PRIMARY KEY,
+        venue_id     INTEGER NOT NULL REFERENCES venues(id) ON DELETE CASCADE,
+        url          VARCHAR(500) NOT NULL,
+        label        VARCHAR(200),
+        source_key   VARCHAR(50) NOT NULL DEFAULT 'feed',
+        auto_publish BOOLEAN DEFAULT true,
+        active       BOOLEAN DEFAULT true,
+        last_synced  TIMESTAMP,
+        last_result  TEXT,
+        created_by   INTEGER REFERENCES users(id),
+        created_at   TIMESTAMP DEFAULT NOW()
+      )`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS feed_sources_venue_url ON feed_sources(venue_id, url)`,
     ];
     for (const sql of MIGRATIONS) {
       try { await pool.query(sql); } catch (e) { console.error('migration failed:', e.message); }

@@ -262,6 +262,11 @@ export default function Dashboard() {
   const [aiImportEdits, setAiImportEdits] = useState({});
   const [aiImportSaving, setAiImportSaving] = useState(false);
   const [aiImportDone, setAiImportDone] = useState('');
+  const [aiImportMode, setAiImportMode] = useState('image'); // 'image' | 'url'
+  const [aiImportUrl, setAiImportUrl] = useState('');
+  const [aiTargetVenueId, setAiTargetVenueId] = useState(null); // מועדון יעד נבחר בשלב הסקירה
+  const [aiFeeds, setAiFeeds] = useState([]); // סנכרונים אוטומטיים פעילים למועדון
+  const [aiSyncBusy, setAiSyncBusy] = useState(false);
   // Event Brands
   const [brandVenue, setBrandVenue] = useState(null);
   const [brandList, setBrandList] = useState([]);
@@ -287,6 +292,77 @@ export default function Dashboard() {
     setAiImportResult(null);
     setAiImportEdits({});
     setAiImportDone('');
+    setAiImportMode('image');
+    setAiImportUrl('');
+    setAiTargetVenueId(venue.id);
+    setAiFeeds([]);
+    loadFeeds(venue.id);
+  };
+
+  const loadFeeds = async (venueId) => {
+    try {
+      const res = await api.get(`/tournaments/venues/${venueId}/feeds`);
+      setAiFeeds(res.data);
+    } catch { setAiFeeds([]); }
+  };
+
+  const handleEnableAutoSync = async () => {
+    const url = aiImportUrl.trim();
+    if (!url) { alert('יש להזין קישור'); return; }
+    setAiSyncBusy(true);
+    try {
+      // צור מקור פיד
+      const created = await api.post(`/tournaments/venues/${aiImportVenue.id}/feeds`, { url, label: 'סנכרון אוטומטי', auto_publish: true });
+      // הרץ סנכרון ראשוני מיידי
+      const sync = await api.post(`/tournaments/feeds/${created.data.id}/sync`);
+      alert(`✅ סנכרון אוטומטי הופעל!\n${sync.data.summary}\n\nמעתה המערכת תבדוק את הקישור כל בוקר: תוסיף חדשים, תעדכן ששונו ותסיר שהסתיימו.`);
+      await loadFeeds(aiImportVenue.id);
+      fetchData();
+    } catch (err) {
+      alert(err.response?.data?.message || 'שגיאה בהפעלת הסנכרון');
+    } finally {
+      setAiSyncBusy(false);
+    }
+  };
+
+  const handleSyncNow = async (feedId) => {
+    setAiSyncBusy(true);
+    try {
+      const sync = await api.post(`/tournaments/feeds/${feedId}/sync`);
+      alert(`🔄 סנכרון בוצע:\n${sync.data.summary}`);
+      await loadFeeds(aiImportVenue.id);
+      fetchData();
+    } catch (err) {
+      alert(err.response?.data?.message || 'שגיאה בסנכרון');
+    } finally {
+      setAiSyncBusy(false);
+    }
+  };
+
+  const handleDeleteFeed = async (feedId) => {
+    if (!confirm('לבטל את הסנכרון האוטומטי? הטורנירים הקיימים יישארו.')) return;
+    try {
+      await api.delete(`/tournaments/feeds/${feedId}`);
+      await loadFeeds(aiImportVenue.id);
+    } catch (err) { alert('שגיאה'); }
+  };
+
+  const handleAiUrlFetch = async () => {
+    const url = aiImportUrl.trim();
+    if (!url) { alert('יש להזין קישור'); return; }
+    setAiImportLoading(true);
+    try {
+      const res = await api.post('/tournaments/import-url', { url });
+      const tournaments = res.data.tournaments || [];
+      setAiImportResult(tournaments);
+      const edits = {};
+      tournaments.forEach((t, i) => { edits[i] = { ...t, selected: true }; });
+      setAiImportEdits(edits);
+    } catch (err) {
+      alert(err.response?.data?.message || 'שגיאה בקריאת הקישור');
+    } finally {
+      setAiImportLoading(false);
+    }
   };
 
   const acceptAiFile = (file) => {
@@ -332,6 +408,8 @@ export default function Dashboard() {
   const handleAiConfirm = async () => {
     const selected = Object.values(aiImportEdits).filter(t => t.selected);
     if (selected.length === 0) { alert('לא נבחרו טורנירים'); return; }
+    const targetVenue = aiTargetVenueId || aiImportVenue.id;
+    if (!targetVenue) { alert('יש לבחור מועדון'); return; }
     setAiImportSaving(true);
     let created = 0, failed = 0;
     for (const t of selected) {
@@ -339,7 +417,7 @@ export default function Dashboard() {
         const startTime = (t.date && t.start_time) ? `${t.date}T${t.start_time}:00` : null;
         if (!startTime) { failed++; continue; }
         await api.post('/tournaments', {
-          venue_id: aiImportVenue.id,
+          venue_id: parseInt(targetVenue),
           name: t.name,
           cost: t.cost || 0,
           start_time: startTime,
@@ -349,6 +427,8 @@ export default function Dashboard() {
           is_recurring: t.is_recurring || false,
           day_of_week: t.day_of_week ?? null,
           description: t.description || null,
+          re_entry: t.re_entry || null,
+          stages: Array.isArray(t.stages) ? t.stages : [],
           tournament_type: 'live',
         });
         created++;
@@ -752,8 +832,22 @@ export default function Dashboard() {
                   <button onClick={() => setAiImportVenue(null)} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-700 hover:bg-red-500/80 text-slate-300 hover:text-white transition-all text-sm">✕</button>
                 </div>
 
-                {/* Upload */}
+                {/* Mode toggle */}
                 {!aiImportResult && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <button onClick={() => setAiImportMode('image')}
+                      className={`py-2 rounded-xl border-2 text-sm font-bold transition-all ${
+                        aiImportMode === 'image' ? 'border-blue-500 bg-blue-600/20 text-white' : 'border-slate-600 text-slate-400 hover:border-slate-500'
+                      }`}>📷 מתמונה</button>
+                    <button onClick={() => setAiImportMode('url')}
+                      className={`py-2 rounded-xl border-2 text-sm font-bold transition-all ${
+                        aiImportMode === 'url' ? 'border-blue-500 bg-blue-600/20 text-white' : 'border-slate-600 text-slate-400 hover:border-slate-500'
+                      }`}>🔗 מקישור</button>
+                  </div>
+                )}
+
+                {/* Upload — image */}
+                {!aiImportResult && aiImportMode === 'image' && (
                   <div className="space-y-3">
                     <label className="block text-sm text-slate-400">העלה תמונת פרסום (לוח שבועי, פוסטר וכו׳)</label>
                     <div
@@ -789,23 +883,100 @@ export default function Dashboard() {
                   </div>
                 )}
 
+                {/* Upload — URL */}
+                {!aiImportResult && aiImportMode === 'url' && (
+                  <div className="space-y-3">
+                    {/* סנכרונים אוטומטיים פעילים */}
+                    {aiFeeds.length > 0 && (
+                      <div className="rounded-xl border border-emerald-500/30 bg-emerald-900/10 p-3 space-y-2">
+                        <p className="text-sm font-bold text-emerald-400">🔄 סנכרון אוטומטי יומי פעיל</p>
+                        {aiFeeds.map(f => (
+                          <div key={f.id} className="text-xs space-y-1 border-t border-emerald-500/10 pt-2 first:border-0 first:pt-0">
+                            <p className="text-slate-300 break-all" dir="ltr">{f.url}</p>
+                            <p className="text-slate-500">
+                              {f.last_synced ? `סונכרן לאחרונה: ${new Date(f.last_synced).toLocaleString('he-IL')}` : 'טרם סונכרן'}
+                              {f.last_result ? ` · ${f.last_result}` : ''}
+                            </p>
+                            <div className="flex gap-2">
+                              <button onClick={() => handleSyncNow(f.id)} disabled={aiSyncBusy}
+                                className="px-2.5 py-1 rounded-lg bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-300 text-xs font-semibold transition-all">
+                                {aiSyncBusy ? '⏳' : '🔄 סנכרן עכשיו'}
+                              </button>
+                              <button onClick={() => handleDeleteFeed(f.id)}
+                                className="px-2.5 py-1 rounded-lg bg-red-900/30 hover:bg-red-900/50 text-red-300 text-xs font-semibold transition-all">
+                                🗑️ בטל סנכרון
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <label className="block text-sm text-slate-400">הדבק קישור לפיד טורנירים (JSON)</label>
+                    <input
+                      type="url"
+                      value={aiImportUrl}
+                      onChange={e => setAiImportUrl(e.target.value)}
+                      placeholder="https://example.com/api/upcoming-tournaments"
+                      dir="ltr"
+                      className="input-field text-sm w-full"
+                    />
+                    <p className="text-xs text-slate-500">הקישור ייקרא, הטורנירים יוצגו לבחירה, ותבחר לאיזה מועדון להוסיף אותם.</p>
+                    <button onClick={handleAiUrlFetch} disabled={aiImportLoading || !aiImportUrl.trim()}
+                      className="btn-primary w-full text-base py-3">
+                      {aiImportLoading ? '⏳ קורא קישור...' : '🔗 קרא טורנירים מהקישור (חד-פעמי)'}
+                    </button>
+
+                    {/* הפעלת סנכרון אוטומטי */}
+                    <div className="rounded-xl border border-indigo-500/30 bg-indigo-900/10 p-3 space-y-2">
+                      <p className="text-sm font-bold text-indigo-300">🔄 סנכרון אוטומטי יומי</p>
+                      <p className="text-xs text-slate-400">
+                        המערכת תבדוק את הקישור <b>כל בוקר</b>: תוסיף טורנירים חדשים, תעדכן ששונו, ותסיר שהסתיימו — אוטומטית למועדון <b>{aiImportVenue.name}</b>.
+                      </p>
+                      <button onClick={handleEnableAutoSync} disabled={aiSyncBusy || !aiImportUrl.trim()}
+                        className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white text-sm font-bold transition-all">
+                        {aiSyncBusy ? '⏳ מפעיל...' : '🔄 הפעל סנכרון יומי אוטומטי'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {/* Results */}
                 {aiImportResult && (
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
                       <p className="text-green-400 font-bold">✅ נמצאו {aiImportResult.length} טורנירים</p>
                       <button onClick={() => { setAiImportResult(null); setAiImportFile(null); setAiImportPreview(null); }}
-                        className="text-xs text-slate-500 hover:text-slate-300">↩ תמונה אחרת</button>
+                        className="text-xs text-slate-500 hover:text-slate-300">↩ {aiImportMode === 'url' ? 'קישור אחר' : 'תמונה אחרת'}</button>
                     </div>
+
+                    {/* בחירת מועדון יעד */}
+                    <div className="rounded-xl border border-blue-500/30 bg-blue-900/10 p-3">
+                      <label className="block text-xs text-slate-400 mb-1">📍 הוסף את הטורנירים למועדון:</label>
+                      <select
+                        value={aiTargetVenueId || ''}
+                        onChange={e => setAiTargetVenueId(e.target.value)}
+                        className="input-field text-sm w-full"
+                      >
+                        {venues.filter(v => v.is_approved).map(v => (
+                          <option key={v.id} value={v.id}>{v.name}{v.city ? ` (${v.city})` : ''}</option>
+                        ))}
+                      </select>
+                    </div>
+
                     {aiImportResult.map((t, i) => {
                       const edit = aiImportEdits[i] || t;
                       return (
                         <div key={i} className={`rounded-xl border p-3 space-y-2 transition-all ${edit.selected !== false ? 'border-blue-500/40 bg-blue-900/10' : 'border-slate-700 opacity-50'}`}>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <input type="checkbox" checked={edit.selected !== false}
                               onChange={e => setAiImportEdits(p => ({ ...p, [i]: { ...p[i], selected: e.target.checked } }))}
                               className="w-4 h-4 rounded accent-blue-500" />
                             <span className="text-xs font-bold text-blue-400">{Math.round((t.confidence||0)*100)}% ביטחון</span>
+                            {t.host_name && <span className="text-[11px] text-slate-500">🏠 מקור: {t.host_name}</span>}
+                            {Array.isArray(t.stages) && t.stages.length > 0 && (
+                              <span className="text-[11px] text-emerald-400/80">🎚️ {t.stages.filter(s => s.type !== 'break').length} שלבים</span>
+                            )}
                           </div>
                           <div className="grid grid-cols-2 gap-2">
                             <div>

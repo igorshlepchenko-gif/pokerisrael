@@ -151,5 +151,12 @@ ensureSchema().then(() => {
     // Start WhatsApp listener (only if WHATSAPP_ENABLED=true)
     const { startWhatsApp } = require('./services/whatsappListener');
     startWhatsApp();
+    // Daily feed sync (08:00 Israel time) — מסנכרן פידים חיצוניים
+    const cron = require('node-cron');
+    const { syncAllFeeds } = require('./services/feedSync');
+    cron.schedule(process.env.FEED_SYNC_CRON || '0 8 * * *', () => {
+      console.log('[feedSync] running daily sync…');
+      syncAllFeeds().catch(e => console.error('[feedSync] daily run failed:', e.message));
+    }, { timezone: 'Asia/Jerusalem' });
   });
 });

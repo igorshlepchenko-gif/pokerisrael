@@ -82,6 +82,13 @@ const imageUpload = multer({
   },
 });
 router.post('/import-image', authenticate, requireRole('venue_owner', 'admin'), imageUpload.single('image'), ctrl.importFromImage);
+router.post('/import-url',   authenticate, requireRole('venue_owner', 'admin'), ctrl.importFromUrl);
+
+// ── סנכרון פיד אוטומטי ──────────────────────────────────────────
+router.get('/venues/:venueId/feeds',  authenticate, requireRole('venue_owner', 'admin'), ctrl.getFeedSources);
+router.post('/venues/:venueId/feeds', authenticate, requireRole('venue_owner', 'admin'), ctrl.createFeedSource);
+router.delete('/feeds/:id',           authenticate, requireRole('venue_owner', 'admin'), ctrl.deleteFeedSource);
+router.post('/feeds/:id/sync',        authenticate, requireRole('venue_owner', 'admin'), ctrl.syncFeedNow);
 
 // ── לוגואי אירועים (event brands) ───────────────────────────────
 router.get('/venues/:id/brands',    authenticate, requireRole('venue_owner', 'admin'), ctrl.getBrands);

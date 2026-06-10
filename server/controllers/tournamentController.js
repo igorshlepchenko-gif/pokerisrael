@@ -708,6 +708,138 @@ exports.updateVenue = async (req, res) => {
   }
 };
 
+// ── ייבוא מקישור (JSON feed) ───────────────────────────────────────────────
+const DAY_NAME_MAP = { sunday:0, monday:1, tuesday:2, wednesday:3, thursday:4, friday:5, saturday:6 };
+
+// נרמול טורניר בפורמט runnerrunner.app → הסכמה שלנו (כולל מבנה בליינדים)
+function normalizeFeedTournament(t) {
+  if (!t || !t.name) return null;
+  const phases = Array.isArray(t.structure?.phases) ? t.structure.phases : [];
+  let level = 0;
+  const stages = phases.map(p => {
+    if (p.is_break) {
+      return { type: 'break', duration: p.break_duration_minutes || p.duration_minutes || 0 };
+    }
+    return {
+      level: ++level,
+      small_blind: p.small_blind ?? 0,
+      big_blind: p.big_blind ?? 0,
+      ante: p.ante ?? 0,
+      duration: p.duration_minutes ?? null,
+    };
+  });
+  const firstPlay = phases.find(p => !p.is_break);
+  return {
+    name: t.name,
+    description: t.description || null,
+    date: t.date || null,
+    start_time: t.start_time || null,
+    cost: t.buy_in ?? null,
+    gtd: null, // prize_pool_amount בפיד אינו GTD — נשאר ידני
+    starting_stack: t.initial_stack ?? null,
+    level_duration: firstPlay?.duration_minutes ?? null,
+    re_entry: t.re_buy ? '1' : null,
+    is_recurring: false,
+    day_of_week: t.day ? (DAY_NAME_MAP[String(t.day).toLowerCase()] ?? null) : null,
+    host_name: t.host?.name || null,
+    host_address: t.host?.address || t.address || null,
+    stages,
+    confidence: 1,
+  };
+}
+
+exports.importFromUrl = async (req, res) => {
+  const { url } = req.body;
+  if (!url || !/^https?:\/\//i.test(url)) {
+    return res.status(400).json({ message: 'יש להזין כתובת קישור תקינה' });
+  }
+  try {
+    const axios = require('axios');
+    const { data } = await axios.get(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; PokerIsraelBot/1.0)' },
+      timeout: 15000,
+      maxContentLength: 10 * 1024 * 1024,
+    });
+
+    let raw = data;
+    if (typeof raw === 'string') { try { raw = JSON.parse(raw); } catch { /* not json */ } }
+
+    const list = Array.isArray(raw?.tournaments) ? raw.tournaments
+               : Array.isArray(raw) ? raw
+               : null;
+    if (!list) {
+      return res.status(422).json({ message: 'לא נמצאו טורנירים בקישור — פורמט לא נתמך (נדרש JSON עם tournaments)' });
+    }
+
+    const tournaments = list.map(normalizeFeedTournament).filter(Boolean);
+    if (tournaments.length === 0) {
+      return res.status(422).json({ message: 'הקישור לא הכיל טורנירים תקינים' });
+    }
+    res.json({ tournaments, count: tournaments.length });
+  } catch (err) {
+    console.error('[importFromUrl]', err?.message);
+    res.status(500).json({ message: 'שגיאה בקריאת הקישור', detail: err?.message });
+  }
+};
+
+// ── סנכרון פיד אוטומטי (feed_sources) ──────────────────────────────────────
+async function assertVenueOwnership(req, venueId) {
+  if (req.user.role === 'admin') return true;
+  const ok = await pool.query('SELECT id FROM venues WHERE id=$1 AND owner_id=$2', [venueId, req.user.id]);
+  return !!ok.rows[0];
+}
+
+exports.getFeedSources = async (req, res) => {
+  const { venueId } = req.params;
+  try {
+    if (!(await assertVenueOwnership(req, venueId))) return res.status(403).json({ message: 'אין הרשאה' });
+    const r = await pool.query('SELECT * FROM feed_sources WHERE venue_id=$1 ORDER BY created_at DESC', [venueId]);
+    res.json(r.rows);
+  } catch (err) { res.status(500).json({ message: 'שגיאת שרת' }); }
+};
+
+exports.createFeedSource = async (req, res) => {
+  const { venueId } = req.params;
+  const { url, label, auto_publish } = req.body;
+  if (!url || !/^https?:\/\//i.test(url)) return res.status(400).json({ message: 'יש להזין כתובת קישור תקינה' });
+  try {
+    if (!(await assertVenueOwnership(req, venueId))) return res.status(403).json({ message: 'אין הרשאה' });
+    const r = await pool.query(
+      `INSERT INTO feed_sources (venue_id, url, label, auto_publish, created_by)
+       VALUES ($1,$2,$3,$4,$5)
+       ON CONFLICT (venue_id, url) DO UPDATE SET active=true, label=EXCLUDED.label, auto_publish=EXCLUDED.auto_publish
+       RETURNING *`,
+      [venueId, url, label || null, auto_publish !== false, req.user.id]
+    );
+    res.status(201).json(r.rows[0]);
+  } catch (err) { console.error('[createFeedSource]', err.message); res.status(500).json({ message: 'שגיאת שרת' }); }
+};
+
+exports.deleteFeedSource = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const fs = await pool.query('SELECT f.id, v.owner_id FROM feed_sources f JOIN venues v ON f.venue_id=v.id WHERE f.id=$1', [id]);
+    if (!fs.rows[0]) return res.status(404).json({ message: 'לא נמצא' });
+    if (req.user.role !== 'admin' && fs.rows[0].owner_id !== req.user.id) return res.status(403).json({ message: 'אין הרשאה' });
+    await pool.query('DELETE FROM feed_sources WHERE id=$1', [id]);
+    res.json({ message: 'נמחק' });
+  } catch (err) { res.status(500).json({ message: 'שגיאת שרת' }); }
+};
+
+exports.syncFeedNow = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const fs = await pool.query('SELECT f.*, v.owner_id FROM feed_sources f JOIN venues v ON f.venue_id=v.id WHERE f.id=$1', [id]);
+    if (!fs.rows[0]) return res.status(404).json({ message: 'לא נמצא' });
+    if (req.user.role !== 'admin' && fs.rows[0].owner_id !== req.user.id) return res.status(403).json({ message: 'אין הרשאה' });
+    const { syncFeed } = require('../services/feedSync');
+    const result = await syncFeed(fs.rows[0]);
+    const summary = `✅ +${result.added} ~${result.updated} -${result.removed} (${result.skipped} ללא שינוי)`;
+    await pool.query('UPDATE feed_sources SET last_synced=NOW(), last_result=$1 WHERE id=$2', [summary, id]);
+    res.json({ result, summary });
+  } catch (err) { console.error('[syncFeedNow]', err.message); res.status(500).json({ message: 'שגיאה בסנכרון', detail: err.message }); }
+};
+
 // ── ייבוא מתמונה עם AI ─────────────────────────────────────────────────────
 exports.importFromImage = async (req, res) => {
   if (!req.file) return res.status(400).json({ message: 'לא נשלחה תמונה' });
