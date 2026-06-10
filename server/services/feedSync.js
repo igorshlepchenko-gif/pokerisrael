@@ -40,7 +40,36 @@ function normalize(t) {
     re_entry: t.re_buy ? '1' : null,
     day_of_week: t.day ? (DAY_NAME_MAP[String(t.day).toLowerCase()] ?? null) : null,
     stages: JSON.stringify(stages),
+    host_name: t.host?.name || null,
+    host_address: t.host?.address || t.address || null,
   };
+}
+
+// נרמול טקסט עברי להשוואת מארח↔מועדון (הסרת תחיליות נפוצות)
+function normHost(s) {
+  return String(s || '')
+    .replace(/^(בית|מועדון|מקום|האוס)\s+/i, '')
+    .replace(/[״"',.]/g, '')
+    .trim();
+}
+
+// התאמת מארח מהפיד למועדון מאושר קיים. מחזיר venue_id או null.
+function matchHostVenue(hostName, hostAddress, venues) {
+  const hn = normHost(hostName);
+  if (!hn) return null;
+  for (const v of venues) {
+    const vn = normHost(v.name);
+    if (vn && (vn === hn || vn.includes(hn) || hn.includes(vn))) return v.id;
+  }
+  // גיבוי: התאמה לפי כתובת (רחוב+מספר)
+  if (hostAddress) {
+    const ha = String(hostAddress).split(',')[0].replace(/[״"',.]/g, '').trim();
+    for (const v of venues) {
+      const va = String(v.address || '').replace(/[״"',.]/g, '').trim();
+      if (va && ha && (va === ha || va.includes(ha) || ha.includes(va))) return v.id;
+    }
+  }
+  return null;
 }
 
 // השוואה: האם טורניר קיים שונה מהפיד (לעדכון)
@@ -74,37 +103,51 @@ async function syncFeed(feed) {
   const normalized = list.map(normalize).filter(t => t && t.start_time);
   const feedIds = new Set(normalized.map(t => t.external_id));
 
-  // 2. טורנירים קיימים שמקורם בפיד הזה (למועדון הזה)
+  // המארגן = המועדון של מקור הפיד (למשל "ראנר ראנר")
+  const organizerVenueId = feed.venue_id;
+
+  // מועדונים מאושרים — להתאמת מארח (host) למועדון קיים
+  const venuesRes = await pool.query('SELECT id, name, address FROM venues WHERE is_approved = true');
+  const approvedVenues = venuesRes.rows;
+
+  // 2. טורנירים קיימים שמקורם בפיד הזה (לפי מארגן)
   const existingRes = await pool.query(
-    `SELECT id, external_id, name, cost, start_time, description, starting_stack
-     FROM tournaments WHERE external_source = $1 AND venue_id = $2`,
-    [sourceKey, feed.venue_id]
+    `SELECT id, external_id, name, cost, start_time, description, starting_stack, manually_edited
+     FROM tournaments WHERE external_source = $1 AND organizer_venue_id = $2`,
+    [sourceKey, organizerVenueId]
   );
   const existingById = new Map(existingRes.rows.map(r => [r.external_id, r]));
 
   // 3. הוספה / עדכון
   for (const t of normalized) {
     try {
+      // התאמת מארח למועדון קיים → רישום כפול. אם אין התאמה → המארגן עצמו.
+      const matchedHost = matchHostVenue(t.host_name, t.host_address, approvedVenues);
+      const venueId = matchedHost || organizerVenueId;
+
       const existing = existingById.get(t.external_id);
       if (!existing) {
         await pool.query(
           `INSERT INTO tournaments
-             (venue_id, name, description, cost, start_time, stages, starting_stack,
+             (venue_id, organizer_venue_id, name, description, cost, start_time, stages, starting_stack,
               level_duration, re_entry, day_of_week, is_recurring, tournament_type,
               status, created_by, external_source, external_id)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,false,'live',$11,$12,$13,$14)`,
-          [feed.venue_id, t.name, t.description, t.cost, t.start_time, t.stages,
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,false,'live',$12,$13,$14,$15)`,
+          [venueId, organizerVenueId, t.name, t.description, t.cost, t.start_time, t.stages,
            t.starting_stack, t.level_duration, t.re_entry, t.day_of_week,
            status, feed.created_by, sourceKey, t.external_id]
         );
         result.added++;
+      } else if (existing.manually_edited) {
+        // עריכה ידנית מנצחת — לא דורסים תוכן שנערך אצלנו
+        result.skipped++;
       } else if (isChanged(existing, t)) {
         await pool.query(
           `UPDATE tournaments SET
-             name=$1, description=$2, cost=$3, start_time=$4, stages=$5,
-             starting_stack=$6, level_duration=$7, re_entry=$8, day_of_week=$9, updated_at=NOW()
-           WHERE id=$10`,
-          [t.name, t.description, t.cost, t.start_time, t.stages,
+             venue_id=$1, name=$2, description=$3, cost=$4, start_time=$5, stages=$6,
+             starting_stack=$7, level_duration=$8, re_entry=$9, day_of_week=$10, updated_at=NOW()
+           WHERE id=$11`,
+          [venueId, t.name, t.description, t.cost, t.start_time, t.stages,
            t.starting_stack, t.level_duration, t.re_entry, t.day_of_week, existing.id]
         );
         result.updated++;

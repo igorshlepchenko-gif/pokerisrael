@@ -96,6 +96,10 @@ async function ensureSchema() {
         created_at   TIMESTAMP DEFAULT NOW()
       )`,
       `CREATE UNIQUE INDEX IF NOT EXISTS feed_sources_venue_url ON feed_sources(venue_id, url)`,
+      // רישום כפול — מארגן (organizer) נפרד מהמועדון המארח + הגנת עריכה ידנית
+      `ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS organizer_venue_id INTEGER REFERENCES venues(id) ON DELETE SET NULL`,
+      `ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS manually_edited BOOLEAN DEFAULT false`,
+      `ALTER TABLE venues ADD COLUMN IF NOT EXISTS registration_url VARCHAR(500)`,
     ];
     for (const sql of MIGRATIONS) {
       try { await pool.query(sql); } catch (e) { console.error('migration failed:', e.message); }

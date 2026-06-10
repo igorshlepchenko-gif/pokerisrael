@@ -34,11 +34,14 @@ exports.getAll = async (req, res) => {
         t.stages, t.starting_stack, t.level_duration, t.is_recurring, t.day_of_week, t.status,
         t.is_boosted, t.boost_label, t.re_entry, t.late_reg_level, t.gtd, t.tournament_type, t.rake, t.rake_type,
         t.platform, t.game_type, t.secondary_games, t.cash_sb, t.cash_bb, t.skipped_dates, t.external_registration_url,
+        t.organizer_venue_id,
         v.id AS venue_id, v.name AS venue_name, v.address AS venue_address,
         v.city AS venue_city, v.whatsapp_number, v.logo_url AS venue_logo,
-        v.venue_type AS venue_type, v.club_number AS venue_club_number, v.website AS venue_website
+        v.venue_type AS venue_type, v.club_number AS venue_club_number, v.website AS venue_website,
+        org.name AS organizer_name, org.whatsapp_number AS organizer_whatsapp, org.registration_url AS organizer_registration_url
       FROM tournaments t
       JOIN venues v ON t.venue_id = v.id
+      LEFT JOIN venues org ON t.organizer_venue_id = org.id AND org.id <> t.venue_id
     `;
 
     // מיון
@@ -534,12 +537,13 @@ exports.updateTournament = async (req, res) => {
   } = req.body;
 
   try {
-    // בדיקת בעלות — הטורניר שייך למקום של המשתמש
+    // בדיקת בעלות — הטורניר שייך למקום המארח או למארגן (רישום כפול), או אדמין
     const ownerCheck = await pool.query(
       `SELECT t.id FROM tournaments t
-       JOIN venues v ON t.venue_id = v.id
-       WHERE t.id = $1 AND v.owner_id = $2`,
-      [id, req.user.id]
+       LEFT JOIN venues v   ON t.venue_id = v.id
+       LEFT JOIN venues org ON t.organizer_venue_id = org.id
+       WHERE t.id = $1 AND ($2 = true OR v.owner_id = $3 OR org.owner_id = $3)`,
+      [id, req.user.role === 'admin', req.user.id]
     );
     if (!ownerCheck.rows[0]) {
       return res.status(403).json({ message: 'אין לך הרשאה לערוך טורניר זה' });
@@ -556,7 +560,8 @@ exports.updateTournament = async (req, res) => {
          day_of_week = $10, re_entry = $11, late_reg_level = $12, gtd = $13,
          rake = $14, rake_type = $15,
          platform = $16, game_type = $17, secondary_games = $18,
-         cash_sb = $19, cash_bb = $20, external_registration_url = $21, updated_at = NOW()
+         cash_sb = $19, cash_bb = $20, external_registration_url = $21,
+         manually_edited = true, updated_at = NOW()
        WHERE id = $22
        RETURNING *`,
       [
@@ -658,7 +663,7 @@ exports.updateVenue = async (req, res) => {
   if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
   const { id } = req.params;
-  const { name, address, city, whatsapp_number, description, logo_url, venue_type, club_number, agent_number, website } = req.body;
+  const { name, address, city, whatsapp_number, description, logo_url, venue_type, club_number, agent_number, website, registration_url } = req.body;
 
   try {
     if (req.user.role !== 'admin') {
@@ -684,12 +689,12 @@ exports.updateVenue = async (req, res) => {
       `UPDATE venues SET
          name = $1, address = $2, city = $3,
          whatsapp_number = $4, description = $5, logo_url = $6,
-         venue_type = $7, club_number = $8, agent_number = $9, website = $10
-       WHERE id = $11 RETURNING *`,
+         venue_type = $7, club_number = $8, agent_number = $9, website = $10, registration_url = $11
+       WHERE id = $12 RETURNING *`,
       [name, isOnline ? null : address, isOnline ? null : city,
        whatsapp_number, description || null, logo_url || null,
        venue_type || 'physical', isOnline ? club_number : null, isOnline ? (agent_number || null) : null,
-       website || null, id]
+       website || null, registration_url || null, id]
     );
 
     const newData = result.rows[0];
@@ -950,7 +955,7 @@ exports.createVenue = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
-  const { name, address, city, whatsapp_number, description, logo_url, venue_type, club_number, agent_number, website } = req.body;
+  const { name, address, city, whatsapp_number, description, logo_url, venue_type, club_number, agent_number, website, registration_url } = req.body;
 
   try {
     const isOnline = venue_type === 'online';
@@ -959,12 +964,12 @@ exports.createVenue = async (req, res) => {
     }
 
     const result = await pool.query(
-      `INSERT INTO venues (owner_id, name, address, city, whatsapp_number, description, logo_url, venue_type, club_number, agent_number, website)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+      `INSERT INTO venues (owner_id, name, address, city, whatsapp_number, description, logo_url, venue_type, club_number, agent_number, website, registration_url)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
       [req.user.id, name, isOnline ? null : address, isOnline ? null : city,
        whatsapp_number, description, logo_url || null,
        venue_type || 'physical', isOnline ? club_number : null, isOnline ? (agent_number || null) : null,
-       website || null]
+       website || null, registration_url || null]
     );
     const newVenue = result.rows[0];
 

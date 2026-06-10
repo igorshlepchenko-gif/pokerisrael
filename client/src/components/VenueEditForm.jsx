@@ -61,6 +61,7 @@ export default function VenueEditForm({ venue, onSuccess, onCancel }) {
     club_number:     venue.club_number     || '',
     agent_number:    venue.agent_number    || '',
     website:         venue.website         || '',
+    registration_url: venue.registration_url || '',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState('');
@@ -159,6 +160,12 @@ export default function VenueEditForm({ venue, onSuccess, onCancel }) {
           <label className="block text-xs text-slate-400 mb-1">קישור לאתר המקום (אופציונלי)</label>
           <input type="text" value={form.website} onChange={e => set('website', e.target.value)}
             className="input-field text-sm" placeholder="www.example.com" dir="ltr" />
+        </div>
+        <div className="sm:col-span-2">
+          <label className="block text-xs text-slate-400 mb-1">🔗 קישור לאתר ההרשמות (אופציונלי)</label>
+          <input type="text" value={form.registration_url} onChange={e => set('registration_url', e.target.value)}
+            className="input-field text-sm" placeholder="https://runnerrunner.app/register" dir="ltr" />
+          <p className="text-[10px] text-slate-500 mt-1">מופיע ככפתור "הרשמה אונליין" בטורנירים שלכם (לצד הוואטסאפ)</p>
         </div>
         <div className="sm:col-span-2">
           <label className="block text-xs text-slate-400 mb-1">תיאור המועדון</label>

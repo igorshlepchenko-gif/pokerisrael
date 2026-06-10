@@ -55,6 +55,20 @@ export default function TournamentCard({ t, index, onClick, brands = [] }) {
     }
   };
 
+  // רישום כפול — הרשמה דרך המארגן (Runner Runner) בנוסף למארח
+  const hasOrganizer = !!(t.organizer_name && (t.organizer_whatsapp || t.organizer_registration_url));
+  const openOrganizerWhatsApp = (e) => {
+    e.stopPropagation();
+    if (!t.organizer_whatsapp) return;
+    const n = user?.name, p = user?.phone;
+    api.post('/registrations', {
+      tournament_id: t.id, tournament_name: t.name, venue_id: t.organizer_venue_id,
+      venue_name: t.organizer_name, tournament_date: t.start_time,
+      registrant_name: n || 'אנונימי', registrant_phone: p || null, user_id: user?.id || null,
+    }).catch(() => {});
+    window.open(buildWhatsAppLink(t.organizer_whatsapp, t, n, p), '_blank', 'noopener,noreferrer');
+  };
+
   const stages = Array.isArray(t.stages)
     ? t.stages
     : (typeof t.stages === 'string' ? JSON.parse(t.stages || '[]') : []);
@@ -268,14 +282,45 @@ export default function TournamentCard({ t, index, onClick, brands = [] }) {
         );
       })()}
 
-      {/* WhatsApp button */}
+      {/* WhatsApp button — הרשמה דרך המארח */}
       <button
         onClick={handleRegister}
         className="wa-btn flex items-center justify-center gap-2 w-full bg-[#25D366] hover:bg-[#1da851] text-white font-bold py-2.5 px-4 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95 text-sm shadow-lg"
       >
         <WaIcon />
-        {t.tournament_type === 'cash' || t.tournament_type === 'online_cash' ? 'הצטרפות למשחק' : 'הרשמה לטורניר'}
+        {hasOrganizer
+          ? `הרשמה דרך ${t.venue_name}`
+          : (t.tournament_type === 'cash' || t.tournament_type === 'online_cash' ? 'הצטרפות למשחק' : 'הרשמה לטורניר')}
       </button>
+
+      {/* רישום כפול — הרשמה דרך המארגן (Runner Runner וכו') */}
+      {hasOrganizer && (
+        <div className="mt-2 pt-2 border-t border-slate-700/50 space-y-2">
+          <p className="text-[11px] text-slate-500 text-center">או הרשמה דרך {t.organizer_name}:</p>
+          {t.organizer_whatsapp && (
+            <button
+              onClick={openOrganizerWhatsApp}
+              className="flex items-center justify-center gap-2 w-full bg-[#25D366]/15 hover:bg-[#25D366]/30 border border-[#25D366]/40 text-[#4ade80] font-bold py-2 px-4 rounded-xl transition-all text-sm"
+            >
+              <WaIcon small />
+              הרשמה דרך {t.organizer_name}
+            </button>
+          )}
+          {t.organizer_registration_url && (
+            <a
+              href={t.organizer_registration_url}
+              target="_blank" rel="noopener noreferrer"
+              onClick={e => e.stopPropagation()}
+              className="flex items-center justify-center gap-2 w-full font-bold py-2 px-4 rounded-xl text-sm
+                text-white bg-gradient-to-l from-blue-600 to-indigo-600
+                shadow-[0_0_14px_rgba(99,102,241,0.6)] hover:shadow-[0_0_22px_rgba(99,102,241,0.9)]
+                hover:scale-105 active:scale-95 transition-all duration-200"
+            >
+              🔗 הרשמה אונליין ({t.organizer_name})
+            </a>
+          )}
+        </div>
+      )}
 
       {/* קישור חיצוני להרשמה */}
       {t.external_registration_url && (
