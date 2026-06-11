@@ -207,7 +207,7 @@ export default function TournamentDetailModal({ tournament: t, onClose, brands =
             if (t.start_time) {
               const dt = new Date(t.start_time);
               dt.setMinutes(dt.getMinutes() + totalMins);
-              estTime = dt.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+              estTime = dt.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jerusalem' });
             }
             return (
               <div className="bg-indigo-950/60 rounded-xl p-3 border border-indigo-700/40">

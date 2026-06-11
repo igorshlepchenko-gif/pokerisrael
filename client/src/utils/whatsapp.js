@@ -81,14 +81,17 @@ export function eventDisplayDate(t) {
   return t.start_time;
 }
 
+// כל הזמנים מוצגים בשעון ישראל — ללא תלות במיקום הצופה
+const IL_TZ = 'Asia/Jerusalem';
+
 export function formatTime(dateStr) {
   if (!dateStr) return '';
-  return new Date(dateStr).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+  return new Date(dateStr).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', timeZone: IL_TZ });
 }
 
 export function formatDate(dateStr) {
   if (!dateStr) return '';
-  return new Date(dateStr).toLocaleDateString('he-IL', { day: 'numeric', month: 'long', year: 'numeric' });
+  return new Date(dateStr).toLocaleDateString('he-IL', { day: 'numeric', month: 'long', year: 'numeric', timeZone: IL_TZ });
 }
 
 export function formatCost(cost) {

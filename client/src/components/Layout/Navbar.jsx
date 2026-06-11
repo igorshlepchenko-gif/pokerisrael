@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import logoSvg from '../../assets/logo.svg';
+import IsraelClock from './IsraelClock';
 
 export default function Navbar() {
   const { user, logout } = useAuth();
@@ -47,6 +48,9 @@ export default function Navbar() {
 
           {/* Right side */}
           <div className="flex items-center gap-2">
+            {/* שעון ישראל — חי */}
+            <div className="hidden sm:block"><IsraelClock /></div>
+
             {/* Theme toggle */}
             <button onClick={toggleTheme} title={isDark ? 'מצב יום' : 'מצב לילה'}
               className="w-9 h-9 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-200 hover:bg-white/5 transition-all text-base">

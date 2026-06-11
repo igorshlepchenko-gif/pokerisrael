@@ -207,7 +207,7 @@ export default function TournamentCard({ t, index, onClick, brands = [] }) {
         if (t.start_time) {
           const dt = new Date(t.start_time);
           dt.setMinutes(dt.getMinutes() + totalMins);
-          estTime = dt.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+          estTime = dt.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jerusalem' });
         }
         return (
           <div className="mb-3 bg-indigo-950/50 rounded-lg px-3 py-2 border border-indigo-700/30 text-xs flex flex-wrap gap-3">
