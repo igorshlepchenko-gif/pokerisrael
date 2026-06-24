@@ -32,8 +32,8 @@ const STAGES = [
   { key: 'heads_up',    label: 'ראש בראש',    icon: '🤜' },
 ];
 
-const STEPS_TOURNAMENT = ['סוג', 'הגדרות', 'שחקנים', 'עמדה', 'קלפים', 'פרה-פלופ', 'פלופ', 'טרן', 'ריבר', 'קלפי יריב', 'תוצאה', 'סיכום'];
-const STEPS_CASH        = ['סוג', 'הגדרות', 'שחקנים', 'עמדה', 'קלפים', 'פרה-פלופ', 'פלופ', 'טרן', 'ריבר', 'קלפי יריב', 'תוצאה', 'סיכום'];
+const STEPS_TOURNAMENT = ['סוג', 'הגדרות', 'שחקנים', 'עמדה', 'קלפים', 'בקופה פרה-פלופ', 'פלופ', 'טרן', 'ריבר', 'קלפי יריב', 'תוצאה', 'סיכום'];
+const STEPS_CASH        = ['סוג', 'הגדרות', 'שחקנים', 'עמדה', 'קלפים', 'בקופה פרה-פלופ', 'פלופ', 'טרן', 'ריבר', 'קלפי יריב', 'תוצאה', 'סיכום'];
 
 function initHandData() {
   return {
@@ -102,6 +102,7 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
   // Result
   const [result, setResult] = useState(_d?.result ?? '');
   const [heroProfit, setHeroProfit] = useState(_d?.heroProfit ?? '');
+  const [splitDist, setSplitDist] = useState(_d?.splitDist ?? {});
   const [notes, setNotes] = useState(_d?.notes ?? '');
   const [showShowdown, setShowShowdown] = useState(_d?.showShowdown ?? false);
   const [oppRevealedCards, setOppRevealedCards] = useState(_d?.oppRevealedCards ?? []);
@@ -115,11 +116,11 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
     localStorage.setItem(DRAFT_KEY, JSON.stringify({
       step, gameType, tournamentStage, blindPreset, customSb, customBb, ante,
       stakesPreset, customStakes, playersCount, opponents, heroPosition, heroStack,
-      heroCards, handData, result, heroProfit, notes, showShowdown, oppRevealedCards, narrative,
+      heroCards, handData, result, heroProfit, splitDist, notes, showShowdown, oppRevealedCards, narrative,
     }));
   }, [step, gameType, tournamentStage, blindPreset, customSb, customBb, ante,
       stakesPreset, customStakes, playersCount, opponents, heroPosition, heroStack,
-      heroCards, handData, result, heroProfit, notes, showShowdown, oppRevealedCards, narrative]);
+      heroCards, handData, result, heroProfit, splitDist, notes, showShowdown, oppRevealedCards, narrative]);
 
   const isTournament = gameType === 'tournament' || gameType === 'tournament_online';
   const unit = isTournament ? 'BB' : '₪';
@@ -209,6 +210,63 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
     setOppRevealedCards(cards);
   };
 
+  // מחזיר את רשימת השחקנים שעדיין צריכים לפעול בשלב הנוכחי
+  const playersWhoNeedToAct = (actions, allPlayers) => {
+    const foldedSet  = new Set(actions.filter(a => a.action === 'fold').map(a => a.actor));
+    const allinSet   = new Set(actions.filter(a => a.action === 'allin').map(a => a.actor));
+
+    // שחקנים שיכולים עדיין לפעול: לא קיפלו ולא אול-אין
+    const canAct = allPlayers.filter(p => !foldedSet.has(p.actor) && !allinSet.has(p.actor));
+
+    // מצא את הפעולה האגרסיבית האחרונה — כולל אול-אין
+    let lastAggrIdx = -1, lastAggressor = null;
+    for (let i = actions.length - 1; i >= 0; i--) {
+      if (['bet', 'raise', 'three-bet', 'four-bet', 'allin'].includes(actions[i].action)) {
+        lastAggrIdx = i; lastAggressor = actions[i].actor; break;
+      }
+    }
+
+    if (lastAggrIdx === -1) {
+      // אין הימור — שחקנים שעדיין לא פעלו כלל
+      const actedSet = new Set(actions.map(a => a.actor));
+      return canAct.filter(p => !actedSet.has(p.actor));
+    }
+
+    // יש הימור / אול-אין — כל שחקן שלא הגיב אחריו (חוץ מהמהמר עצמו)
+    const actedAfter = new Set(actions.slice(lastAggrIdx + 1).map(a => a.actor));
+    return canAct.filter(p => p.actor !== lastAggressor && !actedAfter.has(p.actor));
+  };
+
+  // ערימה נוכחית של שחקן — ראשוני מינוס כל מה שהכניס עד כה (כולל שלב נוכחי)
+  const getPlayerCurrentStack = (actor, street) => {
+    const initial = actor === 'hero'
+      ? (parseInt(heroStack) || 0)
+      : (opponents.find(o => String(o.id) === String(actor))?.stack || 0);
+    return Math.max(0, initial - playerContribution(actor, street));
+  };
+
+  // האם היד נגמרה בשלב זה בגלל פולד (לא בגלל אול-אין)
+  // מחזיר true רק כשנשאר פחות מ-2 שחקנים שלא קיפלו (ללא קשר לאול-אין)
+  const handEndedByFold = (street) => {
+    const allFolded = new Set([
+      ...getFoldedBefore(street),
+      ...(handData.streets[street]?.actions || [])
+        .filter(a => a.action === 'fold').map(a => a.actor),
+    ]);
+    return sortedPlayers(heroPosition, opponents, street)
+      .filter(p => !allFolded.has(p.actor)).length < 2;
+  };
+
+  // האם סיבוב ההימורים בשלב נגמר (אין שחקנים שצריכים לפעול)
+  const streetRoundComplete = (street) => {
+    const actions = handData.streets[street]?.actions || [];
+    if (!actions.length) return false;
+    const prevFolded = getFoldedBefore(street);
+    const allPlayers = sortedPlayers(heroPosition, opponents, street)
+      .filter(p => !prevFolded.has(p.actor));
+    return playersWhoNeedToAct(actions, allPlayers).length === 0;
+  };
+
   const canNext = () => {
     if (step === 0) return !!gameType;
     if (step === 1) {
@@ -217,6 +275,11 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
     }
     if (step === 3) return !!heroPosition;
     if (step === 4) return heroCards.length === 2;
+    if (step === 5) {
+      const actions = handData.streets.preflop.actions || [];
+      if (!actions.length) return false;
+      return playersWhoNeedToAct(actions, sortedPlayers(heroPosition, opponents, 'preflop')).length === 0;
+    }
     if (step === 10) return !!result;
     return true;
   };
@@ -231,6 +294,17 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
   const goBack = () => setStep(s => Math.max(s - 1, 0));
 
   const stepLabel = steps[step] || '';
+
+  const getFoldedBefore = (street) => {
+    const order = ['preflop', 'flop', 'turn', 'river'];
+    const folded = new Set();
+    for (let i = 0; i < order.indexOf(street); i++) {
+      (handData.streets[order[i]]?.actions || []).forEach(a => {
+        if (a.action === 'fold') folded.add(a.actor);
+      });
+    }
+    return folded;
+  };
 
   const SUIT_COLORS = { s: '#1e293b', h: '#dc2626', d: '#1d4ed8', c: '#15803d' };
 
@@ -258,26 +332,84 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
     );
   };
 
-  const calculatePot = (upToStreet) => {
-    const { sb, bb } = getBlindSbBb();
+  // סכום שהשחקן הכניס לקופה עד סוף השלב הנתון
+  // הערה: סכומי BET/raise הם TOTAL (כולל ה-blind שלהם),
+  // לכן אם שחקן הימר בפרה-פלופ אל תוסיף את ה-blind בנפרד — הוא כבר בפנים
+  const playerContribution = (actor, upToStreet) => {
     const streetOrder = ['preflop', 'flop', 'turn', 'river'];
-    // SB + BB + אנטה (BBA — ערך בצ'יפים ישירות)
-    let pot = (sb || 0) + (bb || 0) + (isTournament ? (ante || 0) : 0);
-
+    let total = 0;
     for (const street of streetOrder) {
       const actions = handData.streets[street]?.actions || [];
-      for (const a of actions) {
-        if (['raise', 'three-bet', 'four-bet', 'limp', 'call'].includes(a.action) && a.amount) {
-          const raw = String(a.amount);
-          if (!raw.endsWith('%')) {
-            const num = parseFloat(raw);
-            if (!isNaN(num)) pot += num;
+      let streetTotal = 0;
+      let hasBetThisStreet = false;
+      actions.forEach(a => {
+        if (String(a.actor) === String(actor)) {
+          if (['bet', 'raise', 'three-bet', 'four-bet'].includes(a.action) && a.amount) {
+            hasBetThisStreet = true;
+          }
+          if (a.amount) {
+            const raw = String(a.amount);
+            if (!raw.endsWith('%')) {
+              const num = parseFloat(raw);
+              if (!isNaN(num)) streetTotal += num;
+            }
           }
         }
+      });
+      // blind רלוונטי רק בפרה-פלופ, ורק אם השחקן לא הימר
+      // (אם הימר — סכום ה-BET כבר כולל את ה-blind)
+      if (street === 'preflop' && !hasBetThisStreet) {
+        total += getActorPosted(actor, 'preflop');
       }
+      total += streetTotal;
       if (street === upToStreet) break;
     }
-    return pot;
+    return total;
+  };
+
+  // גובה הקופה = סכום תרומות כל השחקנים (כולל אנטה)
+  const calculatePot = (upToStreet) => {
+    const allActors = ['hero', ...opponents.map(o => String(o.id))];
+    const pot = allActors.reduce((sum, actor) => sum + playerContribution(actor, upToStreet), 0);
+    return pot + (isTournament ? (ante || 0) : 0);
+  };
+
+  const StackDisplay = ({ street }) => {
+    const { bb } = getBlindSbBb();
+    const allPlayers = [
+      { actor: 'hero', label: '🦸 הירו', isHero: true,
+        initial: parseInt(heroStack) || 0 },
+      ...opponents.map(o => ({
+        actor: String(o.id), label: o.label || `יריב`, isHero: false,
+        initial: o.stack || 0,
+      })),
+    ].filter(p => !getFoldedBefore(street).has(p.actor));
+
+    return (
+      <div className="rounded-xl bg-slate-800/50 border border-slate-700/40 px-3 py-2" dir="rtl">
+        <div className="text-[10px] text-slate-500 font-bold mb-1.5 tracking-wide">ערימות שחקנים:</div>
+        <div className="flex flex-col gap-1">
+          {allPlayers.map(p => {
+            const spent = playerContribution(p.actor, street);
+            const remaining = Math.max(0, p.initial - spent);
+            const bbs = bb && bb > 0 ? Number((remaining / bb).toFixed(1)) : null;
+            return (
+              <div key={p.actor} className="flex items-center justify-between text-xs">
+                <span className="text-slate-300 font-mono tabular-nums">
+                  {remaining.toLocaleString('he-IL')}
+                  {bbs !== null && (
+                    <span className="text-slate-500 ml-1">({bbs}BB)</span>
+                  )}
+                </span>
+                <span className={`font-bold ${p.isHero ? 'text-blue-300' : 'text-orange-300'}`}>
+                  {p.label}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
   };
 
   const PotDisplay = ({ street }) => {
@@ -303,6 +435,11 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
     return `😈 ${opp?.label || 'יריב'}`;
   };
 
+  const ACTION_DISPLAY = {
+    fold: 'פולד', check: "צ'ק", limp: 'לימפ', call: 'קול',
+    bet: 'BET', raise: 'BET', 'three-bet': '3BET', 'four-bet': '4BET', allin: 'אול-אין',
+  };
+
   const ActionLog = ({ street }) => {
     const actions = handData.streets[street]?.actions || [];
     if (!actions.length) return null;
@@ -315,7 +452,7 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
               ✕
             </button>
             <span className={`flex-1 text-right ${a.actor === 'hero' ? 'text-blue-300' : 'text-orange-300'}`}>
-              {actorName(a.actor)} — {a.action}
+              {actorName(a.actor)} — {ACTION_DISPLAY[a.action] || a.action}
               {a.amount && (() => {
                 const bb = getBlindSbBb().bb;
                 const raw = a.amount;
@@ -323,12 +460,10 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
                 if (raw.toString().endsWith('%') || isNaN(num)) {
                   return <span className="text-slate-300 font-mono mr-1"> {raw}</span>;
                 }
-                // For 'call': display the FULL raise amount (not the delta stored for pot calc)
-                // e.g. SB calls Hero's 2000-raise: stored=1900 (delta), display=2000 (full)
                 let displayNum = num;
                 if (a.action === 'call') {
                   const lastRaise = actions.slice(0, i).reverse()
-                    .find(pa => ['raise', 'three-bet', 'four-bet'].includes(pa.action) && pa.amount);
+                    .find(pa => ['bet', 'raise', 'three-bet', 'four-bet', 'allin'].includes(pa.action) && pa.amount);
                   if (lastRaise) displayNum = parseFloat(lastRaise.amount) || num;
                 }
                 const bbs = bb && bb > 0 ? Number((displayNum / bb).toFixed(1)) : null;
@@ -506,7 +641,7 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
         </div>
         <div>
           <label className="block text-sm font-bold text-slate-300 mb-2 text-right">יריב\ים</label>
-          <OpponentManager opponents={opponents} onChange={setOpponents} heroPosition={heroPosition} unit={unit} />
+          <OpponentManager opponents={opponents} onChange={setOpponents} heroPosition={heroPosition} unit={unit} heroStack={heroStack} />
         </div>
       </div>
     );
@@ -531,15 +666,21 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
     if (step === 5) return (
       <div className="space-y-3">
         <PotDisplay street="preflop" />
-        <div className="text-xs text-slate-500 text-right">הוסף פעולות בסדר שקרו — הירו ואז היריבים</div>
+        <div className="text-xs text-slate-300 text-right">פעל לפי סדר הפעולות של השחקנים שהשתתפו ביד</div>
         {/* Actions log */}
         <ActionLog street="preflop" />
         <PotDisplay street="preflop" />
-        {sortedPlayers(heroPosition, opponents, 'preflop').map(p => (
-          <ActionSelector key={p.actor} actor={p.actor} label={p.label} unit={unit} street="preflop"
+        <StackDisplay street="preflop" />
+        {playersWhoNeedToAct(
+          handData.streets.preflop.actions,
+          sortedPlayers(heroPosition, opponents, 'preflop')
+        ).map(p => (
+          <ActionSelector key={`preflop-${p.actor}-${handData.streets.preflop.actions.length}`}
+            actor={p.actor} label={p.label} unit={unit} street="preflop"
             priorActions={handData.streets.preflop.actions}
-            blindBb={getBlindSbBb().bb}
+            blindBb={getBlindSbBb().bb} blindSb={getBlindSbBb().sb}
             actorPosted={getActorPosted(p.actor, 'preflop')}
+            playerStack={getPlayerCurrentStack(p.actor, 'preflop')}
             onAction={a => addAction('preflop', { ...a, actor: p.actor })} />
         ))}
         <button onClick={goNext}
@@ -560,21 +701,29 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
         </div>
         {handData.streets.flop.board.length === 3 && (
           <div className="space-y-2">
-            <div className="text-xs text-slate-500 text-right">פעולות פוסט-פלופ:</div>
+            <div className="text-xs text-slate-300 font-bold text-right">פעולות פוסט-פלופ:</div>
             <ActionLog street="flop" />
             <PotDisplay street="flop" />
-            {sortedPlayers(heroPosition, opponents, 'flop').map(p => (
-              <ActionSelector key={p.actor} actor={p.actor} label={p.label} unit={unit} street="flop"
+            <StackDisplay street="flop" />
+            {playersWhoNeedToAct(
+              handData.streets.flop.actions,
+              sortedPlayers(heroPosition, opponents, 'flop').filter(p => !getFoldedBefore('flop').has(p.actor))
+            ).map(p => (
+              <ActionSelector key={`flop-${p.actor}-${handData.streets.flop.actions.length}`}
+                actor={p.actor} label={p.label} unit={unit} street="flop"
                 priorActions={handData.streets.flop.actions}
-                blindBb={getBlindSbBb().bb}
+                blindBb={getBlindSbBb().bb} blindSb={getBlindSbBb().sb}
+                playerStack={getPlayerCurrentStack(p.actor, 'flop')}
                 onAction={a => addAction('flop', { ...a, actor: p.actor })} />
             ))}
           </div>
         )}
-        <button onClick={goNext}
-          className="w-full py-2 rounded-xl text-xs text-slate-500 border border-dashed border-slate-700 hover:border-slate-600 hover:text-slate-400 transition-all">
-          ⏭ דלג — היד הסתיימה בפלופ
-        </button>
+        {handEndedByFold('flop') && (
+          <button onClick={goNext}
+            className="w-full py-2 rounded-xl text-xs text-slate-500 border border-dashed border-slate-700 hover:border-slate-600 hover:text-slate-400 transition-all">
+            ⏭ דלג — היד הסתיימה בפלופ
+          </button>
+        )}
       </div>
     );
 
@@ -589,21 +738,29 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
         </div>
         {handData.streets.turn.board.length === 1 && (
           <div className="space-y-2">
-            <div className="text-xs text-slate-500 text-right">פעולות טרן:</div>
+            <div className="text-xs text-slate-300 font-bold text-right">פעולות טרן:</div>
             <ActionLog street="turn" />
             <PotDisplay street="turn" />
-            {sortedPlayers(heroPosition, opponents, 'turn').map(p => (
-              <ActionSelector key={p.actor} actor={p.actor} label={p.label} unit={unit} street="turn"
+            <StackDisplay street="turn" />
+            {playersWhoNeedToAct(
+              handData.streets.turn.actions,
+              sortedPlayers(heroPosition, opponents, 'turn').filter(p => !getFoldedBefore('turn').has(p.actor))
+            ).map(p => (
+              <ActionSelector key={`turn-${p.actor}-${handData.streets.turn.actions.length}`}
+                actor={p.actor} label={p.label} unit={unit} street="turn"
                 priorActions={handData.streets.turn.actions}
-                blindBb={getBlindSbBb().bb}
+                blindBb={getBlindSbBb().bb} blindSb={getBlindSbBb().sb}
+                playerStack={getPlayerCurrentStack(p.actor, 'turn')}
                 onAction={a => addAction('turn', { ...a, actor: p.actor })} />
             ))}
           </div>
         )}
-        <button onClick={goNext}
-          className="w-full py-2 rounded-xl text-xs text-slate-500 border border-dashed border-slate-700 hover:border-slate-600 hover:text-slate-400 transition-all">
-          ⏭ דלג — היד הסתיימה בטרן
-        </button>
+        {handEndedByFold('turn') && (
+          <button onClick={goNext}
+            className="w-full py-2 rounded-xl text-xs text-slate-500 border border-dashed border-slate-700 hover:border-slate-600 hover:text-slate-400 transition-all">
+            ⏭ דלג — היד הסתיימה בטרן
+          </button>
+        )}
       </div>
     );
 
@@ -625,21 +782,29 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
         </div>
         {handData.streets.river.board.length === 1 && (
           <div className="space-y-2">
-            <div className="text-xs text-slate-500 text-right">פעולות ריבר:</div>
+            <div className="text-xs text-slate-300 font-bold text-right">פעולות ריבר:</div>
             <ActionLog street="river" />
             <PotDisplay street="river" />
-            {sortedPlayers(heroPosition, opponents, 'river').map(p => (
-              <ActionSelector key={p.actor} actor={p.actor} label={p.label} unit={unit} street="river"
+            <StackDisplay street="river" />
+            {playersWhoNeedToAct(
+              handData.streets.river.actions,
+              sortedPlayers(heroPosition, opponents, 'river').filter(p => !getFoldedBefore('river').has(p.actor))
+            ).map(p => (
+              <ActionSelector key={`river-${p.actor}-${handData.streets.river.actions.length}`}
+                actor={p.actor} label={p.label} unit={unit} street="river"
                 priorActions={handData.streets.river.actions}
-                blindBb={getBlindSbBb().bb}
+                blindBb={getBlindSbBb().bb} blindSb={getBlindSbBb().sb}
+                playerStack={getPlayerCurrentStack(p.actor, 'river')}
                 onAction={a => addAction('river', { ...a, actor: p.actor })} />
             ))}
           </div>
         )}
-        <button onClick={goNext}
-          className="w-full py-2 rounded-xl text-xs text-slate-500 border border-dashed border-slate-700 hover:border-slate-600 hover:text-slate-400 transition-all">
-          ⏭ המשך לתוצאה
-        </button>
+        {!streetRoundComplete('river') && (
+          <button onClick={goNext}
+            className="w-full py-2 rounded-xl text-xs text-slate-500 border border-dashed border-slate-700 hover:border-slate-600 hover:text-slate-400 transition-all">
+            ⏭ המשך לתוצאה
+          </button>
+        )}
       </div>
     );
 
@@ -651,6 +816,39 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
       const potLabel = isTournament
         ? `${finalPot.toLocaleString('he-IL')} צ'יפים${potBbs ? ` (${potBbs}BB)` : ''}`
         : `₪${finalPot.toLocaleString('he-IL')}${potBbs ? ` (${potBbs}BB)` : ''}`;
+
+      // שחקנים שלא קיפלו — נמצאים בשואודאון
+      const foldedAll = new Set([
+        ...getFoldedBefore('flop'),
+        ...(handData.streets.flop?.actions  || []).filter(a => a.action === 'fold').map(a => a.actor),
+        ...(handData.streets.turn?.actions  || []).filter(a => a.action === 'fold').map(a => a.actor),
+        ...(handData.streets.river?.actions || []).filter(a => a.action === 'fold').map(a => a.actor),
+      ]);
+      const sdPlayers = sortedPlayers(heroPosition, opponents, 'preflop')
+        .filter(p => !foldedAll.has(p.actor));
+
+      const PLAYER_COLORS = ['#3b82f6','#f97316','#22c55e','#a855f7','#ef4444','#06b6d4'];
+
+      const initEqualSplit = (pot, players) => {
+        const n = Math.max(players.length, 1);
+        const eq = Math.round(pot / n);
+        const dist = {};
+        players.forEach((p, i) => {
+          dist[p.actor] = i === n - 1 ? pot - eq * (n - 1) : eq;
+        });
+        return dist;
+      };
+
+      const handleSplitChange = (actor, val) => {
+        const num = parseInt(val) || 0;
+        const next = { ...splitDist, [actor]: num };
+        setSplitDist(next);
+        if (actor === 'hero') setHeroProfit(String(num));
+      };
+
+      const totalSplit = Object.values(splitDist).reduce((s, v) => s + (parseInt(v) || 0), 0);
+      const splitValid = totalSplit === finalPot;
+
       return (
       <div className="space-y-4">
         {/* Pot display */}
@@ -661,22 +859,24 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
 
         <div>
           <label className="block text-sm font-bold text-slate-300 mb-3 text-right">מי ניצח את הקופה?</label>
-          <div className="flex gap-3 justify-center">
+          <div className="flex gap-2 justify-center">
             {[
-              { key: 'won',   icon: '🏆', label: 'ניצחתי',   color: 'border-emerald-400 bg-emerald-600/20' },
-              { key: 'lost',  icon: '💀', label: 'הפסדתי',   color: 'border-red-400 bg-red-600/20' },
-              { key: 'split', icon: '🤝', label: 'חצי-חצי', color: 'border-amber-400 bg-amber-600/20' },
+              { key: 'won',   icon: '🏆', label: 'ניצחתי',  color: 'border-emerald-400 bg-emerald-600/20' },
+              { key: 'lost',  icon: '💀', label: 'הפסדתי',  color: 'border-red-400    bg-red-600/20'     },
+              { key: 'split', icon: '🤝', label: 'חלוקה',   color: 'border-amber-400  bg-amber-600/20'   },
             ].map(r => (
               <button key={r.key}
                 onClick={() => {
                   setResult(r.key);
-                  setHeroProfit(
-                    r.key === 'won' ? String(finalPot) :
-                    r.key === 'lost' ? String(-finalPot) :
-                    String(Math.round(finalPot / 2))
-                  );
+                  if (r.key === 'won')  { setHeroProfit(String(finalPot));  setSplitDist({}); }
+                  if (r.key === 'lost') { setHeroProfit(String(-finalPot)); setSplitDist({}); }
+                  if (r.key === 'split') {
+                    const dist = initEqualSplit(finalPot, sdPlayers);
+                    setSplitDist(dist);
+                    setHeroProfit(String(dist['hero'] ?? 0));
+                  }
                 }}
-                className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all w-28 hover:scale-105
+                className={`flex-1 max-w-[110px] flex flex-col items-center gap-2 p-3 rounded-2xl border-2 transition-all hover:scale-105
                   ${result === r.key ? r.color + ' scale-105 shadow-lg' : 'border-slate-600 bg-slate-800/40'}`}>
                 <span className="text-3xl">{r.icon}</span>
                 <span className="text-sm font-bold text-slate-200">{r.label}</span>
@@ -684,6 +884,81 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
             ))}
           </div>
         </div>
+
+        {/* ── Split editor ── */}
+        {result === 'split' && sdPlayers.length > 0 && (
+          <div className="space-y-3 p-3 rounded-xl bg-slate-800/60 border border-amber-500/30" dir="rtl">
+            {/* Header */}
+            <div className="flex items-center justify-between">
+              <button
+                onClick={() => {
+                  const dist = initEqualSplit(finalPot, sdPlayers);
+                  setSplitDist(dist);
+                  setHeroProfit(String(dist['hero'] ?? 0));
+                }}
+                className="text-xs text-amber-400/80 hover:text-amber-300 font-bold border border-amber-500/30 rounded-lg px-2 py-1 hover:border-amber-400/50 transition-all">
+                ⚖️ חלוקה שווה
+              </button>
+              <span className="text-xs font-bold text-slate-400">חלוקת הקופה:</span>
+            </div>
+
+            {/* Proportional bar */}
+            {finalPot > 0 && (
+              <div className="flex h-6 rounded-xl overflow-hidden" dir="ltr">
+                {sdPlayers.map((p, i) => {
+                  const amt = parseInt(splitDist[p.actor]) || 0;
+                  const pct = Math.max(0, (amt / finalPot) * 100);
+                  return (
+                    <div key={p.actor}
+                      className="transition-all duration-300 relative flex items-center justify-center overflow-hidden"
+                      style={{ width: `${pct}%`, backgroundColor: PLAYER_COLORS[i % PLAYER_COLORS.length], minWidth: pct > 3 ? undefined : 0 }}>
+                      {pct > 8 && (
+                        <span className="text-[10px] font-black text-white/90 truncate px-1">
+                          {Math.round(pct)}%
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Player rows */}
+            {sdPlayers.map((p, i) => {
+              const color = PLAYER_COLORS[i % PLAYER_COLORS.length];
+              const amt = parseInt(splitDist[p.actor]) || 0;
+              const pct = finalPot > 0 ? Math.round(amt / finalPot * 100) : 0;
+              const bbs = bb && bb > 0 ? Number((amt / bb).toFixed(1)) : null;
+              return (
+                <div key={p.actor} className="flex items-center gap-2 justify-between">
+                  <div className="flex items-center gap-1.5" dir="ltr">
+                    <span className="text-[10px] font-mono text-slate-500 w-8 text-right">{pct}%</span>
+                    <input
+                      type="number" min="0" max={finalPot}
+                      value={splitDist[p.actor] ?? ''}
+                      onChange={e => handleSplitChange(p.actor, e.target.value)}
+                      className="w-28 px-2 py-1 rounded-lg bg-slate-900 border border-slate-600 text-white text-sm text-right focus:outline-none focus:border-blue-500 transition-colors"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {bbs !== null && (
+                      <span className="text-[10px] font-mono text-slate-500">{bbs}BB</span>
+                    )}
+                    <span className="text-sm font-bold" style={{ color }}>{p.label}</span>
+                    <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Validation */}
+            <div className={`text-xs text-right font-bold ${splitValid ? 'text-emerald-400' : 'text-red-400'}`}>
+              {splitValid
+                ? '✓ חלוקה תקינה'
+                : `⚠️ סה"כ: ${totalSplit.toLocaleString('he-IL')} ≠ ${finalPot.toLocaleString('he-IL')}`}
+            </div>
+          </div>
+        )}
 
         <div>
           <label className="block text-sm font-bold text-slate-300 mb-1 text-right">הערות אישיות (אופציונלי)</label>
@@ -756,7 +1031,7 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
         handState={buildState()}
         narrative={narrative}
         onSaveSuccess={() => { clearDraft(); onSaved?.(); }}
-        onReset={() => { clearDraft(); setStep(0); setGameType(null); setHandData(initHandData()); setHeroCards([]); setOpponents([]); setResult(''); setNarrative(''); setOppRevealedCards([]); setHeroProfit(''); setNotes(''); }}
+        onReset={() => { clearDraft(); setStep(0); setGameType(null); setHandData(initHandData()); setHeroCards([]); setOpponents([]); setResult(''); setNarrative(''); setOppRevealedCards([]); setHeroProfit(''); setSplitDist({}); setNotes(''); }}
       />
     );
 

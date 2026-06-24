@@ -292,6 +292,25 @@ function drawPlayerBox(ctx,pos,label,stack,isHero,isDealer=false,isWinner=false)
 }
 
 // ════════════════════════════════════════════════════
+// FOLD SLIDE — cards slide from seat to table center
+// ════════════════════════════════════════════════════
+function drawFoldSlide(ctx,pos,t){
+  const{x,y}=seatCards(pos);
+  const cw=30, ch=44, gap=4;
+  const alpha=Math.max(0,1-easeOut(t)*1.35);
+  if(alpha<=0) return;
+  const ex=lerp(x,TCX,easeOut(t));
+  const ey=lerp(y,TCY,easeOut(t));
+  ctx.save();
+  ctx.globalAlpha=alpha;
+  const rot=easeOut(t)*0.25;
+  ctx.translate(ex,ey); ctx.rotate(rot); ctx.translate(-ex,-ey);
+  _back(ctx,ex-cw-gap/2,ey-ch/2,cw,ch);
+  _back(ctx,ex+gap/2,    ey-ch/2,cw,ch);
+  ctx.restore();
+}
+
+// ════════════════════════════════════════════════════
 // HOLE CARDS
 // ════════════════════════════════════════════════════
 function drawHoleCards(ctx,pos,cards,faceUp=false,flipT=1){
@@ -585,7 +604,7 @@ function drawScene(ctx,{
   logEvents, currentStreet, betAmounts={},
   chipFrom=null, chipTo=null, chipT=0, chipAmt=0,
   actionBadge=null, actionBadgeAlpha=0,
-  showHeroCards=true,
+  showHeroCards=true, foldedActors=new Set(),
 }){
   drawBG(ctx);
   drawTable(ctx);
@@ -594,7 +613,9 @@ function drawScene(ctx,{
   allPlayers.forEach(p=>{
     const stk=Math.round(stacks[p.isHero?'hero':p.id]??p.stack??0);
     const isDealer=p.position==='BTN';
+    const isFolded=foldedActors.has(p.isHero?'hero':p.id);
     drawPlayerBox(ctx,p.position,p.label||'Hero',stk,p.isHero,isDealer,false);
+    if(isFolded) return;
     if(p.isHero&&showHeroCards&&heroCards?.length>=2)
       drawHoleCards(ctx,p.position,heroCards,heroCardsFaceUp);
     else if(!p.isHero)
@@ -679,8 +700,8 @@ export function buildFrames(state){
     isCash, sb, bb, ante, stakes:cash_stakes, tournamentStage:tournament_stage,
   };
 
-  // ── INTRO ────────────────────────────── 60f
-  frames.push({duration:60,draw:(ctx,t)=>{
+  // ── INTRO ────────────────────────────── 42f
+  frames.push({duration:42,draw:(ctx,t)=>{
     drawBG(ctx);
     ctx.globalAlpha=Math.min(1,easeOut(t*1.4));
     drawTable(ctx); clrSh(ctx);
@@ -720,8 +741,8 @@ export function buildFrames(state){
     }
   }});
 
-  // ── TABLE + PLAYERS FLY IN ─────────── 48f
-  frames.push({duration:48,draw:(ctx,t)=>{
+  // ── TABLE + PLAYERS FLY IN ─────────── 30f
+  frames.push({duration:30,draw:(ctx,t)=>{
     drawScene(ctx,{...base,pot:initialPot,stacks:{...initialStacks},
       board:[],flipStates:[],logEvents:[],currentStreet:null,showHeroCards:false});
     allPlayers.forEach((p,i)=>{
@@ -734,8 +755,8 @@ export function buildFrames(state){
     });
   }});
 
-  // ── HERO CARDS FLIP ────────────────── 40f
-  frames.push({duration:40,draw:(ctx,t)=>{
+  // ── HERO CARDS FLIP ────────────────── 30f
+  frames.push({duration:30,draw:(ctx,t)=>{
     drawBG(ctx); drawTable(ctx);
     drawTopHUD(ctx,isCash,cash_stakes,sb,bb,ante,tournament_stage);
     allPlayers.forEach(p=>{
@@ -762,6 +783,7 @@ export function buildFrames(state){
   let flipStates=[];
   let currentStreet='פרה-פלופ';
   let betAmounts={};
+  let foldedActors=new Set();
 
   events.forEach(ev=>{
     if(ev.type==='card'){
@@ -771,13 +793,15 @@ export function buildFrames(state){
 
       const newBoard=[...revealedBoard,ev.card];
       const snap={board:[...newBoard],pot:currentPot,stacks:{...currentStacks},log:[...logEvents],str:currentStreet};
-      frames.push({duration:24,draw:(ctx,t)=>{
+      frames.push({duration:18,draw:(ctx,t)=>{
         const fStates=snap.board.map((_,i)=>i<snap.board.length-1?1:easeInOut(t));
         drawScene(ctx,{...base,pot:snap.pot,stacks:snap.stacks,
           board:snap.board,flipStates:fStates,logEvents:snap.log,
           currentStreet:snap.str,showHeroCards:true,heroCardsFaceUp:true});
       }});
-      frames.push({duration:14,draw:(ctx)=>{
+      // hold per street: flop=18f(0.6s), turn=24f(0.8s), river=40f(1.3s)
+      const holdDur=ev.street==='river'?40:ev.street==='turn'?24:18;
+      frames.push({duration:holdDur,draw:(ctx)=>{
         drawScene(ctx,{...base,pot:snap.pot,stacks:snap.stacks,
           board:snap.board,flipStates:Array(snap.board.length).fill(1),
           logEvents:snap.log,currentStreet:snap.str,showHeroCards:true,heroCardsFaceUp:true});
@@ -794,10 +818,25 @@ export function buildFrames(state){
       if(hasChips&&actorPos) betAmounts={...betAmounts,[actorPos]:(betAmounts[actorPos]||0)+ev.amount};
 
       const newLog=[...logEvents,{...ev,opponentLabel:actorOpp?.label||null}];
-      const snap={board:[...revealedBoard],str:currentStreet,bets:{...betAmounts}};
+      const snap={board:[...revealedBoard],str:currentStreet,bets:{...betAmounts},folded:new Set(foldedActors)};
       const badge={pos:actorPos,action:ev.action,amount:ev.amount};
 
-      frames.push({duration:26,draw:(ctx,t)=>{
+      // ── FOLD: slide cards to center, then update foldedActors ──
+      if(ev.action==='fold'&&actorPos){
+        const foldSnap={board:[...revealedBoard],str:currentStreet,bets:{...betAmounts},
+          pot:currentPot,stacks:{...currentStacks},log:[...logEvents],folded:new Set(foldedActors)};
+        frames.push({duration:14,draw:(ctx,t)=>{
+          drawScene(ctx,{...base,pot:foldSnap.pot,stacks:foldSnap.stacks,
+            board:foldSnap.board,flipStates:Array(foldSnap.board.length).fill(1),
+            logEvents:foldSnap.log,currentStreet:foldSnap.str,betAmounts:foldSnap.bets,
+            showHeroCards:true,heroCardsFaceUp:true,foldedActors:foldSnap.folded});
+          drawFoldSlide(ctx,actorPos,easeInOut(t));
+        }});
+        foldedActors=new Set([...foldedActors,actorIsHero?'hero':ev.actor]);
+        snap.folded=new Set(foldedActors);
+      }
+
+      frames.push({duration:20,draw:(ctx,t)=>{
         const interpPot=lerp(ev.potBefore,ev.potAfter,hasChips?easeInOut(t):0);
         const interpStacks={};
         Object.keys(ev.stacksBefore).forEach(k=>{
@@ -808,18 +847,18 @@ export function buildFrames(state){
         drawScene(ctx,{...base,pot:interpPot,stacks:interpStacks,
           board:snap.board,flipStates:Array(snap.board.length).fill(1),
           logEvents:newLog,currentStreet:snap.str,betAmounts:interpBets,
-          showHeroCards:true,heroCardsFaceUp:true,
+          showHeroCards:true,heroCardsFaceUp:true,foldedActors:snap.folded,
           chipFrom:hasChips?fromXY:null,chipTo:hasChips?toXY:null,
           chipT:hasChips?t:0,chipAmt:ev.amount,
           actionBadge:badge,actionBadgeAlpha:Math.min(1,t*4)});
       }});
 
       const pausePot=ev.potAfter, pauseStacks={...ev.stacksAfter};
-      frames.push({duration:10,draw:(ctx,t)=>{
+      frames.push({duration:7,draw:(ctx,t)=>{
         drawScene(ctx,{...base,pot:pausePot,stacks:pauseStacks,
           board:snap.board,flipStates:Array(snap.board.length).fill(1),
           logEvents:newLog,currentStreet:snap.str,betAmounts:snap.bets,
-          showHeroCards:true,heroCardsFaceUp:true,
+          showHeroCards:true,heroCardsFaceUp:true,foldedActors:snap.folded,
           actionBadge:badge,actionBadgeAlpha:1-easeOut(t)});
       }});
 
@@ -827,14 +866,14 @@ export function buildFrames(state){
     }
   });
 
-  // ── RESULT ──────────────────────────── 90f
+  // ── RESULT ──────────────────────────── 60f
   const preResultBoard=[...revealedBoard];
   const preResultStacks={...currentStacks};
   const winnerXY=winnerPos?seatOuter(winnerPos):{x:TCX,y:TCY};
   const resultColor=result==='won'?'#22c55e':result==='lost'?'#ef4444':'#f8c030';
   const resultLabel=result==='won'?'ניצחון! 🏆':result==='lost'?'הפסד 💀':'סיר מחולק 🤝';
 
-  frames.push({duration:90,draw:(ctx,t)=>{
+  frames.push({duration:60,draw:(ctx,t)=>{
     const moveT=Math.min(1,t*2);
     const animStacks={...preResultStacks};
     const winKey=result==='won'?'hero':opponents[0]?.id;
@@ -879,8 +918,8 @@ export function buildFrames(state){
     }
   }});
 
-  // ── OUTRO ─────────────────────────── 44f (players visible + result overlay)
-  frames.push({duration:44,draw:(ctx,t)=>{
+  // ── OUTRO ─────────────────────────── 30f (players visible + result overlay)
+  frames.push({duration:30,draw:(ctx,t)=>{
     drawBG(ctx); drawTable(ctx);
     drawTopHUD(ctx,isCash,cash_stakes,sb,bb,ante,tournament_stage);
 
@@ -932,6 +971,8 @@ export function buildFrames(state){
 // ════════════════════════════════════════════════════
 // RECORD VIDEO — WebCodecs (no captureStream, no GPU crash)
 // ════════════════════════════════════════════════════
+const RENDER_SCALE = 2; // 2× pixel density → 1520×960, sharp HD output
+
 export async function recordVideo(state,onProgress){
   const{frames,W,H}=buildFrames(state);
 
@@ -940,9 +981,11 @@ export async function recordVideo(state,onProgress){
     return recordVideoLegacy(state,onProgress);
   }
 
+  const RW=W*RENDER_SCALE, RH=H*RENDER_SCALE;
   const canvas=document.createElement('canvas');
-  canvas.width=W; canvas.height=H;
+  canvas.width=RW; canvas.height=RH;
   const ctx=canvas.getContext('2d');
+  ctx.scale(RENDER_SCALE,RENDER_SCALE);
 
   const FPS=30;
   const FRAME_US=Math.round(1_000_000/FPS);
@@ -952,7 +995,7 @@ export async function recordVideo(state,onProgress){
   const{Muxer,ArrayBufferTarget}=await import('webm-muxer');
   const muxer=new Muxer({
     target:new ArrayBufferTarget(),
-    video:{codec:'V_VP8',width:W,height:H,frameRate:FPS},
+    video:{codec:'V_VP8',width:RW,height:RH,frameRate:FPS},
   });
 
   let encErr=null;
@@ -960,7 +1003,7 @@ export async function recordVideo(state,onProgress){
     output:(chunk,meta)=>muxer.addVideoChunk(chunk,meta),
     error:(e)=>{encErr=e;},
   });
-  encoder.configure({codec:'vp8',width:W,height:H,bitrate:1_500_000,framerate:FPS});
+  encoder.configure({codec:'vp8',width:RW,height:RH,bitrate:4_000_000,framerate:FPS});
 
   let frameIdx=0;
   for(const f of frames){
@@ -986,9 +1029,11 @@ export async function recordVideo(state,onProgress){
 // Fallback for browsers without WebCodecs
 async function recordVideoLegacy(state,onProgress){
   const{frames,W,H}=buildFrames(state);
+  const RW=W*RENDER_SCALE, RH=H*RENDER_SCALE;
   const canvas=document.createElement('canvas');
-  canvas.width=W; canvas.height=H;
+  canvas.width=RW; canvas.height=RH;
   const ctx=canvas.getContext('2d',{willReadFrequently:true});
+  ctx.scale(RENDER_SCALE,RENDER_SCALE);
   const FPS=30, MS=Math.round(1000/FPS);
   const chunks=[];
   const stream=canvas.captureStream(FPS);

@@ -45,7 +45,7 @@ export default function HandVideoCanvas({ handState, narrative }) {
   return (
     <div className="rounded-2xl border border-slate-700 bg-slate-800/60 p-4">
       <div className="flex items-center justify-between mb-3">
-        <span className="text-xs text-slate-500">WebM · ~15 שנ'</span>
+        <span className="text-xs text-slate-500">WebM HD · עד 30 שנ'</span>
         <h3 className="text-sm font-bold text-slate-200">🎬 סרטון יד</h3>
       </div>
 

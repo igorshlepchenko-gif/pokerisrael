@@ -19,7 +19,7 @@ export default function PositionSelector({ selected, onChange, playersCount = 9 
 
   return (
     <div className="flex flex-col items-center gap-4">
-      <svg width="340" height="240" viewBox="-15 -20 370 260" className="select-none drop-shadow-2xl">
+      <svg viewBox="-15 -20 370 260" className="w-full max-w-[340px] select-none drop-shadow-2xl">
         <defs>
           {/* Felt gradient — lighter center, dark edges */}
           <radialGradient id="pg-felt" cx="50%" cy="40%" r="60%">
