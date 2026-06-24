@@ -1,0 +1,13 @@
+{
+  "name": "whatsapp-forwarder",
+  "version": "1.0.0",
+  "description": "Local WhatsApp bridge → pokerisrael.org webhook",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.7.18",
+    "qrcode-terminal": "^0.12.0"
+  }
+}
