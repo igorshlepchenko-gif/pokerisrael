@@ -7,6 +7,9 @@
  * Session persisted in server/.wwebjs_auth/baileys (survives redeploys via Railway volume).
  */
 
+// Baileys requires globalThis.crypto (Web Crypto API) — polyfill for Node 18
+if (!globalThis.crypto) globalThis.crypto = require('crypto').webcrypto;
+
 const path = require('path');
 const fs   = require('fs');
 const QRCode = require('qrcode');
