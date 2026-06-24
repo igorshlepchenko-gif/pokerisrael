@@ -22,7 +22,7 @@ export default function TournamentListRow({ t, index, onClick }) {
             </div>
             <div className="flex items-center gap-1.5 text-sm text-poker-green-light">
               {t.venue_logo
-                ? <img src={t.venue_logo} alt={t.venue_name} className="w-10 h-10 rounded-full object-cover shrink-0 ring-2 ring-slate-600" />
+                ? <img src={t.venue_logo} alt={t.venue_name} className="w-10 h-10 rounded-full object-contain bg-slate-800 shrink-0 ring-2 ring-slate-600" />
                 : <span className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-xl shrink-0">🏠</span>
               }
               {venueDisplayName(t.venue_name, t.venue_type, t.venue_club_number)}
@@ -67,7 +67,7 @@ export default function TournamentListRow({ t, index, onClick }) {
           </div>
           <div className="flex items-center gap-1.5 text-sm text-poker-green-light truncate">
             {t.venue_logo
-              ? <img src={t.venue_logo} alt={t.venue_name} className="w-10 h-10 rounded-full object-cover shrink-0 ring-2 ring-slate-600" />
+              ? <img src={t.venue_logo} alt={t.venue_name} className="w-10 h-10 rounded-full object-contain bg-slate-800 shrink-0 ring-2 ring-slate-600" />
               : <span className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-xl shrink-0">🏠</span>
             }
             <span className="truncate">{venueDisplayName(t.venue_name, t.venue_type, t.venue_club_number)}</span>

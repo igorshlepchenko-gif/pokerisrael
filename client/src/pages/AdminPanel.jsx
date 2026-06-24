@@ -436,7 +436,7 @@ export default function AdminPanel() {
                     {/* לוגו גדול */}
                     {v.logo_url ? (
                       <img src={v.logo_url} alt="לוגו"
-                        className="w-28 h-28 rounded-2xl object-cover shrink-0 border-2 border-slate-600 shadow-lg" />
+                        className="w-28 h-28 rounded-2xl object-contain bg-slate-800 shrink-0 border-2 border-slate-600 shadow-lg" />
                     ) : (
                       <div className="w-28 h-28 rounded-2xl bg-slate-700 flex items-center justify-center text-5xl shrink-0 border-2 border-slate-600">
                         🏠

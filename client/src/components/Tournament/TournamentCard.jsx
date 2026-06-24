@@ -94,7 +94,7 @@ export default function TournamentCard({ t, index, onClick, brands = [] }) {
       {/* Header — לוגו + שם מועדון + שם טורניר */}
       <div className="flex items-center gap-3 mb-3">
         {displayLogo
-          ? <img src={displayLogo} alt={matchedBrand?.name || t.venue_name} className="w-14 h-14 rounded-full object-cover shrink-0 ring-2 ring-slate-600" />
+          ? <img src={displayLogo} alt={matchedBrand?.name || t.venue_name} className="w-14 h-14 rounded-full object-contain bg-slate-800 shrink-0 ring-2 ring-slate-600" />
           : <span className="w-14 h-14 rounded-full bg-slate-700 flex items-center justify-center text-2xl shrink-0">🏠</span>
         }
         <div className="min-w-0">
