@@ -6,7 +6,7 @@
     "node": ">=18"
   },
   "scripts": {
-    "build": "npm --prefix client install && npm --prefix client run build && npm --prefix server install",
+    "build": "apt-get update -qq 2>/dev/null && apt-get install -y -qq --no-install-recommends chromium libglib2.0-0 libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libasound2 libpango-1.0-0 libcairo2 libnspr4 2>/dev/null; npm --prefix client install && npm --prefix client run build && npm --prefix server install",
     "start": "node server/index.js",
     "setup-db": "node server/database/setup.js"
   }
