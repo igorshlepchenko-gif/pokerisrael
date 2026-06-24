@@ -1,70 +1,51 @@
 /**
- * WhatsApp Group Listener (whatsapp-web.js)
- * Connects via QR code, listens to specific groups, pipes messages into the import agent.
+ * WhatsApp Group Listener — powered by @whiskeysockets/baileys
+ * Connects via QR code (no browser/Puppeteer), listens to specific groups,
+ * pipes messages into the import agent.
  *
- * Enable by setting in .env:
- *   WHATSAPP_ENABLED=true
- *
- * Monitored groups are stored in agent_sources (platform='whatsapp', identifier = group name).
- * Session is persisted in server/.wwebjs_auth so QR is only needed once.
+ * Enable: WHATSAPP_ENABLED=true in Railway env vars.
+ * Session persisted in server/.wwebjs_auth/baileys (survives redeploys via Railway volume).
  */
 
 const path = require('path');
 const fs   = require('fs');
-const { execSync } = require('child_process');
 const QRCode = require('qrcode');
 const pool = require('../config/db');
 
-function findChromePath() {
-  if (process.env.CHROME_PATH) return process.env.CHROME_PATH;
-  if (process.platform === 'win32') return 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
-  const candidates = [
-    '/usr/bin/chromium',
-    '/usr/bin/chromium-browser',
-    '/usr/bin/google-chrome',
-    '/usr/bin/google-chrome-stable',
-  ];
-  for (const p of candidates) {
-    try { fs.accessSync(p, fs.constants.X_OK); return p; } catch {}
-  }
-  try {
-    const found = execSync('which chromium chromium-browser google-chrome 2>/dev/null | head -1').toString().trim();
-    if (found) return found;
-  } catch {}
-  return undefined; // fall back to puppeteer bundled Chrome
-}
-
-let Client, LocalAuth;
+let makeWASocket, useMultiFileAuthState, DisconnectReason, Browsers;
 try {
-  ({ Client, LocalAuth } = require('whatsapp-web.js'));
+  const baileys = require('@whiskeysockets/baileys');
+  makeWASocket         = baileys.default || baileys.makeWASocket || baileys;
+  useMultiFileAuthState = baileys.useMultiFileAuthState;
+  DisconnectReason     = baileys.DisconnectReason;
+  Browsers             = baileys.Browsers;
 } catch {
   // package not installed — listener disabled
 }
 
-// ── State ────────────────────────────────────────────────────────────────────
-let client       = null;
-let status       = 'disconnected';   // disconnected | qr | authenticating | ready | error
-let lastQrDataUrl = null;            // PNG data-URL of the current QR
-let lastError    = null;
-let readyInfo    = null;             // { pushname, number }
+// ── State ─────────────────────────────────────────────────────────────────────
+let sock          = null;
+let status        = 'disconnected';
+let lastQrDataUrl = null;
+let lastError     = null;
+let readyInfo     = null;
+let reconnectTimer = null;
 
-// Lazy require to avoid circular dependency
+const AUTH_DIR = path.join(__dirname, '..', '.wwebjs_auth', 'baileys');
+
 function getProcessMessage() {
   return require('./importAgent').processMessage;
 }
 
-// ── Load monitored group names from DB ───────────────────────────────────────
 async function getMonitoredGroups() {
   try {
     const r = await pool.query(
-      `SELECT identifier, name FROM agent_sources
-       WHERE platform='whatsapp' AND active=true`
+      `SELECT identifier, name FROM agent_sources WHERE platform='whatsapp' AND active=true`
     );
     return r.rows;
   } catch { return []; }
 }
 
-// Normalize for matching (strip emojis/spaces, lowercase)
 function normGroup(s) {
   return (s || '')
     .replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{2300}-\u{23FF}️]/gu, '')
@@ -73,147 +54,146 @@ function normGroup(s) {
     .toLowerCase();
 }
 
-// ── Handle an incoming group message ─────────────────────────────────────────
 async function handleMessage(msg) {
   try {
-    const chat = await msg.getChat();
-    if (!chat.isGroup) return;
+    const jid = msg.key?.remoteJid || '';
+    if (!jid.endsWith('@g.us')) return;   // groups only
+    if (msg.key?.fromMe) return;
+
+    const body = msg.message?.conversation
+      || msg.message?.extendedTextMessage?.text
+      || '';
+    if (body.length < 20) return;
 
     const monitored = await getMonitoredGroups();
-    if (monitored.length === 0) return;
+    if (!monitored.length) return;
 
-    const chatName = normGroup(chat.name);
+    // Resolve group name from metadata
+    let groupName = '';
+    try {
+      const meta = await sock.groupMetadata(jid);
+      groupName = meta?.subject || '';
+    } catch {}
+
+    const cn = normGroup(groupName);
     const match = monitored.find(g => {
       const gn = normGroup(g.identifier);
-      return chatName === gn || chatName.includes(gn) || gn.includes(chatName);
+      return cn === gn || cn.includes(gn) || gn.includes(cn);
     });
     if (!match) return;
 
-    const body = msg.body || '';
-    if (body.length < 20) return;
-
-    console.log(`[WhatsApp] 📨 Message from "${chat.name}" (${body.length} chars)`);
-
-    // Pipe into the import agent → AI parse → pending import → Telegram notify
-    const processMessage = getProcessMessage();
-    const created = await processMessage('whatsapp', body, null);
-    if (created) console.log(`[WhatsApp] ✅ Tournament import created from "${chat.name}"`);
+    console.log(`[WhatsApp] 📨 Message from "${groupName}" (${body.length} chars)`);
+    const created = await getProcessMessage()('whatsapp', body, null);
+    if (created) console.log(`[WhatsApp] ✅ Tournament import created from "${groupName}"`);
   } catch (e) {
     console.error('[WhatsApp] handleMessage error:', e?.message);
   }
 }
 
-// ── Initialize the client ────────────────────────────────────────────────────
-function initClient() {
-  if (!Client) {
+// ── Initialize / reconnect ────────────────────────────────────────────────────
+async function initClient() {
+  if (!makeWASocket) {
     status = 'error';
-    lastError = 'whatsapp-web.js not installed';
+    lastError = '@whiskeysockets/baileys not installed';
     return null;
   }
-  if (client) return client;
+  if (sock) return sock;
 
-  client = new Client({
-    authStrategy: new LocalAuth({
-      clientId: 'pokerisrael',
-      dataPath: path.join(__dirname, '..', '.wwebjs_auth'),
-    }),
-    // Pin a known-good WhatsApp Web version to fix "can't link devices" errors.
-    // Override with WA_WEB_VERSION in .env if WhatsApp updates and this breaks.
-    webVersionCache: {
-      type: 'remote',
-      remotePath: process.env.WA_WEB_VERSION_URL ||
-        'https://raw.githubusercontent.com/wppconnect-team/wa-version/main/html/2.3000.1040911178-alpha.html',
-    },
-    puppeteer: {
-      headless: true,
-      // Use system Chrome if available (set CHROME_PATH in .env to override)
-      executablePath: findChromePath(),
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--disable-gpu',
-      ],
-    },
+  try {
+    fs.mkdirSync(AUTH_DIR, { recursive: true });
+  } catch {}
+
+  const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
+
+  sock = makeWASocket({
+    auth: state,
+    printQRInTerminal: false,
+    browser: Browsers ? Browsers.macOS('Chrome') : ['PokerIsrael', 'Chrome', '120'],
+    connectTimeoutMs: 60_000,
+    keepAliveIntervalMs: 25_000,
+    logger: { level: 'silent', trace(){}, debug(){}, info(){}, warn: console.warn, error: console.error, fatal: console.error, child(){ return this; } },
   });
 
-  client.on('qr', async (qr) => {
-    status = 'qr';
-    try { lastQrDataUrl = await QRCode.toDataURL(qr, { width: 320, margin: 1 }); } catch {}
-    console.log('[WhatsApp] 📱 QR code ready — scan in admin panel');
+  sock.ev.on('creds.update', saveCreds);
+
+  sock.ev.on('connection.update', async (update) => {
+    const { connection, lastDisconnect, qr } = update;
+
+    if (qr) {
+      status = 'qr';
+      try { lastQrDataUrl = await QRCode.toDataURL(qr, { width: 320, margin: 1 }); } catch {}
+      console.log('[WhatsApp] 📱 QR code ready — scan in admin panel');
+    }
+
+    if (connection === 'open') {
+      status = 'ready';
+      lastQrDataUrl = null;
+      lastError = null;
+      readyInfo = {
+        pushname: sock.user?.name || null,
+        number:   sock.user?.id?.split(':')[0] || null,
+      };
+      console.log(`[WhatsApp] ✅ Connected as ${readyInfo.pushname || readyInfo.number}`);
+    }
+
+    if (connection === 'close') {
+      const code = lastDisconnect?.error?.output?.statusCode;
+      const loggedOut = code === (DisconnectReason?.loggedOut ?? 401);
+      sock = null;
+      if (loggedOut) {
+        status = 'disconnected';
+        readyInfo = null;
+        console.log('[WhatsApp] 🚪 Logged out');
+      } else {
+        status = 'authenticating';
+        console.warn('[WhatsApp] ⚠️ Disconnected, reconnecting in 5s...');
+        clearTimeout(reconnectTimer);
+        reconnectTimer = setTimeout(() => initClient(), 5000);
+      }
+    }
   });
 
-  client.on('authenticated', () => {
-    status = 'authenticating';
-    lastQrDataUrl = null;
-    console.log('[WhatsApp] 🔐 Authenticated');
+  sock.ev.on('messages.upsert', async ({ messages, type }) => {
+    if (type !== 'notify') return;
+    for (const msg of messages) await handleMessage(msg);
   });
 
-  client.on('ready', () => {
-    status = 'ready';
-    lastQrDataUrl = null;
-    lastError = null;
-    readyInfo = {
-      pushname: client.info?.pushname || null,
-      number:   client.info?.wid?.user || null,
-    };
-    console.log(`[WhatsApp] ✅ Connected as ${readyInfo.pushname || readyInfo.number}`);
-  });
-
-  client.on('auth_failure', (m) => {
-    status = 'error';
-    lastError = 'Authentication failed: ' + m;
-    console.error('[WhatsApp] ❌ Auth failure:', m);
-  });
-
-  client.on('disconnected', (reason) => {
-    status = 'disconnected';
-    readyInfo = null;
-    console.warn('[WhatsApp] ⚠️ Disconnected:', reason);
-  });
-
-  // Listen to both received and own messages (in case admin is in the group)
-  client.on('message',        handleMessage);
-  client.on('message_create', handleMessage);
-
-  return client;
+  return sock;
 }
 
-// ── Public API ────────────────────────────────────────────────────────────────
+// ── Public API ─────────────────────────────────────────────────────────────────
 
 function startWhatsApp() {
   if (process.env.WHATSAPP_ENABLED !== 'true') {
     console.log('[WhatsApp] ⏸  disabled (set WHATSAPP_ENABLED=true to enable)');
     return;
   }
-  if (!Client) {
-    console.log('[WhatsApp] ⚠️  whatsapp-web.js not installed');
+  if (!makeWASocket) {
+    console.log('[WhatsApp] ⚠️  @whiskeysockets/baileys not installed');
     return;
   }
-  const c = initClient();
-  if (!c) return;
   status = 'authenticating';
-  c.initialize().catch(e => {
+  console.log('[WhatsApp] 🚀 Initializing client...');
+  initClient().catch(e => {
     status = 'error';
     lastError = e?.message;
     console.error('[WhatsApp] init error:', e?.message);
   });
-  console.log('[WhatsApp] 🚀 Initializing client...');
 }
 
 function getStatus() {
   return { status, qr: lastQrDataUrl, error: lastError, info: readyInfo };
 }
 
-// List the WhatsApp groups the connected account belongs to (for easy source picking)
 async function listGroups() {
-  if (status !== 'ready' || !client) return [];
+  if (status !== 'ready' || !sock) return [];
   try {
-    const chats = await client.getChats();
-    return chats
-      .filter(c => c.isGroup)
-      .map(c => ({ id: c.id?._serialized, name: c.name, participants: c.participants?.length || 0 }));
+    const groups = await sock.groupFetchAllParticipating();
+    return Object.values(groups).map(g => ({
+      id:           g.id,
+      name:         g.subject,
+      participants: g.participants?.length || 0,
+    }));
   } catch (e) {
     console.error('[WhatsApp] listGroups error:', e?.message);
     return [];
@@ -221,11 +201,13 @@ async function listGroups() {
 }
 
 async function logout() {
-  if (client) {
-    try { await client.logout(); } catch {}
-    try { await client.destroy(); } catch {}
-    client = null;
+  clearTimeout(reconnectTimer);
+  if (sock) {
+    try { await sock.logout(); } catch {}
+    sock = null;
   }
+  // Clear saved credentials
+  try { fs.rmSync(AUTH_DIR, { recursive: true, force: true }); } catch {}
   status = 'disconnected';
   lastQrDataUrl = null;
   readyInfo = null;
