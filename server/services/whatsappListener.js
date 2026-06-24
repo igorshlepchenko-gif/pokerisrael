@@ -10,8 +10,29 @@
  */
 
 const path = require('path');
+const fs   = require('fs');
+const { execSync } = require('child_process');
 const QRCode = require('qrcode');
 const pool = require('../config/db');
+
+function findChromePath() {
+  if (process.env.CHROME_PATH) return process.env.CHROME_PATH;
+  if (process.platform === 'win32') return 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+  const candidates = [
+    '/usr/bin/chromium',
+    '/usr/bin/chromium-browser',
+    '/usr/bin/google-chrome',
+    '/usr/bin/google-chrome-stable',
+  ];
+  for (const p of candidates) {
+    try { fs.accessSync(p, fs.constants.X_OK); return p; } catch {}
+  }
+  try {
+    const found = execSync('which chromium chromium-browser google-chrome 2>/dev/null | head -1').toString().trim();
+    if (found) return found;
+  } catch {}
+  return undefined; // fall back to puppeteer bundled Chrome
+}
 
 let Client, LocalAuth;
 try {
@@ -106,10 +127,7 @@ function initClient() {
     puppeteer: {
       headless: true,
       // Use system Chrome if available (set CHROME_PATH in .env to override)
-      executablePath: process.env.CHROME_PATH ||
-        (process.platform === 'win32'
-          ? 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
-          : '/usr/bin/chromium'),
+      executablePath: findChromePath(),
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
