@@ -148,23 +148,34 @@ async function syncFeed(feed) {
            status, feed.created_by, sourceKey, t.external_id]
         );
         result.added++;
-      } else if (existing.manually_edited) {
-        // עריכה ידנית מנצחת — לא דורסים תוכן שנערך אצלנו
-        result.skipped++;
-      } else if (isChanged(existing, t)) {
-        await pool.query(
-          `UPDATE tournaments SET
-             venue_id=$1, name=$2, description=$3, cost=$4, start_time=$5, stages=$6,
-             starting_stack=$7, level_duration=$8, re_entry=$9, day_of_week=$10,
-             address=$11, city=$12, updated_at=NOW()
-           WHERE id=$13`,
-          [venueId, t.name, t.description, t.cost, t.start_time, t.stages,
-           t.starting_stack, t.level_duration, t.re_entry, t.day_of_week,
-           t.host_street || null, t.host_city || null, existing.id]
-        );
-        result.updated++;
       } else {
-        result.skipped++;
+        // כתובת מהפיד היא תמיד סמכותית — מעדכנים גם אם השורה נערכה ידנית
+        const addrChanged = (existing.address || null) !== (t.host_street || null) ||
+                            (existing.city    || null) !== (t.host_city   || null);
+        if (addrChanged) {
+          await pool.query(
+            'UPDATE tournaments SET address=$1, city=$2, updated_at=NOW() WHERE id=$3',
+            [t.host_street || null, t.host_city || null, existing.id]
+          );
+        }
+        // שאר השדות — רק אם לא נערך ידנית
+        if (existing.manually_edited) {
+          result.skipped++;
+        } else if (isChanged(existing, t)) {
+          await pool.query(
+            `UPDATE tournaments SET
+               venue_id=$1, name=$2, description=$3, cost=$4, start_time=$5, stages=$6,
+               starting_stack=$7, level_duration=$8, re_entry=$9, day_of_week=$10,
+               address=$11, city=$12, updated_at=NOW()
+             WHERE id=$13`,
+            [venueId, t.name, t.description, t.cost, t.start_time, t.stages,
+             t.starting_stack, t.level_duration, t.re_entry, t.day_of_week,
+             t.host_street || null, t.host_city || null, existing.id]
+          );
+          result.updated++;
+        } else {
+          result.skipped++;
+        }
       }
     } catch (e) {
       console.error('[feedSync] upsert error:', e.message);
