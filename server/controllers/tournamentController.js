@@ -35,8 +35,10 @@ exports.getAll = async (req, res) => {
         t.is_boosted, t.boost_label, t.re_entry, t.late_reg_level, t.gtd, t.tournament_type, t.rake, t.rake_type,
         t.platform, t.game_type, t.secondary_games, t.cash_sb, t.cash_bb, t.skipped_dates, t.external_registration_url,
         t.organizer_venue_id,
-        v.id AS venue_id, v.name AS venue_name, v.address AS venue_address,
-        v.city AS venue_city, v.whatsapp_number, v.logo_url AS venue_logo,
+        v.id AS venue_id, v.name AS venue_name,
+        COALESCE(t.address, v.address) AS venue_address,
+        COALESCE(t.city, v.city) AS venue_city,
+        v.whatsapp_number, v.logo_url AS venue_logo,
         v.venue_type AS venue_type, v.club_number AS venue_club_number, v.website AS venue_website,
         org.name AS organizer_name, org.whatsapp_number AS organizer_whatsapp, org.registration_url AS organizer_registration_url
       FROM tournaments t
@@ -117,7 +119,7 @@ exports.create = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
-  const { venue_id, name, description, cost, start_time, estimated_end_time, stages, starting_stack, level_duration, is_recurring, day_of_week, re_entry, late_reg_level, gtd, tournament_type, rake, rake_type, platform, game_type, secondary_games, cash_sb, cash_bb, external_registration_url } = req.body;
+  const { venue_id, name, description, cost, start_time, estimated_end_time, stages, starting_stack, level_duration, is_recurring, day_of_week, re_entry, late_reg_level, gtd, tournament_type, rake, rake_type, platform, game_type, secondary_games, cash_sb, cash_bb, external_registration_url, address, city } = req.body;
 
   try {
     const venueCheck = await pool.query(
@@ -134,8 +136,8 @@ exports.create = async (req, res) => {
 
     const result = await pool.query(
       `INSERT INTO tournaments
-        (venue_id, name, description, cost, start_time, estimated_end_time, stages, starting_stack, level_duration, is_recurring, day_of_week, re_entry, late_reg_level, gtd, tournament_type, rake, rake_type, platform, game_type, secondary_games, cash_sb, cash_bb, created_by, status, external_registration_url)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25)
+        (venue_id, name, description, cost, start_time, estimated_end_time, stages, starting_stack, level_duration, is_recurring, day_of_week, re_entry, late_reg_level, gtd, tournament_type, rake, rake_type, platform, game_type, secondary_games, cash_sb, cash_bb, created_by, status, external_registration_url, address, city)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27)
        RETURNING *`,
       [venue_id, name, description, cost, start_time, estimated_end_time,
        JSON.stringify(stages || []), starting_stack || null, level_duration || null, is_recurring || false, day_of_week,
@@ -143,7 +145,8 @@ exports.create = async (req, res) => {
        rake || null, rake_type || 'amount',
        platform || null, game_type || null, JSON.stringify(secondary_games || []),
        cash_sb || null, cash_bb || null,
-       req.user.id, status, external_registration_url || null]
+       req.user.id, status, external_registration_url || null,
+       address || null, city || null]
     );
 
     const newTournament = result.rows[0];
@@ -533,7 +536,7 @@ exports.updateTournament = async (req, res) => {
     stages, starting_stack, level_duration, is_recurring, day_of_week,
     re_entry, late_reg_level, gtd, rake, rake_type,
     platform, game_type, secondary_games, cash_sb, cash_bb,
-    external_registration_url,
+    external_registration_url, address, city,
   } = req.body;
 
   try {
@@ -561,8 +564,9 @@ exports.updateTournament = async (req, res) => {
          rake = $14, rake_type = $15,
          platform = $16, game_type = $17, secondary_games = $18,
          cash_sb = $19, cash_bb = $20, external_registration_url = $21,
+         address = $22, city = $23,
          manually_edited = true, updated_at = NOW()
-       WHERE id = $22
+       WHERE id = $24
        RETURNING *`,
       [
         name, description, cost, start_time, estimated_end_time || null,
@@ -573,6 +577,7 @@ exports.updateTournament = async (req, res) => {
         rake || null, rake_type || 'amount',
         platform || null, game_type || null, JSON.stringify(secondary_games || []),
         cash_sb || null, cash_bb || null, external_registration_url || null,
+        address || null, city || null,
         id,
       ]
     );

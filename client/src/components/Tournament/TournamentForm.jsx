@@ -161,6 +161,8 @@ export default function TournamentForm({ venues, tournament = null, onSuccess, o
     cash_sb:             tournament?.cash_sb         ?? '',
     cash_bb:             tournament?.cash_bb         ?? '',
     external_registration_url: tournament?.external_registration_url ?? '',
+    address: tournament?.address ?? '',
+    city:    tournament?.city    ?? '',
   });
 
   // ── משחקי קאש: בחירה מרובה + ראשי/משני ─────────────────────────
@@ -1269,6 +1271,38 @@ export default function TournamentForm({ venues, tournament = null, onSuccess, o
           className="input-field text-sm"
         />
       </div>
+
+      {/* כתובת ספציפית לטורניר */}
+      {tournamentType === 'live' && (
+        <div className="border border-slate-700 rounded-xl p-4 space-y-3">
+          <div>
+            <label className="block text-sm font-semibold text-slate-300">📍 כתובת ספציפית לאירוע <span className="text-slate-500 font-normal text-xs">(אופציונלי)</span></label>
+            <p className="text-xs text-slate-500 mt-1">אם האירוע מתקיים בכתובת שונה מכתובת המועדון הקבועה, הכנס אותה כאן.</p>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">כתובת</label>
+              <input
+                type="text"
+                value={form.address}
+                onChange={e => set('address', e.target.value)}
+                placeholder="רחוב הרצל 1"
+                className="input-field text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">עיר</label>
+              <input
+                type="text"
+                value={form.city}
+                onChange={e => set('city', e.target.value)}
+                placeholder="תל אביב"
+                className="input-field text-sm"
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="flex gap-3 pt-2">
         <button type="submit" disabled={loading} className="btn-primary flex-1">

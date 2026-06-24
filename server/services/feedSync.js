@@ -42,7 +42,16 @@ function normalize(t) {
     day_of_week: t.day ? (DAY_NAME_MAP[String(t.day).toLowerCase()] ?? null) : null,
     stages: JSON.stringify(stages),
     host_name: t.host?.name || null,
-    host_address: t.host?.address || t.address || null,
+    host_address: t.host?.address || t.address || null, // full string — used for venue matching
+    ...(() => {
+      const raw = t.host?.address || t.address || null;
+      if (!raw) return { host_street: null, host_city: null };
+      const parts = raw.split(',');
+      return {
+        host_street: parts[0].trim() || null,
+        host_city:   parts.length > 1 ? parts.slice(1).join(',').trim() || null : null,
+      };
+    })(),
   };
 }
 
@@ -80,7 +89,9 @@ function isChanged(existing, feed) {
     Number(existing.cost) !== Number(feed.cost) ||
     new Date(existing.start_time).getTime() !== new Date(feed.start_time).getTime() ||
     (existing.description || null) !== (feed.description || null) ||
-    Number(existing.starting_stack ?? 0) !== Number(feed.starting_stack ?? 0)
+    Number(existing.starting_stack ?? 0) !== Number(feed.starting_stack ?? 0) ||
+    (existing.address || null) !== (feed.host_street || null) ||
+    (existing.city    || null) !== (feed.host_city   || null)
   );
 }
 
@@ -110,7 +121,7 @@ async function syncFeed(feed) {
 
   // 2. טורנירים קיימים שמקורם בפיד הזה (לפי מארגן)
   const existingRes = await pool.query(
-    `SELECT id, external_id, name, cost, start_time, description, starting_stack, manually_edited
+    `SELECT id, external_id, name, cost, start_time, description, starting_stack, manually_edited, address, city
      FROM tournaments WHERE external_source = $1 AND organizer_venue_id = $2`,
     [sourceKey, organizerVenueId]
   );
@@ -128,11 +139,12 @@ async function syncFeed(feed) {
         await pool.query(
           `INSERT INTO tournaments
              (venue_id, organizer_venue_id, name, description, cost, start_time, stages, starting_stack,
-              level_duration, re_entry, day_of_week, is_recurring, tournament_type,
+              level_duration, re_entry, day_of_week, is_recurring, tournament_type, address, city,
               status, created_by, external_source, external_id)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,false,'live',$12,$13,$14,$15)`,
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,false,'live',$12,$13,$14,$15,$16,$17)`,
           [venueId, organizerVenueId, t.name, t.description, t.cost, t.start_time, t.stages,
            t.starting_stack, t.level_duration, t.re_entry, t.day_of_week,
+           t.host_street || null, t.host_city || null,
            status, feed.created_by, sourceKey, t.external_id]
         );
         result.added++;
@@ -143,10 +155,12 @@ async function syncFeed(feed) {
         await pool.query(
           `UPDATE tournaments SET
              venue_id=$1, name=$2, description=$3, cost=$4, start_time=$5, stages=$6,
-             starting_stack=$7, level_duration=$8, re_entry=$9, day_of_week=$10, updated_at=NOW()
-           WHERE id=$11`,
+             starting_stack=$7, level_duration=$8, re_entry=$9, day_of_week=$10,
+             address=$11, city=$12, updated_at=NOW()
+           WHERE id=$13`,
           [venueId, t.name, t.description, t.cost, t.start_time, t.stages,
-           t.starting_stack, t.level_duration, t.re_entry, t.day_of_week, existing.id]
+           t.starting_stack, t.level_duration, t.re_entry, t.day_of_week,
+           t.host_street || null, t.host_city || null, existing.id]
         );
         result.updated++;
       } else {

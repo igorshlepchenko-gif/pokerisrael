@@ -100,6 +100,8 @@ async function ensureSchema() {
       `ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS organizer_venue_id INTEGER REFERENCES venues(id) ON DELETE SET NULL`,
       `ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS manually_edited BOOLEAN DEFAULT false`,
       `ALTER TABLE venues ADD COLUMN IF NOT EXISTS registration_url VARCHAR(500)`,
+      `ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS address TEXT`,
+      `ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS city VARCHAR(100)`,
     ];
     for (const sql of MIGRATIONS) {
       try { await pool.query(sql); } catch (e) { console.error('migration failed:', e.message); }
