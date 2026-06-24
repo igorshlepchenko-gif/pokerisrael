@@ -109,7 +109,7 @@ function initClient() {
       executablePath: process.env.CHROME_PATH ||
         (process.platform === 'win32'
           ? 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
-          : undefined),
+          : '/usr/bin/chromium'),
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
