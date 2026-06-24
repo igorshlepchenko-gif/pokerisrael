@@ -66,40 +66,60 @@ function StepIndicator({ steps, current }) {
   );
 }
 
+const DRAFT_KEY = 'handlogger_draft_v1';
+function loadDraft() {
+  try { return JSON.parse(localStorage.getItem(DRAFT_KEY)) || null; } catch { return null; }
+}
+function clearDraft() { localStorage.removeItem(DRAFT_KEY); }
+
 export default function HandLoggerWizard({ onClose, onSaved }) {
-  const [step, setStep] = useState(0);
-  const [gameType, setGameType] = useState(null);
+  const _d = loadDraft();
+
+  const [step, setStep] = useState(_d?.step ?? 0);
+  const [gameType, setGameType] = useState(_d?.gameType ?? null);
 
   // Game context
-  const [tournamentStage, setTournamentStage] = useState('');
-  const [blindPreset, setBlindPreset] = useState('');
-  const [customSb, setCustomSb] = useState('');
-  const [customBb, setCustomBb] = useState('');
-  const [ante, setAnte] = useState(0);
-  const [stakesPreset, setStakesPreset] = useState('');
-  const [customStakes, setCustomStakes] = useState('');
+  const [tournamentStage, setTournamentStage] = useState(_d?.tournamentStage ?? '');
+  const [blindPreset, setBlindPreset] = useState(_d?.blindPreset ?? '');
+  const [customSb, setCustomSb] = useState(_d?.customSb ?? '');
+  const [customBb, setCustomBb] = useState(_d?.customBb ?? '');
+  const [ante, setAnte] = useState(_d?.ante ?? 0);
+  const [stakesPreset, setStakesPreset] = useState(_d?.stakesPreset ?? '');
+  const [customStakes, setCustomStakes] = useState(_d?.customStakes ?? '');
 
   // Players
-  const [playersCount, setPlayersCount] = useState(6);
-  const [opponents, setOpponents] = useState([]);
+  const [playersCount, setPlayersCount] = useState(_d?.playersCount ?? 6);
+  const [opponents, setOpponents] = useState(_d?.opponents ?? []);
 
   // Hero
-  const [heroPosition, setHeroPosition] = useState('');
-  const [heroStack, setHeroStack] = useState('');
-  const [heroCards, setHeroCards] = useState([]);
+  const [heroPosition, setHeroPosition] = useState(_d?.heroPosition ?? '');
+  const [heroStack, setHeroStack] = useState(_d?.heroStack ?? '');
+  const [heroCards, setHeroCards] = useState(_d?.heroCards ?? []);
 
   // Streets actions
-  const [handData, setHandData] = useState(initHandData);
+  const [handData, setHandData] = useState(_d?.handData ?? initHandData);
 
   // Result
-  const [result, setResult] = useState('');
-  const [heroProfit, setHeroProfit] = useState('');
-  const [notes, setNotes] = useState('');
-  const [showShowdown, setShowShowdown] = useState(false);
-  const [oppRevealedCards, setOppRevealedCards] = useState([]);
+  const [result, setResult] = useState(_d?.result ?? '');
+  const [heroProfit, setHeroProfit] = useState(_d?.heroProfit ?? '');
+  const [notes, setNotes] = useState(_d?.notes ?? '');
+  const [showShowdown, setShowShowdown] = useState(_d?.showShowdown ?? false);
+  const [oppRevealedCards, setOppRevealedCards] = useState(_d?.oppRevealedCards ?? []);
 
   // Narrative (generated at result step)
-  const [narrative, setNarrative] = useState('');
+  const [narrative, setNarrative] = useState(_d?.narrative ?? '');
+
+  // Auto-save draft on every state change
+  useEffect(() => {
+    if (!gameType && step === 0) return; // don't save empty state
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({
+      step, gameType, tournamentStage, blindPreset, customSb, customBb, ante,
+      stakesPreset, customStakes, playersCount, opponents, heroPosition, heroStack,
+      heroCards, handData, result, heroProfit, notes, showShowdown, oppRevealedCards, narrative,
+    }));
+  }, [step, gameType, tournamentStage, blindPreset, customSb, customBb, ante,
+      stakesPreset, customStakes, playersCount, opponents, heroPosition, heroStack,
+      heroCards, handData, result, heroProfit, notes, showShowdown, oppRevealedCards, narrative]);
 
   const isTournament = gameType === 'tournament' || gameType === 'tournament_online';
   const unit = isTournament ? 'BB' : '₪';
@@ -339,17 +359,16 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
     if (step === 0) return (
       <div className="grid grid-cols-2 gap-3 py-4">
         {[
-          { key: 'tournament',        icon: '🏆', label: 'טורניר לייב',    sub: '' },
-          { key: 'cash',              icon: '💰', label: 'קאש לייב',       sub: '' },
-          { key: 'tournament_online', icon: '💻', label: 'טורניר אונליין', sub: 'ClubGG / PPPoker' },
-          { key: 'cash_online',       icon: '🖥️', label: 'קאש אונליין',   sub: 'ClubGG / PPPoker' },
+          { key: 'tournament',        icon: '🏆', label: 'טורניר לייב' },
+          { key: 'cash',              icon: '💰', label: 'קאש לייב'    },
+          { key: 'tournament_online', icon: '💻', label: 'טורניר אונליין' },
+          { key: 'cash_online',       icon: '🖥️', label: 'קאש אונליין'   },
         ].map(g => (
           <button key={g.key} onClick={() => { setGameType(g.key); setStep(1); }}
             className={`flex flex-col items-center gap-2 p-5 rounded-2xl border-2 transition-all hover:scale-105 active:scale-95
               ${gameType === g.key ? 'border-blue-400 bg-blue-600/20 shadow-lg shadow-blue-500/20' : 'border-slate-600 bg-slate-800/40 hover:border-blue-500/50'}`}>
             <span className="text-4xl">{g.icon}</span>
             <span className="font-bold text-slate-200 text-sm">{g.label}</span>
-            <span className="text-[10px] text-slate-500">{g.sub}</span>
           </button>
         ))}
       </div>
@@ -736,8 +755,8 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
       <HandSummary
         handState={buildState()}
         narrative={narrative}
-        onSaveSuccess={onSaved}
-        onReset={() => { setStep(0); setGameType(null); setHandData(initHandData()); setHeroCards([]); setOpponents([]); setResult(''); setNarrative(''); setOppRevealedCards([]); setHeroProfit(''); setNotes(''); }}
+        onSaveSuccess={() => { clearDraft(); onSaved?.(); }}
+        onReset={() => { clearDraft(); setStep(0); setGameType(null); setHandData(initHandData()); setHeroCards([]); setOpponents([]); setResult(''); setNarrative(''); setOppRevealedCards([]); setHeroProfit(''); setNotes(''); }}
       />
     );
 

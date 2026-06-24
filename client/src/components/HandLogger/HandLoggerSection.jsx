@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import HandLoggerWizard from './HandLoggerWizard';
 import api from '../../utils/api';
 
@@ -45,17 +45,73 @@ function HandPreview({ hand }) {
   );
 }
 
+function NoAccessModal({ user, onClose }) {
+  const waPhone = '972545861119';
+  const waText  = encodeURIComponent(`שלום, שמי ${user?.name || ''} ואני מעוניין להשתמש בכלי רישום הידיים שלכם`);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.75)' }}
+      onClick={onClose}
+    >
+      <div
+        className="rounded-2xl border border-slate-700 p-6 max-w-md w-full"
+        style={{ background: 'linear-gradient(135deg, rgba(13,21,38,0.98) 0%, rgba(6,9,26,0.98) 100%)' }}
+        dir="rtl"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center gap-3 mb-4">
+          <span className="text-2xl">🔒</span>
+          <h3 className="text-lg font-black text-white">גישה מוגבלת</h3>
+        </div>
+        <p className="text-slate-300 text-sm leading-relaxed mb-6">
+          חבר יקר, אין לך הרשאה לכלי רישום הידיים. כלי זה נמצא כרגע בתהליך בניה ושיפורים ולכן אינו פתוח לקהל הרחב. לבקשת גישה נא לפנות להנהלת האתר.
+        </p>
+        <div className="flex gap-3">
+          <a
+            href={`https://wa.me/${waPhone}?text=${waText}`}
+            target="_blank"
+            rel="noreferrer"
+            className="flex-1 py-2.5 rounded-xl text-sm font-black text-white text-center transition-all hover:scale-105 active:scale-95"
+            style={{ background: 'linear-gradient(135deg, #16a34a, #22c55e)', boxShadow: '0 0 16px rgba(34,197,94,0.3)' }}
+          >
+            💬 פנייה בוואטסאפ
+          </a>
+          <button
+            onClick={onClose}
+            className="px-5 py-2.5 rounded-xl text-sm font-bold text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 transition-all"
+          >
+            סגור
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function HandLoggerSection() {
   const { user } = useAuth();
+  const navigate  = useNavigate();
+  const [wizardOpen,   setWizardOpen]   = useState(false);
+  const [noAccessOpen, setNoAccessOpen] = useState(false);
+  const [recentHands,  setRecentHands]  = useState([]);
+  const [totalHands,   setTotalHands]   = useState(0);
 
-  // הצג רק למי שיש אישור גישה (או אדמין)
-  if (!user || (!user.hand_logger_access && user.role !== 'admin')) return null;
-  const [wizardOpen, setWizardOpen] = useState(false);
-  const [recentHands, setRecentHands] = useState([]);
-  const [totalHands, setTotalHands] = useState(0);
+  const hasAccess = user && (user.hand_logger_access || user.role === 'admin');
+
+  const handleRegisterClick = () => {
+    if (!user) {
+      navigate('/login');
+    } else if (!hasAccess) {
+      setNoAccessOpen(true);
+    } else {
+      setWizardOpen(true);
+    }
+  };
 
   const fetchHands = async () => {
-    if (!user) return;
+    if (!hasAccess) return;
     try {
       const res = await api.get('/hand-histories', { params: { limit: 3 } });
       setRecentHands(res.data.hands || []);
@@ -67,6 +123,8 @@ export default function HandLoggerSection() {
 
   return (
     <>
+      {noAccessOpen && <NoAccessModal user={user} onClose={() => setNoAccessOpen(false)} />}
+
       {wizardOpen && (
         <HandLoggerWizard
           onClose={() => setWizardOpen(false)}
@@ -79,7 +137,6 @@ export default function HandLoggerSection() {
           style={{ background: 'linear-gradient(135deg, rgba(13,21,38,0.95) 0%, rgba(6,9,26,0.95) 100%)', borderColor: 'rgba(29,78,216,0.2)' }}>
 
           <div className="relative p-6 sm:p-8">
-            {/* Subtle background glow */}
             <div className="absolute top-0 left-0 w-64 h-64 rounded-full opacity-[0.04] pointer-events-none"
               style={{ background: 'radial-gradient(circle, #1d4ed8, transparent)' }} />
 
@@ -89,43 +146,34 @@ export default function HandLoggerSection() {
                 <div className="flex items-center gap-3 mb-2">
                   <div className="text-3xl">🃏</div>
                   <h2 className="text-xl font-black text-white">רישום ידיים</h2>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold text-blue-300 border border-blue-500/30 bg-blue-500/10">חדש</span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold text-blue-300 border border-blue-500/30 bg-blue-500/10">BETA</span>
                 </div>
                 <p className="text-slate-400 text-sm leading-relaxed mb-3">
                   תעד ידיים שיחקת, קבל ניתוח מקצועי בעברית וצור סרטון לשיתוף — בכמה לחיצות בלבד.
                 </p>
-                {user ? (
-                  <div className="flex items-center gap-4 flex-wrap">
-                    <button onClick={() => setWizardOpen(true)}
-                      className="px-5 py-2.5 rounded-xl text-sm font-black text-white transition-all hover:scale-105 active:scale-95"
-                      style={{ background: 'linear-gradient(135deg, #1d4ed8, #2563eb)', boxShadow: '0 0 20px rgba(29,78,216,0.4)' }}>
-                      + רשום יד חדשה
-                    </button>
-                    {totalHands > 0 && (
-                      <Link to="/hands"
-                        className="text-sm text-blue-400 hover:text-blue-300 font-bold transition-colors underline-offset-2 hover:underline">
-                        כל הידיים שלי ({totalHands}) →
-                      </Link>
-                    )}
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-3">
-                    <Link to="/login"
-                      className="px-5 py-2.5 rounded-xl text-sm font-black text-white transition-all hover:scale-105"
-                      style={{ background: 'linear-gradient(135deg, #1d4ed8, #2563eb)', boxShadow: '0 0 20px rgba(29,78,216,0.3)' }}>
-                      התחבר לרישום ידיים
+                <div className="flex items-center gap-4 flex-wrap">
+                  <button
+                    onClick={handleRegisterClick}
+                    className="px-5 py-2.5 rounded-xl text-sm font-black text-white transition-all hover:scale-105 active:scale-95"
+                    style={{ background: 'linear-gradient(135deg, #1d4ed8, #2563eb)', boxShadow: '0 0 20px rgba(29,78,216,0.4)' }}
+                  >
+                    + רשום יד ←
+                  </button>
+                  {hasAccess && totalHands > 0 && (
+                    <Link to="/hands"
+                      className="text-sm text-blue-400 hover:text-blue-300 font-bold transition-colors underline-offset-2 hover:underline">
+                      כל הידיים שלי ({totalHands}) →
                     </Link>
-                    <span className="text-xs text-slate-500">נדרשת התחברות</span>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
 
               {/* Feature highlights */}
               <div className="flex sm:flex-col gap-2 flex-shrink-0 flex-wrap sm:flex-nowrap">
                 {[
-                  { icon: '📝', text: 'נרטיב מקצועי' },
-                  { icon: '🎬', text: 'סרטון לשיתוף'  },
-                  { icon: '💬', text: 'שיתוף WhatsApp' },
+                  { icon: '📝', text: 'תיאור היד במלל מקצועי' },
+                  { icon: '🎬', text: 'אנימציית GGPoker-style' },
+                  { icon: '💬', text: 'הפק סרטון ושלח לחברים' },
                 ].map(f => (
                   <div key={f.text}
                     className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-700/40 border border-slate-600/40 flex-shrink-0"
@@ -138,7 +186,7 @@ export default function HandLoggerSection() {
             </div>
 
             {/* Recent hands preview */}
-            {user && recentHands.length > 0 && (
+            {hasAccess && recentHands.length > 0 && (
               <div className="mt-6 pt-5 border-t" style={{ borderColor: 'rgba(29,78,216,0.12)' }} dir="rtl">
                 <div className="flex items-center justify-between mb-3">
                   <Link to="/hands" className="text-xs text-blue-400 hover:text-blue-300 transition-colors">

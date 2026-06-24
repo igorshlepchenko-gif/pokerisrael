@@ -5,6 +5,7 @@ export default function HandVideoCanvas({ handState, narrative }) {
   const [status, setStatus] = useState('idle'); // idle | recording | ready | error
   const [progress, setProgress] = useState(0);
   const [videoUrl, setVideoUrl] = useState(null);
+  const [errorMsg, setErrorMsg] = useState('');
   const blobRef = useRef(null);
 
   const generate = async () => {
@@ -17,6 +18,7 @@ export default function HandVideoCanvas({ handState, narrative }) {
       setStatus('ready');
     } catch (e) {
       console.error(e);
+      setErrorMsg(e?.message || String(e));
       setStatus('error');
     }
   };
@@ -87,6 +89,11 @@ export default function HandVideoCanvas({ handState, narrative }) {
       {status === 'error' && (
         <div className="text-center py-3">
           <div className="text-red-400 text-sm mb-2">שגיאה בייצור הסרטון</div>
+          {errorMsg && (
+            <div className="text-red-300 text-xs font-mono bg-slate-900 rounded p-2 mb-2 text-left break-all">
+              {errorMsg}
+            </div>
+          )}
           <button onClick={generate}
             className="px-4 py-1.5 rounded-lg bg-slate-700 text-slate-300 text-xs hover:bg-slate-600">
             נסה שוב
