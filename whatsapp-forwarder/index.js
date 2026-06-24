@@ -16,9 +16,10 @@ const path  = require('path');
 const https = require('https');
 const http  = require('http');
 
-const WEBHOOK_URL  = process.env.WEBHOOK_URL  || 'https://www.pokerisrael.org/api/agent/whatsapp-webhook';
-const GROUP_FILTER = (process.env.GROUPS || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
-const AUTH_DIR     = path.join(__dirname, '.auth');
+const WEBHOOK_URL   = process.env.WEBHOOK_URL  || 'https://www.pokerisrael.org/api/agent/whatsapp-webhook';
+const HEARTBEAT_URL = process.env.HEARTBEAT_URL || 'https://www.pokerisrael.org/api/agent/whatsapp/forwarder-heartbeat';
+const GROUP_FILTER  = (process.env.GROUPS || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+const AUTH_DIR      = path.join(__dirname, '.auth');
 
 let makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion;
 try {
@@ -40,10 +41,10 @@ function normName(s) {
   return (s || '').replace(/[\u{1F000}-\u{1FFFF}]/gu, '').replace(/\s+/g, ' ').trim().toLowerCase();
 }
 
-function postWebhook(groupName, body) {
+function postJSON(targetUrl, data) {
   return new Promise((resolve) => {
-    const payload = JSON.stringify({ from: groupName, text: body, message: body });
-    const url = new URL(WEBHOOK_URL);
+    const payload = JSON.stringify(data);
+    const url = new URL(targetUrl);
     const mod = url.protocol === 'https:' ? https : http;
     const req = mod.request({
       hostname: url.hostname,
@@ -51,14 +52,15 @@ function postWebhook(groupName, body) {
       path: url.pathname,
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) },
-    }, (res) => {
-      res.resume();
-      resolve(res.statusCode);
-    });
-    req.on('error', (e) => { console.error('⚠️  Webhook error:', e.message); resolve(0); });
+    }, (res) => { res.resume(); resolve(res.statusCode); });
+    req.on('error', () => resolve(0));
     req.write(payload);
     req.end();
   });
+}
+
+function postWebhook(groupName, body) {
+  return postJSON(WEBHOOK_URL, { from: groupName, text: body, message: body });
 }
 
 async function start() {
@@ -82,6 +84,8 @@ async function start() {
 
   sock.ev.on('creds.update', saveCreds);
 
+  let heartbeatTimer = null;
+
   sock.ev.on('connection.update', ({ connection, lastDisconnect, qr }) => {
     if (qr) {
       console.log('\n📱 סרוק את קוד ה-QR עם הוואטסאפ שלך:\n');
@@ -89,13 +93,21 @@ async function start() {
       else console.log('QR:', qr.substring(0, 60) + '...');
     }
     if (connection === 'open') {
-      console.log('✅ WhatsApp מחובר!');
+      const pushname = sock.user?.name || '';
+      const number   = sock.user?.id?.split(':')[0] || '';
+      console.log('✅ WhatsApp מחובר!', pushname ? `(${pushname})` : '');
       if (GROUP_FILTER.length)
         console.log('👂 מאזין לקבוצות:', GROUP_FILTER.join(', '));
       else
         console.log('👂 מאזין לכל הקבוצות');
+
+      // Send heartbeat immediately and every 30s so the admin panel shows "connected"
+      const beat = () => postJSON(HEARTBEAT_URL, { pushname, number, groups: GROUP_FILTER });
+      beat();
+      heartbeatTimer = setInterval(beat, 30_000);
     }
     if (connection === 'close') {
+      clearInterval(heartbeatTimer);
       const code = lastDisconnect?.error?.output?.statusCode;
       if (code === (DisconnectReason?.loggedOut ?? 401)) {
         console.log('🚪 נותקת. מחק את תיקיית .auth והפעל מחדש.');

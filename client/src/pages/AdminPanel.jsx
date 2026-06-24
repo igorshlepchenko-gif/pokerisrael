@@ -1202,6 +1202,26 @@ export default function AdminPanel() {
                   {/* ── WhatsApp connection ── */}
                   <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
                     {(() => {
+                      const fwd = waStatus?.forwarder;
+                      // If local forwarder is active, show its status (preferred mode)
+                      if (fwd) {
+                        return (
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-bold text-emerald-400">🟢 WhatsApp: מחובר</span>
+                              <span className="text-xs text-slate-500">Forwarder מקומי פעיל</span>
+                            </div>
+                            {fwd.info?.pushname && (
+                              <div className="text-xs text-slate-400">{fwd.info.pushname} · {fwd.info.number}</div>
+                            )}
+                            <p className="text-xs text-slate-500 mt-1">
+                              הוואטסאפ מחובר דרך המחשב שלך. כשהסקריפט <code className="bg-slate-800 px-1 rounded">whatsapp-forwarder/index.js</code> פועל — ההודעות מגיעות לשרת אוטומטית.
+                            </p>
+                          </div>
+                        );
+                      }
+
+                      // Fallback: server-side Baileys status
                       const st = waStatus?.status || 'disconnected';
                       const STATUS_UI = {
                         disconnected: { icon: '⚪', label: 'מנותק',     color: 'text-slate-400' },
@@ -1214,52 +1234,22 @@ export default function AdminPanel() {
                       return (
                         <div className="space-y-3">
                           <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              {st === 'disconnected' && (
-                                <button onClick={async () => {
-                                  await api.post('/agent/whatsapp/connect');
-                                  setWaStatus({ status: 'authenticating' });
-                                }}
-                                  className="px-4 py-1.5 rounded-lg bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-500 transition-all">
-                                  🔗 התחבר לוואטסאפ
-                                </button>
-                              )}
-                              {st === 'ready' && (
-                                <button onClick={async () => {
-                                  if (!confirm('להתנתק מוואטסאפ?')) return;
-                                  await api.post('/agent/whatsapp/logout');
-                                  setWaStatus({ status: 'disconnected' });
-                                }}
-                                  className="px-3 py-1.5 rounded-lg border border-red-500/30 text-red-400 text-sm font-bold hover:bg-red-500/10 transition-all">
-                                  התנתק
-                                </button>
-                              )}
-                            </div>
                             <div className="flex items-center gap-2 text-right">
                               <div>
                                 <span className={`text-sm font-bold ${ui.color}`}>{ui.icon} WhatsApp: {ui.label}</span>
                                 {waStatus?.info?.pushname && (
                                   <div className="text-xs text-slate-500">{waStatus.info.pushname} · {waStatus.info.number}</div>
                                 )}
-                                {waStatus?.error && <div className="text-xs text-red-400/70">{waStatus.error}</div>}
                               </div>
                             </div>
                           </div>
-
-                          {/* QR code */}
-                          {st === 'qr' && waStatus?.qr && (
-                            <div className="flex flex-col items-center gap-2 py-2">
-                              <img src={waStatus.qr} alt="WhatsApp QR" className="w-56 h-56 rounded-xl bg-white p-2" />
-                              <p className="text-xs text-slate-400 text-center max-w-xs">
-                                📱 פתח WhatsApp בטלפון ← הגדרות ← מכשירים מקושרים ← קשר מכשיר ← סרוק את הקוד
-                              </p>
-                            </div>
-                          )}
-                          {st === 'authenticating' && (
-                            <div className="text-center py-3 text-slate-400 text-sm">
-                              <span className="animate-pulse">⏳ מאתחל חיבור... (טוען QR בעוד רגע)</span>
-                            </div>
-                          )}
+                          <div className="rounded-lg bg-slate-800/60 p-3 text-xs text-slate-400 space-y-1">
+                            <p className="font-bold text-slate-300">כיצד לחבר WhatsApp:</p>
+                            <p>1. פתח טרמינל בתיקיית הפרויקט</p>
+                            <p>2. <code className="bg-slate-700 px-1 rounded">cd whatsapp-forwarder</code></p>
+                            <p>3. <code className="bg-slate-700 px-1 rounded">node index.js</code></p>
+                            <p>4. סרוק QR שיופיע בטרמינל → הסטטוס כאן יתעדכן אוטומטית</p>
+                          </div>
                         </div>
                       );
                     })()}

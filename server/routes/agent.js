@@ -6,11 +6,29 @@ const wa = require('../services/whatsappListener');
 
 const router = express.Router();
 
+// ── WhatsApp Forwarder heartbeat (called by local whatsapp-forwarder script) ──
+let forwarderLastSeen = null; // ms timestamp
+let forwarderInfo     = null; // { pushname, number, groups }
+
+// POST /api/agent/whatsapp/forwarder-heartbeat — no auth, called by local script
+router.post('/whatsapp/forwarder-heartbeat', (req, res) => {
+  forwarderLastSeen = Date.now();
+  forwarderInfo     = req.body || null;
+  res.json({ ok: true });
+});
+
 // ── WhatsApp connection management (admin only) ───────────────────────────────
 
 // GET /api/agent/whatsapp/status — connection state + QR code
 router.get('/whatsapp/status', authenticate, requireRole('admin'), (req, res) => {
-  res.json(wa.getStatus());
+  const base = wa.getStatus();
+  const forwarderAlive = forwarderLastSeen && (Date.now() - forwarderLastSeen < 90_000);
+  res.json({
+    ...base,
+    forwarder: forwarderAlive
+      ? { status: 'ready', info: forwarderInfo, lastSeen: forwarderLastSeen }
+      : null,
+  });
 });
 
 // POST /api/agent/whatsapp/connect — start the client (triggers QR)
