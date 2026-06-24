@@ -16,18 +16,21 @@ const path  = require('path');
 const https = require('https');
 const http  = require('http');
 
-const WEBHOOK_URL   = process.env.WEBHOOK_URL  || 'https://www.pokerisrael.org/api/agent/whatsapp-webhook';
-const HEARTBEAT_URL = process.env.HEARTBEAT_URL || 'https://www.pokerisrael.org/api/agent/whatsapp/forwarder-heartbeat';
+const BASE_URL      = process.env.BASE_URL      || 'https://www.pokerisrael.org';
+const WEBHOOK_URL   = process.env.WEBHOOK_URL   || `${BASE_URL}/api/agent/whatsapp-webhook`;
+const IMAGE_URL     = process.env.IMAGE_URL     || `${BASE_URL}/api/agent/whatsapp-image`;
+const HEARTBEAT_URL = process.env.HEARTBEAT_URL || `${BASE_URL}/api/agent/whatsapp/forwarder-heartbeat`;
 const GROUP_FILTER  = (process.env.GROUPS || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
 const AUTH_DIR      = path.join(__dirname, '.auth');
 
-let makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion;
+let makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, downloadContentFromMessage;
 try {
   const b = require('@whiskeysockets/baileys');
-  makeWASocket              = b.default || b.makeWASocket || b;
-  useMultiFileAuthState     = b.useMultiFileAuthState;
-  DisconnectReason          = b.DisconnectReason;
-  fetchLatestBaileysVersion = b.fetchLatestBaileysVersion;
+  makeWASocket                 = b.default || b.makeWASocket || b;
+  useMultiFileAuthState        = b.useMultiFileAuthState;
+  DisconnectReason             = b.DisconnectReason;
+  fetchLatestBaileysVersion    = b.fetchLatestBaileysVersion;
+  downloadContentFromMessage   = b.downloadContentFromMessage;
 } catch (e) {
   console.error('❌ @whiskeysockets/baileys not found. Run: npm install');
   process.exit(1);
@@ -124,11 +127,6 @@ async function start() {
       if (!msg.key?.remoteJid?.endsWith('@g.us')) continue;
       if (msg.key?.fromMe) continue;
 
-      const body = msg.message?.conversation
-        || msg.message?.extendedTextMessage?.text
-        || '';
-      if (body.length < 20) continue;
-
       let groupName = '';
       try {
         const meta = await sock.groupMetadata(msg.key.remoteJid);
@@ -138,9 +136,40 @@ async function start() {
       // Filter by group name if configured
       if (GROUP_FILTER.length) {
         const gn = normName(groupName);
-        const match = GROUP_FILTER.some(f => gn.includes(f) || f.includes(gn));
-        if (!match) continue;
+        if (!GROUP_FILTER.some(f => gn.includes(f) || f.includes(gn))) continue;
       }
+
+      const msgContent = msg.message || {};
+      const msgType    = Object.keys(msgContent)[0] || '';
+
+      // ── Image message → Weekly Schedule parser ──────────────────────────────
+      if (msgType === 'imageMessage' && downloadContentFromMessage) {
+        try {
+          const imgMsg  = msgContent.imageMessage;
+          const caption = imgMsg.caption || '';
+          console.log(`🖼️  תמונה מ-"${groupName}"${caption ? ` — "${caption.slice(0,40)}"` : ''} — מוריד...`);
+
+          const stream = await downloadContentFromMessage(imgMsg, 'image');
+          const chunks = [];
+          for await (const chunk of stream) chunks.push(chunk);
+          const buffer   = Buffer.concat(chunks);
+          const base64   = buffer.toString('base64');
+          const mimeType = imgMsg.mimetype || 'image/jpeg';
+
+          console.log(`   גודל: ${Math.round(buffer.length / 1024)}KB — שולח לשרת לניתוח...`);
+          const status = await postJSON(IMAGE_URL, { from: groupName, imageBase64: base64, mimeType, caption });
+          console.log(`   ${status === 200 ? '✅' : '⚠️'} תגובת שרת: ${status}`);
+        } catch (e) {
+          console.error(`⚠️  שגיאה בהורדת תמונה מ-"${groupName}":`, e.message);
+        }
+        continue;
+      }
+
+      // ── Text message → Webhook ──────────────────────────────────────────────
+      const body = msgContent.conversation
+        || msgContent.extendedTextMessage?.text
+        || '';
+      if (body.length < 20) continue;
 
       console.log(`📨 הודעה מ-"${groupName}" (${body.length} תווים) — שולח לשרת...`);
       const status = await postWebhook(groupName, body);

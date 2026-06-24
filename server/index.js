@@ -70,7 +70,7 @@ const registrationLimiter = rateLimit({
   message: { message: 'יותר מדי הרשמות — נסה שוב בעוד דקה' },
 });
 
-app.use(express.json({ limit: '1mb' }));
+app.use(express.json({ limit: '20mb' })); // 20mb for WhatsApp image forwarding
 app.use(cookieParser());
 app.use(passport.initialize());
 

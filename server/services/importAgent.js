@@ -399,4 +399,122 @@ function startAgent() {
   console.log(`[Agent] ⏰ Daily scan scheduled (${schedule} UTC / 08:00 IL)`);
 }
 
-module.exports = { startAgent, runDailyScan, processMessage, parseWithAI };
+// ── Weekly Schedule Image Parser (Groq Vision) ────────────────────────────────
+
+const SCHEDULE_VISION_PROMPT = `You are parsing a weekly poker tournament schedule image from an Israeli poker club.
+Extract ALL tournaments shown in the image and return JSON.
+
+For each tournament extract:
+- name: tournament name exactly as shown (e.g. "Omaha Mindset", "Mystery Bounty", "The Playground")
+- day_hebrew: Hebrew day shown (ראשון/שני/שלישי/רביעי/חמישי/שישי/שבת)
+- date_str: date string as shown in image (e.g. "21.6", "22.6", "25.6") — day.month format
+- time_hint: any time word shown near the tournament ("בוקר" for morning, "ערב" for evening, or exact time if visible)
+- cost: total buy-in as integer (e.g. 800, 600, 1000)
+- starting_stack: chip stack as integer (300k→300000, 75k→75000, 100k→100000)
+- re_entry: re-entry count as integer (X1→1, X2→2, X3→3)
+- level_count: levels count as integer (18, 20, 25)
+
+Return ONLY valid JSON, no markdown, no explanation:
+{"tournaments":[{"name":"...","day_hebrew":"...","date_str":"21.6","time_hint":"ערב","cost":800,"starting_stack":300000,"re_entry":2,"level_count":20}]}`;
+
+async function parseScheduleImage(imageBase64, mimeType = 'image/jpeg') {
+  const groq = getGroq();
+  if (!groq) throw new Error('GROQ_API_KEY not configured');
+
+  const VISION_MODELS = [
+    'meta-llama/llama-4-scout-17b-16e-instruct',
+    'llama-3.2-90b-vision-preview',
+    'llama-3.2-11b-vision-preview',
+  ];
+
+  let lastErr;
+  for (const model of VISION_MODELS) {
+    try {
+      const r = await groq.chat.completions.create({
+        model,
+        temperature: 0.1,
+        max_tokens: 2000,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'text', text: SCHEDULE_VISION_PROMPT },
+            { type: 'image_url', image_url: { url: `data:${mimeType};base64,${imageBase64}` } },
+          ],
+        }],
+      });
+      const raw   = r.choices[0]?.message?.content || '{}';
+      const clean = raw.replace(/```json\n?|\n?```/g, '').trim();
+      const obj   = JSON.parse(clean);
+      console.log(`[Agent] Vision model ${model} parsed ${obj.tournaments?.length || 0} tournaments`);
+      return obj.tournaments || [];
+    } catch (e) {
+      lastErr = e;
+      if (e?.status === 404 || e?.message?.includes('model') || e?.message?.includes('vision')) {
+        console.warn(`[Agent] Vision model ${model} unavailable, trying next...`);
+        continue;
+      }
+      throw e;
+    }
+  }
+  throw lastErr || new Error('No vision model available');
+}
+
+function parseDateStr(dateStr, year) {
+  if (!dateStr) return null;
+  const m = String(dateStr).match(/^(\d{1,2})\.(\d{1,2})$/);
+  if (!m) return null;
+  return `${year}-${String(m[2]).padStart(2,'0')}-${String(m[1]).padStart(2,'0')}`;
+}
+
+function guessStartTime(timeHint) {
+  if (!timeHint) return '20:00';
+  const h = String(timeHint).toLowerCase();
+  const explicit = h.match(/(\d{1,2}):(\d{2})/);
+  if (explicit) return `${explicit[1].padStart(2,'0')}:${explicit[2]}`;
+  if (h.includes('בוקר') || h.includes('morning') || h.includes('midday') || h.includes('mid')) return '13:00';
+  return '20:00';
+}
+
+async function importWeeklySchedule(rawTournaments, venueId) {
+  let imported = 0, updated = 0;
+  const year = new Date().getFullYear();
+
+  for (const t of rawTournaments) {
+    try {
+      const date       = parseDateStr(t.date_str, year);
+      const startTime  = guessStartTime(t.time_hint);
+      const startDt    = date ? `${date}T${startTime}:00` : null;
+      const firstName  = (t.name || '').split(' ')[0];
+
+      // Check if a tournament for this venue+name+date already exists
+      const existing = await pool.query(
+        `SELECT id FROM tournaments
+         WHERE venue_id=$1 AND name ILIKE $2 AND DATE(start_time)=$3 LIMIT 1`,
+        [venueId, `%${firstName}%`, date]
+      );
+
+      if (existing.rows.length > 0) {
+        await pool.query(
+          `UPDATE tournaments
+           SET cost=$1, starting_stack=$2, re_entry=$3, level_duration=$4, name=$5
+           WHERE id=$6`,
+          [t.cost||null, t.starting_stack||null, t.re_entry||null, t.level_count||null, t.name, existing.rows[0].id]
+        );
+        updated++;
+      } else {
+        await pool.query(
+          `INSERT INTO tournaments
+             (venue_id, name, cost, start_time, starting_stack, re_entry, level_duration, is_recurring, status)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,false,'approved')`,
+          [venueId, t.name||'טורניר', t.cost||null, startDt, t.starting_stack||null, t.re_entry||null, t.level_count||null]
+        );
+        imported++;
+      }
+    } catch (e) {
+      console.error('[Agent] importWeeklySchedule row error:', e?.message, JSON.stringify(t));
+    }
+  }
+  return { imported, updated };
+}
+
+module.exports = { startAgent, runDailyScan, processMessage, parseWithAI, parseScheduleImage, importWeeklySchedule };

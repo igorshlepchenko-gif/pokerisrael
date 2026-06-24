@@ -128,6 +128,41 @@ async function ensureWhatsAppTable() {
 }
 ensureWhatsAppTable();
 
+// POST /api/agent/whatsapp-image — called by local forwarder with base64 image
+router.post('/whatsapp-image', async (req, res) => {
+  try {
+    const { from, imageBase64, mimeType = 'image/jpeg', caption } = req.body;
+    if (!imageBase64) return res.status(400).json({ error: 'no image data' });
+
+    const kb = Math.round(imageBase64.length * 0.75 / 1024);
+    console.log(`[Agent] 🖼️ Image from "${from}" (${kb}KB)${caption ? ` — "${caption.slice(0,40)}"` : ''}`);
+
+    const { parseScheduleImage, importWeeklySchedule } = require('../services/importAgent');
+
+    const tournaments = await parseScheduleImage(imageBase64, mimeType);
+    if (!tournaments?.length) {
+      console.log('[Agent] No tournaments parsed from image');
+      return res.json({ imported: 0, updated: 0, message: 'no tournaments found' });
+    }
+
+    // Find SUITS venue (or match by group name in future)
+    const vRes = await pool.query(
+      `SELECT id, name FROM venues WHERE name ILIKE '%suits%' LIMIT 1`
+    );
+    if (!vRes.rows[0]) {
+      console.warn('[Agent] SUITS venue not found in DB');
+      return res.json({ imported: 0, updated: 0, message: 'SUITS venue not found' });
+    }
+
+    const { imported, updated } = await importWeeklySchedule(tournaments, vRes.rows[0].id);
+    console.log(`[Agent] ✅ Weekly schedule: ${imported} new, ${updated} updated → ${vRes.rows[0].name}`);
+    res.json({ imported, updated, total: tournaments.length, venue: vRes.rows[0].name });
+  } catch (e) {
+    console.error('[Agent] whatsapp-image error:', e?.message);
+    res.status(500).json({ error: e?.message });
+  }
+});
+
 // POST /api/agent/whatsapp-webhook
 // Compatible with Twilio, CallMeBot, or any service that POSTs body text
 router.post('/whatsapp-webhook', async (req, res) => {
