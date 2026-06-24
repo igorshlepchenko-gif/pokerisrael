@@ -128,6 +128,28 @@ async function ensureWhatsAppTable() {
 }
 ensureWhatsAppTable();
 
+// POST /api/agent/import-schedule — accept pre-parsed tournament list (no auth, internal use)
+router.post('/import-schedule', async (req, res) => {
+  try {
+    const { tournaments, venue_name = 'suits' } = req.body;
+    if (!Array.isArray(tournaments) || !tournaments.length)
+      return res.status(400).json({ error: 'tournaments array required' });
+
+    const vRes = await pool.query(
+      `SELECT id, name FROM venues WHERE name ILIKE $1 LIMIT 1`, [`%${venue_name}%`]
+    );
+    if (!vRes.rows[0]) return res.status(404).json({ error: `venue "${venue_name}" not found` });
+
+    const { importWeeklySchedule } = require('../services/importAgent');
+    const { imported, updated } = await importWeeklySchedule(tournaments, vRes.rows[0].id);
+    console.log(`[Agent] import-schedule: ${imported} new, ${updated} updated → ${vRes.rows[0].name}`);
+    res.json({ imported, updated, venue: vRes.rows[0].name });
+  } catch (e) {
+    console.error('[Agent] import-schedule error:', e?.message);
+    res.status(500).json({ error: e?.message });
+  }
+});
+
 // POST /api/agent/whatsapp-image — called by local forwarder with base64 image
 router.post('/whatsapp-image', async (req, res) => {
   try {
