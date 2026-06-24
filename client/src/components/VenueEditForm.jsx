@@ -3,19 +3,23 @@ import api from '../utils/api';
 
 export function LogoUploader({ value, onChange }) {
   const inputRef = useRef();
-  const [preview, setPreview] = useState(value || null);
-  const [uploading, setUploading] = useState(false);
+  const [savedUrl, setSavedUrl]         = useState(value || null);
+  const [pendingDataUrl, setPending]    = useState(null);
+  const [pendingFile, setPendingFile]   = useState(null);
+  const [zoom, setZoom]                 = useState(1);
+  const [uploading, setUploading]       = useState(false);
 
-  const handleFile = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    setPreview(URL.createObjectURL(file));
+  const uploadBlob = async (blob, filename) => {
     setUploading(true);
     try {
       const fd = new FormData();
-      fd.append('logo', file);
+      fd.append('logo', blob, filename);
       const res = await api.post('/upload/logo', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
       onChange(res.data.url);
+      setSavedUrl(res.data.url);
+      setPending(null);
+      setPendingFile(null);
+      setZoom(1);
     } catch {
       alert('שגיאה בהעלאת הלוגו');
     } finally {
@@ -23,28 +27,102 @@ export function LogoUploader({ value, onChange }) {
     }
   };
 
+  const handleFile = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    e.target.value = '';
+    if (file.type === 'image/svg+xml') {
+      uploadBlob(file, file.name);
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = ev => { setPending(ev.target.result); setPendingFile(file); setZoom(1); };
+    reader.readAsDataURL(file);
+  };
+
+  const handleConfirm = () => {
+    if (!pendingDataUrl || !pendingFile) return;
+    const SIZE = 400;
+    const canvas = document.createElement('canvas');
+    canvas.width = SIZE; canvas.height = SIZE;
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    img.onload = () => {
+      const aspect = img.width / img.height;
+      const fitW = aspect >= 1 ? SIZE : SIZE * aspect;
+      const fitH = aspect >= 1 ? SIZE / aspect : SIZE;
+      const dW = fitW * zoom, dH = fitH * zoom;
+      ctx.clearRect(0, 0, SIZE, SIZE);
+      ctx.drawImage(img, (SIZE - dW) / 2, (SIZE - dH) / 2, dW, dH);
+      canvas.toBlob(
+        blob => uploadBlob(blob, pendingFile.name.replace(/\.[^.]+$/, '.png')),
+        'image/png'
+      );
+    };
+    img.src = pendingDataUrl;
+  };
+
+  const handleCancel = () => { setPending(null); setPendingFile(null); setZoom(1); };
+
   return (
     <div>
       <label className="block text-xs text-slate-400 mb-1">לוגו המועדון</label>
-      <div className="flex items-center gap-3">
-        <div
-          onClick={() => inputRef.current.click()}
-          className="w-20 h-20 rounded-xl border-2 border-dashed border-slate-600 hover:border-poker-green cursor-pointer flex items-center justify-center overflow-hidden transition-colors bg-slate-900/50 shrink-0"
-        >
-          {preview
-            ? <img src={preview} alt="לוגו" className="w-full h-full object-cover" />
-            : <span className="text-3xl opacity-30">🏠</span>
-          }
+      {pendingDataUrl ? (
+        <div className="space-y-2">
+          <div className="flex items-center gap-3">
+            <div className="w-24 h-24 rounded-xl border-2 border-blue-500 overflow-hidden bg-slate-900/50 shrink-0 flex items-center justify-center">
+              <img
+                src={pendingDataUrl}
+                alt="תצוגה מקדימה"
+                className="w-full h-full object-contain"
+                style={{ transform: `scale(${zoom})`, transformOrigin: 'center' }}
+              />
+            </div>
+            <div className="flex-1 space-y-2">
+              <div>
+                <div className="flex justify-between text-[10px] text-slate-400 mb-1">
+                  <span>זום: {Math.round(zoom * 100)}%</span>
+                  <span className="opacity-60">גרור לכוונון</span>
+                </div>
+                <input
+                  type="range" min="0.3" max="3" step="0.05"
+                  value={zoom}
+                  onChange={e => setZoom(parseFloat(e.target.value))}
+                  className="w-full accent-blue-500 h-1.5"
+                />
+              </div>
+              <div className="flex gap-2">
+                <button type="button" onClick={handleConfirm} disabled={uploading}
+                  className="btn-primary text-xs flex-1 py-1.5">
+                  {uploading ? '⏳ מעלה...' : '✓ אשר'}
+                </button>
+                <button type="button" onClick={handleCancel}
+                  className="btn-ghost text-xs px-3 py-1.5">ביטול</button>
+              </div>
+            </div>
+          </div>
         </div>
-        <div className="flex-1">
-          <button type="button" onClick={() => inputRef.current.click()}
-            className="btn-ghost text-xs w-full mb-1">
-            {uploading ? '⏳ מעלה...' : preview ? '🔄 החלף לוגו' : '📷 בחר לוגו'}
-          </button>
-          <p className="text-[10px] text-slate-500">PNG, JPG, SVG · מקס 10MB</p>
+      ) : (
+        <div className="flex items-center gap-3">
+          <div
+            onClick={() => inputRef.current.click()}
+            className="w-20 h-20 rounded-xl border-2 border-dashed border-slate-600 hover:border-poker-green cursor-pointer flex items-center justify-center overflow-hidden transition-colors bg-slate-900/50 shrink-0"
+          >
+            {savedUrl
+              ? <img src={savedUrl} alt="לוגו" className="w-full h-full object-contain" />
+              : <span className="text-3xl opacity-30">🏠</span>
+            }
+          </div>
+          <div className="flex-1">
+            <button type="button" onClick={() => inputRef.current.click()}
+              className="btn-ghost text-xs w-full mb-1">
+              {uploading ? '⏳ מעלה...' : savedUrl ? '🔄 החלף לוגו' : '📷 בחר לוגו'}
+            </button>
+            <p className="text-[10px] text-slate-500">PNG, JPG, SVG · מקס 10MB</p>
+          </div>
         </div>
-        <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
-      </div>
+      )}
+      <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
     </div>
   );
 }
