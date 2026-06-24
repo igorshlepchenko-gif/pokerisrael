@@ -140,16 +140,20 @@ async function initClient() {
     }
 
     if (connection === 'close') {
-      const code = lastDisconnect?.error?.output?.statusCode;
+      const err  = lastDisconnect?.error;
+      const code = err?.output?.statusCode ?? err?.data?.statusCode;
       const loggedOut = code === (DisconnectReason?.loggedOut ?? 401);
+      console.warn('[WhatsApp] ⚠️ Connection closed. code:', code, '| msg:', err?.message ?? err?.data ?? String(err ?? ''));
       sock = null;
       if (loggedOut) {
         status = 'disconnected';
+        lastError = 'Logged out';
         readyInfo = null;
-        console.log('[WhatsApp] 🚪 Logged out');
+        console.log('[WhatsApp] 🚪 Logged out — clear session and reconnect manually');
       } else {
         status = 'authenticating';
-        console.warn('[WhatsApp] ⚠️ Disconnected, reconnecting in 5s...');
+        lastError = err?.message || String(err ?? '');
+        console.warn('[WhatsApp] ⚠️ Reconnecting in 5s...');
         clearTimeout(reconnectTimer);
         reconnectTimer = setTimeout(() => initClient(), 5000);
       }
