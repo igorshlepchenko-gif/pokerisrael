@@ -15,13 +15,14 @@ const fs   = require('fs');
 const QRCode = require('qrcode');
 const pool = require('../config/db');
 
-let makeWASocket, useMultiFileAuthState, DisconnectReason, Browsers;
+let makeWASocket, useMultiFileAuthState, DisconnectReason, Browsers, fetchLatestBaileysVersion;
 try {
   const baileys = require('@whiskeysockets/baileys');
-  makeWASocket         = baileys.default || baileys.makeWASocket || baileys;
-  useMultiFileAuthState = baileys.useMultiFileAuthState;
-  DisconnectReason     = baileys.DisconnectReason;
-  Browsers             = baileys.Browsers;
+  makeWASocket              = baileys.default || baileys.makeWASocket || baileys;
+  useMultiFileAuthState     = baileys.useMultiFileAuthState;
+  DisconnectReason          = baileys.DisconnectReason;
+  Browsers                  = baileys.Browsers;
+  fetchLatestBaileysVersion = baileys.fetchLatestBaileysVersion;
 } catch {
   // package not installed — listener disabled
 }
@@ -108,10 +109,21 @@ async function initClient() {
 
   const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
 
+  // Always fetch the latest WhatsApp Web version — avoids 405 Connection Failure
+  let waVersion;
+  try {
+    const vResult = await fetchLatestBaileysVersion();
+    waVersion = vResult.version;
+    console.log('[WhatsApp] Using WA version:', waVersion?.join('.'));
+  } catch (e) {
+    console.warn('[WhatsApp] Could not fetch WA version, using default:', e?.message);
+  }
+
   sock = makeWASocket({
     auth: state,
+    version: waVersion,
     printQRInTerminal: false,
-    browser: Browsers ? Browsers.macOS('Chrome') : ['PokerIsrael', 'Chrome', '120'],
+    browser: Browsers ? Browsers.ubuntu('Chrome') : ['Ubuntu', 'Chrome', '20.0.04'],
     connectTimeoutMs: 60_000,
     keepAliveIntervalMs: 25_000,
     logger: { level: 'silent', trace(){}, debug(){}, info(){}, warn: console.warn, error: console.error, fatal: console.error, child(){ return this; } },
