@@ -1,3 +1,6 @@
+// Web Crypto polyfill — required by @whiskeysockets/baileys on Node 18
+if (!globalThis.crypto) globalThis.crypto = require('crypto').webcrypto;
+
 // אזור זמן קבוע — כל הזמנים במערכת הם שעון ישראל (גם אם השרת רץ ב-UTC, כמו Railway)
 process.env.TZ = process.env.TZ || 'Asia/Jerusalem';
 require('dotenv').config({ path: require('path').join(__dirname, '.env') });
