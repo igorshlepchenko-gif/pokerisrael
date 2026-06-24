@@ -94,7 +94,7 @@ export default function Rules() {
 
             {/* Hand rankings */}
             <section>
-              <h2 className="text-xl font-black text-black mb-4 flex items-center gap-2">
+              <h2 className="text-xl font-black text-white mb-4 flex items-center gap-2">
                 <span className="text-2xl">🏆</span> דרגות הידיים
                 <span className="text-xs font-normal text-slate-500 mr-2">(מהגבוה לנמוך)</span>
               </h2>
@@ -106,7 +106,7 @@ export default function Rules() {
                       <span className="text-slate-600 text-xs font-mono w-4 text-center">{i + 1}</span>
                       <span className="text-lg">{h.emoji}</span>
                       <div className="min-w-0">
-                        <div className="font-bold text-black text-sm">{h.name}</div>
+                        <div className="font-bold text-white text-sm">{h.name}</div>
                         <div className="text-xs text-slate-400">{h.desc}</div>
                       </div>
                     </div>
@@ -118,13 +118,13 @@ export default function Rules() {
 
             {/* Rules sections */}
             <section>
-              <h2 className="text-xl font-black text-black mb-4 flex items-center gap-2">
+              <h2 className="text-xl font-black text-white mb-4 flex items-center gap-2">
                 <span className="text-2xl">📖</span> חוקי Texas Hold'em
               </h2>
               <div className="space-y-4">
                 {HOW_TO_PLAY_SECTIONS.map(s => (
                   <div key={s.title} className="rounded-xl border border-slate-800 bg-slate-900/60 p-5">
-                    <h3 className="font-black text-black mb-2">{s.title}</h3>
+                    <h3 className="font-black text-white mb-2">{s.title}</h3>
                     <p className="text-slate-300 text-sm leading-relaxed">{s.content}</p>
                   </div>
                 ))}
