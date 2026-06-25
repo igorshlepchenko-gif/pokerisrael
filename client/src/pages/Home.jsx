@@ -137,7 +137,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 mb-6">
           <button
             onClick={() => handLoggerRef.current?.scrollIntoView({ behavior: 'smooth' })}
-            className="w-full group relative overflow-hidden rounded-3xl py-6 px-8 text-white transition-all duration-300 hover:scale-[1.01] active:scale-[0.99]"
+            className="always-dark w-full group relative overflow-hidden rounded-3xl py-6 px-8 text-white transition-all duration-300 hover:scale-[1.01] active:scale-[0.99]"
             style={{
               background: 'linear-gradient(135deg, #0f1e42 0%, #1a2e6e 40%, #0d3366 100%)',
               boxShadow: '0 8px 40px rgba(29,78,216,0.45), 0 0 0 1px rgba(59,130,246,0.2)',

@@ -725,7 +725,7 @@ export default function AdminPanel() {
           {tab === 'hand-logger' && (
             <div className="space-y-4">
               {/* Header */}
-              <div className="rounded-2xl p-5 border border-blue-500/20"
+              <div className="always-dark rounded-2xl p-5 border border-blue-500/20"
                 style={{ background: 'linear-gradient(135deg, rgba(13,21,38,0.95), rgba(6,9,26,0.95))' }}>
                 <div className="flex items-center gap-3 mb-2" dir="rtl">
                   <span className="text-3xl">🃏</span>
@@ -912,7 +912,7 @@ export default function AdminPanel() {
             return (
               <div className="space-y-5" dir="rtl">
                 {/* Header */}
-                <div className="rounded-2xl border border-blue-500/20 p-5"
+                <div className="always-dark rounded-2xl border border-blue-500/20 p-5"
                   style={{ background: 'linear-gradient(135deg,rgba(13,21,38,.95),rgba(6,9,26,.95))' }}>
                   <div className="flex items-center gap-3 mb-1">
                     <span className="text-3xl">📥</span>

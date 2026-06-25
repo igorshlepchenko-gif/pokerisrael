@@ -67,7 +67,7 @@
     font-weight="900"
     font-size="26"
     letter-spacing="-0.5">
-    <tspan x="84" fill="white">Poker</tspan><tspan fill="#60a5fa">Israel</tspan><tspan fill="#22d3ee" font-size="15" font-weight="400" dy="1" letter-spacing="0">.org</tspan>
+    <tspan x="84" fill="#93c5fd">Poker</tspan><tspan fill="#60a5fa">Israel</tspan><tspan fill="#22d3ee" font-size="15" font-weight="400" dy="1" letter-spacing="0">.org</tspan>
   </text>
 
   <!-- Subtle underline accent -->

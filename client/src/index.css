@@ -62,7 +62,12 @@ body.a11y-readable, body.a11y-readable * {
 .skip-link:focus { right: 8px; }
 
 /* ===== Light mode ===== */
-.light body { background-color: #f1f5f9; color: #0f172a; }
+.light body { background-color: #f1f5f9 !important; color: #0f172a !important; }
+/* text-white turns dark in light mode — page backgrounds also turn light */
+.light .text-white { color: #0f172a !important; }
+/* Exceptions: always-dark sections (inline dark backgrounds, hero gradient) */
+.light .hero-bg .text-white,
+.light .always-dark .text-white { color: #ffffff !important; }
 .light .card { @apply bg-white border-slate-200 shadow-md text-slate-900; }
 .light .input-field { @apply bg-white border-slate-300 text-slate-900 placeholder-slate-400; }
 .light nav { background: rgba(255,255,255,0.95) !important; border-color: rgba(0,0,0,0.08) !important; }

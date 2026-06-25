@@ -56,7 +56,7 @@ function NoAccessModal({ user, onClose }) {
       onClick={onClose}
     >
       <div
-        className="rounded-2xl border border-slate-700 p-6 max-w-md w-full"
+        className="always-dark rounded-2xl border border-slate-700 p-6 max-w-md w-full"
         style={{ background: 'linear-gradient(135deg, rgba(13,21,38,0.98) 0%, rgba(6,9,26,0.98) 100%)' }}
         dir="rtl"
         onClick={e => e.stopPropagation()}
@@ -133,7 +133,7 @@ export default function HandLoggerSection() {
       )}
 
       <section className="max-w-7xl mx-auto px-4 mb-10">
-        <div className="rounded-3xl overflow-hidden border"
+        <div className="always-dark rounded-3xl overflow-hidden border"
           style={{ background: 'linear-gradient(135deg, rgba(13,21,38,0.95) 0%, rgba(6,9,26,0.95) 100%)', borderColor: 'rgba(29,78,216,0.2)' }}>
 
           <div className="relative p-6 sm:p-8">

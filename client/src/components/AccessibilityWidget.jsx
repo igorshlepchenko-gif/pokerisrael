@@ -39,7 +39,7 @@ export default function AccessibilityWidget() {
 
       {/* פאנל */}
       {open && (
-        <div className="fixed bottom-20 left-4 z-[70] w-64 rounded-2xl border shadow-2xl p-4 animate-slide-up" dir="rtl"
+        <div className="always-dark fixed bottom-20 left-4 z-[70] w-64 rounded-2xl border shadow-2xl p-4 animate-slide-up" dir="rtl"
           style={{ background: 'rgba(13,21,38,0.98)', borderColor: 'rgba(29,78,216,0.4)' }}>
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-bold text-white text-sm">♿ נגישות</h3>

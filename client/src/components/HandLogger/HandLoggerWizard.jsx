@@ -1041,7 +1041,7 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
   return (
     <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4"
       style={{ background: 'rgba(0,0,0,0.85)' }}>
-      <div className="w-full sm:max-w-lg max-h-[92vh] sm:max-h-[88vh] flex flex-col rounded-t-3xl sm:rounded-2xl overflow-hidden shadow-2xl"
+      <div className="always-dark w-full sm:max-w-lg max-h-[92vh] sm:max-h-[88vh] flex flex-col rounded-t-3xl sm:rounded-2xl overflow-hidden shadow-2xl"
         style={{ background: '#0d1526', border: '1px solid rgba(29,78,216,0.25)' }}>
 
         {/* Header */}
