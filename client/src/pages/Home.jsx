@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import api from '../utils/api';
 import TournamentCard from '../components/Tournament/TournamentCard';
 import TournamentListRow from '../components/Tournament/TournamentListRow';
@@ -10,8 +10,6 @@ import { useAuth } from '../context/AuthContext';
 
 export default function Home() {
   const { user } = useAuth();
-  const handLoggerRef = useRef(null);
-  const hasHandLoggerAccess = user && (user.hand_logger_access || user.role === 'admin');
 
   const [tournaments, setTournaments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -132,63 +130,8 @@ export default function Home() {
         </div>
       </div>
 
-      {/* ── Hand Logger CTA (מוצג רק למורשים) ── */}
-      {hasHandLoggerAccess && (
-        <div className="max-w-7xl mx-auto px-4 mb-6">
-          <button
-            onClick={() => handLoggerRef.current?.scrollIntoView({ behavior: 'smooth' })}
-            className="always-dark w-full group relative overflow-hidden rounded-3xl py-6 px-8 text-white transition-all duration-300 hover:scale-[1.01] active:scale-[0.99]"
-            style={{
-              background: 'linear-gradient(135deg, #0f1e42 0%, #1a2e6e 40%, #0d3366 100%)',
-              boxShadow: '0 8px 40px rgba(29,78,216,0.45), 0 0 0 1px rgba(59,130,246,0.2)',
-            }}
-          >
-            {/* Animated glow orbs */}
-            <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full opacity-20 animate-pulse"
-              style={{ background: 'radial-gradient(circle, #3b82f6, transparent)' }} />
-            <div className="absolute -bottom-8 -left-8 w-32 h-32 rounded-full opacity-15 animate-pulse"
-              style={{ background: 'radial-gradient(circle, #8b5cf6, transparent)', animationDelay: '1s' }} />
-
-            <div className="relative flex items-center justify-between flex-wrap gap-4" dir="rtl">
-              <div className="flex items-center gap-4">
-                <div className="text-5xl drop-shadow-lg">🃏</div>
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <h2 className="text-2xl font-black tracking-tight">רישום ידיים מקצועי</h2>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-blue-500/30 text-blue-300 border border-blue-400/30">
-                      BETA
-                    </span>
-                  </div>
-                  <p className="text-blue-200/80 text-sm font-medium">
-                    תעד, נתח וצור סרטון מהיד שלך — בכמה שניות
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <div className="hidden sm:flex gap-3">
-                  {[{ icon: '📝', text: 'נרטיב' }, { icon: '🎬', text: 'סרטון' }, { icon: '💬', text: 'WhatsApp' }].map(f => (
-                    <div key={f.text} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 backdrop-blur-sm border border-white/10">
-                      <span className="text-sm">{f.icon}</span>
-                      <span className="text-xs font-bold text-white/90">{f.text}</span>
-                    </div>
-                  ))}
-                </div>
-                <div className="flex items-center gap-2 px-5 py-2.5 rounded-2xl font-black text-sm group-hover:gap-3 transition-all"
-                  style={{ background: 'linear-gradient(135deg, #3b82f6, #2563eb)', boxShadow: '0 4px 16px rgba(59,130,246,0.5)' }}>
-                  <span>+ רשום יד</span>
-                  <span className="text-lg">←</span>
-                </div>
-              </div>
-            </div>
-          </button>
-        </div>
-      )}
-
       {/* ── Hand Logger Section ── */}
-      <div ref={handLoggerRef}>
-        <HandLoggerSection />
-      </div>
+      <HandLoggerSection />
 
       {/* ── Type selector (מוסתר זמנית — רק טורניר לייב מוצג) ── */}
       {/* להפעיל בעתיד:

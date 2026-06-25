@@ -133,35 +133,41 @@ export default function HandLoggerSection() {
       )}
 
       <section className="max-w-7xl mx-auto px-4 mb-10">
-        <div className="always-dark rounded-3xl overflow-hidden border"
-          style={{ background: 'linear-gradient(135deg, rgba(13,21,38,0.95) 0%, rgba(6,9,26,0.95) 100%)', borderColor: 'rgba(29,78,216,0.2)' }}>
+        <div className="always-dark rounded-3xl overflow-hidden"
+          style={{
+            background: 'linear-gradient(135deg, #0f1e42 0%, #1a2e6e 40%, #0d3366 100%)',
+            boxShadow: '0 8px 40px rgba(29,78,216,0.45), 0 0 0 1px rgba(59,130,246,0.2)',
+          }}>
 
           <div className="relative p-6 sm:p-8">
-            <div className="absolute top-0 left-0 w-64 h-64 rounded-full opacity-[0.04] pointer-events-none"
-              style={{ background: 'radial-gradient(circle, #1d4ed8, transparent)' }} />
+            {/* Animated glow orbs */}
+            <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full opacity-20 animate-pulse pointer-events-none"
+              style={{ background: 'radial-gradient(circle, #3b82f6, transparent)' }} />
+            <div className="absolute -bottom-8 -left-8 w-32 h-32 rounded-full opacity-15 animate-pulse pointer-events-none"
+              style={{ background: 'radial-gradient(circle, #8b5cf6, transparent)', animationDelay: '1s' }} />
 
             <div className="relative flex flex-col sm:flex-row items-start sm:items-center gap-6">
               {/* Text block */}
               <div className="flex-1" dir="rtl">
                 <div className="flex items-center gap-3 mb-2">
                   <div className="text-3xl">🃏</div>
-                  <h2 className="text-xl font-black text-white">רישום ידיים</h2>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold text-blue-300 border border-blue-500/30 bg-blue-500/10">BETA</span>
+                  <h2 className="text-xl font-black text-white">רישום ידיים מקצועי</h2>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-blue-500/30 text-blue-300 border border-blue-400/30">BETA</span>
                 </div>
-                <p className="text-slate-400 text-sm leading-relaxed mb-3">
+                <p className="text-blue-200/80 text-sm leading-relaxed mb-3">
                   תעד ידיים שיחקת, קבל ניתוח מקצועי בעברית וצור סרטון לשיתוף — בכמה לחיצות בלבד.
                 </p>
                 <div className="flex items-center gap-4 flex-wrap">
                   <button
                     onClick={handleRegisterClick}
-                    className="px-5 py-2.5 rounded-xl text-sm font-black text-white transition-all hover:scale-105 active:scale-95"
-                    style={{ background: 'linear-gradient(135deg, #1d4ed8, #2563eb)', boxShadow: '0 0 20px rgba(29,78,216,0.4)' }}
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-black text-white transition-all hover:scale-105 active:scale-95"
+                    style={{ background: 'linear-gradient(135deg, #3b82f6, #2563eb)', boxShadow: '0 4px 16px rgba(59,130,246,0.5)' }}
                   >
-                    + רשום יד ←
+                    <span>+ רשום יד</span><span className="text-lg">←</span>
                   </button>
                   {hasAccess && totalHands > 0 && (
                     <Link to="/hands"
-                      className="text-sm text-blue-400 hover:text-blue-300 font-bold transition-colors underline-offset-2 hover:underline">
+                      className="text-sm text-blue-300 hover:text-white font-bold transition-colors underline-offset-2 hover:underline">
                       כל הידיים שלי ({totalHands}) →
                     </Link>
                   )}
@@ -176,10 +182,10 @@ export default function HandLoggerSection() {
                   { icon: '💬', text: 'הפק סרטון ושלח לחברים' },
                 ].map(f => (
                   <div key={f.text}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-700/40 border border-slate-600/40 flex-shrink-0"
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/10 backdrop-blur-sm border border-white/10 flex-shrink-0"
                     dir="rtl">
                     <span className="text-sm">{f.icon}</span>
-                    <span className="text-xs text-slate-300 font-bold">{f.text}</span>
+                    <span className="text-xs text-white/90 font-bold">{f.text}</span>
                   </div>
                 ))}
               </div>
