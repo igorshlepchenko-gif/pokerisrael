@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import api from '../utils/api';
 import { formatDate, formatTime, formatCost } from '../utils/whatsapp';
 import VenueEditForm from '../components/VenueEditForm';
+import TournamentEditForm from '../components/TournamentEditForm';
 
 // ---- helpers for change log diff ----
 const VENUE_LABELS = {
@@ -119,6 +120,7 @@ export default function AdminPanel() {
   const [allTournaments, setAllTournaments] = useState([]);
   const [allVenues, setAllVenues] = useState([]);
   const [editingVenue, setEditingVenue] = useState(null);
+  const [editingTournament, setEditingTournament] = useState(null); // tournament id being edited
   const [editVenueSuccess, setEditVenueSuccess] = useState('');
   const [changeLogs, setChangeLogs] = useState([]);
   const [changeLogsTotal, setChangeLogsTotal] = useState(0);
@@ -492,7 +494,7 @@ export default function AdminPanel() {
             </div>
           )}
 
-          {/* Promotions / boost */}
+          {/* Promotions / boost + edit */}
           {tab === 'tournaments' && (
             <div className="space-y-3">
               <p className="text-sm text-slate-500 mb-4">סמן טורנירים כ"מקודמים" — הם יופיעו ראשונים בתוצאות גם אם לא תואמים את הסינון של הגולש.</p>
@@ -501,43 +503,70 @@ export default function AdminPanel() {
               )}
               {allTournaments.map(t => {
                 const past = isPast(t);
+                const isEditing = editingTournament === t.id;
                 return (
-                <div key={t.id} className={`card p-4 flex items-center justify-between flex-wrap gap-3 ${t.is_boosted ? 'border-amber-500/40 bg-amber-500/5' : ''} ${past ? 'opacity-60' : ''}`}>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-bold text-slate-100">{t.name}</span>
-                      {t.is_boosted && (
-                        <span className="bg-amber-500/20 text-amber-400 text-xs font-black px-2 py-0.5 rounded-full">
-                          🚀 {t.boost_label || 'מקודם'}
-                        </span>
-                      )}
-                      {past && (
-                        <span className="text-[10px] bg-slate-700/80 text-slate-400 px-1.5 py-0.5 rounded-full border border-slate-600">🕐 עבר</span>
-                      )}
+                <div key={t.id} className={`card p-4 ${t.is_boosted ? 'border-amber-500/40 bg-amber-500/5' : ''} ${past ? 'opacity-60' : ''}`}>
+                  {/* ── header row ── */}
+                  <div className="flex items-center justify-between flex-wrap gap-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-bold text-slate-100">{t.name}</span>
+                        {t.manually_edited && (
+                          <span className="text-[10px] bg-blue-900/30 text-blue-400 px-1.5 py-0.5 rounded-full border border-blue-700/30">✏️ עודכן ידנית</span>
+                        )}
+                        {t.is_boosted && (
+                          <span className="bg-amber-500/20 text-amber-400 text-xs font-black px-2 py-0.5 rounded-full">
+                            🚀 {t.boost_label || 'מקודם'}
+                          </span>
+                        )}
+                        {past && (
+                          <span className="text-[10px] bg-slate-700/80 text-slate-400 px-1.5 py-0.5 rounded-full border border-slate-600">🕐 עבר</span>
+                        )}
+                      </div>
+                      <p className="text-sm text-slate-400">{t.venue_name} · {formatDate(t.start_time)} {formatTime(t.start_time)} · {formatCost(t.cost)}</p>
                     </div>
-                    <p className="text-sm text-slate-400">{t.venue_name} · {formatDate(t.start_time)} {formatTime(t.start_time)} · {formatCost(t.cost)}</p>
+                    <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                      {/* Edit toggle */}
+                      <button
+                        onClick={() => setEditingTournament(isEditing ? null : t.id)}
+                        className={`text-sm font-bold py-1.5 px-4 rounded-xl transition-all whitespace-nowrap ${
+                          isEditing
+                            ? 'bg-blue-900/60 text-blue-300'
+                            : 'bg-slate-700/60 text-slate-300 hover:bg-blue-900/40 hover:text-blue-300'
+                        }`}
+                      >
+                        ✏️ {isEditing ? 'סגור' : 'ערוך'}
+                      </button>
+                      {/* Boost */}
+                      {!t.is_boosted && (
+                        <input
+                          type="text"
+                          value={boostLabel[t.id] || ''}
+                          onChange={e => setBoostLabel(prev => ({ ...prev, [t.id]: e.target.value }))}
+                          placeholder="תווית (ברירת מחדל: מקודם)"
+                          className="input-field text-sm w-44 py-1.5"
+                        />
+                      )}
+                      <button
+                        onClick={() => boostTournament(t.id)}
+                        className={`text-sm font-bold py-1.5 px-4 rounded-xl transition-all whitespace-nowrap ${
+                          t.is_boosted
+                            ? 'bg-amber-900/40 text-amber-400 hover:bg-amber-900/70'
+                            : 'bg-amber-500 text-white hover:bg-amber-600'
+                        }`}
+                      >
+                        {t.is_boosted ? '⬇️ הסר קידום' : '🚀 קדם'}
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    {!t.is_boosted && (
-                      <input
-                        type="text"
-                        value={boostLabel[t.id] || ''}
-                        onChange={e => setBoostLabel(prev => ({ ...prev, [t.id]: e.target.value }))}
-                        placeholder="תווית (ברירת מחדל: מקודם)"
-                        className="input-field text-sm w-44 py-1.5"
-                      />
-                    )}
-                    <button
-                      onClick={() => boostTournament(t.id)}
-                      className={`text-sm font-bold py-1.5 px-4 rounded-xl transition-all whitespace-nowrap ${
-                        t.is_boosted
-                          ? 'bg-amber-900/40 text-amber-400 hover:bg-amber-900/70'
-                          : 'bg-amber-500 text-white hover:bg-amber-600'
-                      }`}
-                    >
-                      {t.is_boosted ? '⬇️ הסר קידום' : '🚀 קדם'}
-                    </button>
-                  </div>
+                  {/* ── inline edit form ── */}
+                  {isEditing && (
+                    <TournamentEditForm
+                      tournament={t}
+                      onSave={() => { setEditingTournament(null); fetchData(); }}
+                      onCancel={() => setEditingTournament(null)}
+                    />
+                  )}
                 </div>
               );})}
             </div>
