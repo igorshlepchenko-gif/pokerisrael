@@ -1,4 +1,4 @@
-// PokerIsrael – GGPoker/WSOP Broadcast Style
+﻿// PokerIsrael – GGPoker/WSOP Broadcast Style
 // Canvas 760×480, 30fps, WebM VP9
 
 const W = 760, H = 480;
@@ -871,7 +871,7 @@ export function buildFrames(state){
   const preResultStacks={...currentStacks};
   const winnerXY=winnerPos?seatOuter(winnerPos):{x:TCX,y:TCY};
   const resultColor=result==='won'?'#22c55e':result==='lost'?'#ef4444':'#f8c030';
-  const resultLabel=result==='won'?'ניצחון! 🏆':result==='lost'?'הפסד 💀':'סיר מחולק 🤝';
+  const resultLabel=result==='won'?'ניצחון! 🏆':result==='lost'?'הפסד 💀':'קופה מחולקת 🤝';
 
   frames.push({duration:60,draw:(ctx,t)=>{
     const moveT=Math.min(1,t*2);

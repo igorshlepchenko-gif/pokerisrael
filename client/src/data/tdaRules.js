@@ -1,4 +1,4 @@
-// TDA 2024 — Tournament Directors Association Rules
+﻿// TDA 2024 — Tournament Directors Association Rules
 // Copyright 2024 Poker TDA, pokertda.com — used by permission
 
 export const TDA_PARTS = [
@@ -98,14 +98,14 @@ export const TDA_PARTS = [
       },
       {
         title_en: 'Pots / Showdown',
-        title_he: 'סירים / שואדאון',
+        title_he: 'קופות / שואדאון',
         rules: [
           {
             id: '12',
             title_en: 'Declarations. Cards Speak at Showdown',
             title_he: 'הצהרות. הקלפים מדברים ב-Showdown',
             en: 'Cards speak for themselves to determine the winning hand. Verbal declarations of hand value are not binding at showdown, but deliberately miscalling a hand may be penalized. Dealers must read and announce hand values at showdown. All players, whether in the hand or not, should speak up if they believe an error has been made in reading hands or calculating and awarding a pot.',
-            he: 'הקלפים מכריעים את הזוכה. הצהרות מילוליות על ערך יד אינן מחייבות ב-Showdown, אך כינוי מכוון של יד עלול להיענש. הדילר חייב לקרוא ולהכריז על ערך הידיים ב-Showdown. כל שחקן, בין אם ביד ובין אם לא, חייב לדווח אם לדעתו נעשתה טעות בקריאת ידיים או בחישוב וחלוקת הסיר.',
+            he: 'הקלפים מכריעים את הזוכה. הצהרות מילוליות על ערך יד אינן מחייבות ב-Showdown, אך כינוי מכוון של יד עלול להיענש. הדילר חייב לקרוא ולהכריז על ערך הידיים ב-Showdown. כל שחקן, בין אם ביד ובין אם לא, חייב לדווח אם לדעתו נעשתה טעות בקריאת ידיים או בחישוב וחלוקת הקופה.',
           },
           {
             id: '13',
@@ -133,7 +133,7 @@ export const TDA_PARTS = [
             title_en: 'Face Up for All-Ins',
             title_he: 'פניהם כלפי מעלה ל-All-Ins',
             en: 'All hands will be tabled without delay once a player is all-in and all betting action by all other players in the hand is complete. No player who is all-in or has called all betting may muck their hand without tabling. All hands in the main pot and side pot(s) must be tabled and live.',
-            he: 'כל הידיים יוצגו ללא דיחוי ברגע ששחקן ב-All-In וכל פעולות ההימור הסתיימו. אף שחקן שב-All-In או שקרא לכל פעולות ההימור אינו רשאי לעשות Muck מבלי להציג. כל הידיים בסיר הראשי ובסיר/ים הצדדי/ים חייבים להיות מוצגים וחיים.',
+            he: 'כל הידיים יוצגו ללא דיחוי ברגע ששחקן ב-All-In וכל פעולות ההימור הסתיימו. אף שחקן שב-All-In או שקרא לכל פעולות ההימור אינו רשאי לעשות Muck מבלי להציג. כל הידיים בקופה הראשית ובקופה/ות הצדדי/ות חייבים להיות מוצגים וחיים.',
           },
           {
             id: '17',
@@ -154,28 +154,28 @@ export const TDA_PARTS = [
             title_en: 'Playing the Board at Showdown',
             title_he: 'משחק ה-Board ב-Showdown',
             en: 'To play the board, a player must table all hole cards to receive a portion of the pot.',
-            he: 'כדי לשחק את ה-Board, שחקנים חייבים להציג את כל קלפי ה-Hole לקבלת חלק מהסיר.',
+            he: 'כדי לשחק את ה-Board, שחקנים חייבים להציג את כל קלפי ה-Hole לקבלת חלק מהקופה.',
           },
           {
             id: '20',
             title_en: 'Awarding Odd Chips',
             title_he: 'חלוקת ג\'טון עודף',
             en: 'First, odd chips will be broken down into the smallest denomination still in play. A: In board games with two winning hands high/low and more: the odd chip goes to the seat first left of the button. B: In stud, razz, and when 2+ high/low hands tie in stud/8: odd chips go to the highest card by suit in the winning 5-card hand. C: H/L split: the odd chip in the total pot goes to the high side.',
-            he: 'תחילה, ג\'טונים עודפים יישברו לכינוי הנמוך ביותר במשחק. א: במשחקי Board עם שני זוכים High/Low: הג\'טון העודף הולך לכסא הראשון משמאל הכפתור. ב: בסטאד, רז ובסטאד/8: הג\'טון העודף הולך לקלף הגבוה לפי צבע ביד הזוכה של 5 הקלפים. ג: חלוקת H/L: הג\'טון העודף בסיר הכולל הולך לצד הגבוה.',
+            he: 'תחילה, ג\'טונים עודפים יישברו לכינוי הנמוך ביותר במשחק. א: במשחקי Board עם שני זוכים High/Low: הג\'טון העודף הולך לכסא הראשון משמאל הכפתור. ב: בסטאד, רז ובסטאד/8: הג\'טון העודף הולך לקלף הגבוה לפי צבע ביד הזוכה של 5 הקלפים. ג: חלוקת H/L: הג\'טון העודף בקופה הכולל הולך לצד הגבוה.',
           },
           {
             id: '21',
             title_en: 'Side Pots',
-            title_he: 'סירים צדדיים',
+            title_he: 'קופות צדדיות',
             en: 'Each side pot will be split separately.',
-            he: 'כל סיר צדדי יחולק בנפרד.',
+            he: 'כל קופה צדדית יחולק בנפרד.',
           },
           {
             id: '22',
             title_en: 'Disputed Hands and Pots',
-            title_he: 'ידיים וסירים שנויים במחלוקת',
+            title_he: 'ידיים וקופות שנויות במחלוקת',
             en: 'A tabled hand may be disputed until the next hand begins. Accounting errors in calculating and awarding a pot may be disputed until substantial action occurs in the next hand. If a hand ends during a break, the right to dispute ends one minute after the pot is awarded.',
-            he: 'קריאת יד שהוצגה עשויה להיות שנויה במחלוקת עד שהיד הבאה מתחילה. טעויות חשבונאיות בחלוקת הסיר עשויות להיות שנויות במחלוקת עד שמתרחשת פעולה מהותית ביד הבאה. אם יד מסתיימת בהפסקה, הזכות לכל מחלוקת מסתיימת דקה אחת לאחר חלוקת הסיר.',
+            he: 'קריאת יד שהוצגה עשויה להיות שנויה במחלוקת עד שהיד הבאה מתחילה. טעויות חשבונאיות בחלוקת הקופה עשויות להיות שנויות במחלוקת עד שמתרחשת פעולה מהותית ביד הבאה. אם יד מסתיימת בהפסקה, הזכות לכל מחלוקת מסתיימת דקה אחת לאחר חלוקת הקופה.',
           },
         ],
       },
@@ -243,7 +243,7 @@ export const TDA_PARTS = [
             title_en: 'At Your Seat and Live Hands',
             title_he: 'בכסאך וידיים חיות',
             en: 'To have a live hand, players must be at their seats when the last card is dealt to all players in the initial deal. Players not at their seats then may not look at their cards, which are killed immediately. Posted blinds and antes go into the pot. "At your seat" means within reach of your chair.',
-            he: 'כדי שתהיה ליד חיה, שחקנים חייבים להיות בכסאותיהם כאשר הקלף האחרון מחולק לכל השחקנים בחלוקה הראשונית. שחקנים שאינם בכסאותיהם אז לא רשאים לראות את קלפיהם, שנהרגים מיידית. הבליינדים והאנטות שהניחו עוברים לסיר. "בכסאך" פירושו בהישג יד של כסאך.',
+            he: 'כדי שתהיה ליד חיה, שחקנים חייבים להיות בכסאותיהם כאשר הקלף האחרון מחולק לכל השחקנים בחלוקה הראשונית. שחקנים שאינם בכסאותיהם אז לא רשאים לראות את קלפיהם, שנהרגים מיידית. הבליינדים והאנטות שהניחו עוברים לקופה. "בכסאך" פירושו בהישג יד של כסאך.',
           },
           {
             id: '31',
@@ -297,7 +297,7 @@ export const TDA_PARTS = [
             title_en: 'Substantial Action (SA)',
             title_he: 'פעולה מהותית (SA)',
             en: 'Substantial Action is either: A) Any two actions in turn, at least one of which puts chips in the pot (e.g. any two of fold, check, call, bet, raise), or B) Any combination of three actions in turn (check, bet, raise, call, or fold). Posting of blinds is not SA.',
-            he: 'פעולה מהותית היא: א) כל 2 פעולות בתורן, לפחות אחת מהן מכניסה ג\'טונים לסיר, או ב) כל שילוב של 3 פעולות בתורן (check, bet, raise, call, fold). הנחת בליינדים אינה נחשבת SA.',
+            he: 'פעולה מהותית היא: א) כל 2 פעולות בתורן, לפחות אחת מהן מכניסה ג\'טונים לקופה, או ב) כל שילוב של 3 פעולות בתורן (check, bet, raise, call, fold). הנחת בליינדים אינה נחשבת SA.',
           },
           {
             id: '37',
@@ -401,7 +401,7 @@ export const TDA_PARTS = [
             title_en: 'Acting in Turn',
             title_he: 'פעולה בתורן',
             en: 'A: Players must act in turn verbally and/or by pushing out chips. Action in turn is binding and puts chips in the pot that stay in the pot. B: Players must wait for clear bet amounts before acting.',
-            he: 'א: שחקנים חייבים לפעול בתורן מילולית ו/או על ידי דחיפת ג\'טונים. פעולה בתורן מחייבת ומכניסה ג\'טונים לסיר שנשארים בסיר. ב: שחקנים חייבים להמתין לסכומי הימור ברורים לפני הפעולה.',
+            he: 'א: שחקנים חייבים לפעול בתורן מילולית ו/או על ידי דחיפת ג\'טונים. פעולה בתורן מחייבת ומכניסה ג\'טונים לקופה שנשארים בקופה. ב: שחקנים חייבים להמתין לסכומי הימור ברורים לפני הפעולה.',
           },
           {
             id: '51',
@@ -415,7 +415,7 @@ export const TDA_PARTS = [
             title_en: 'Incorrect Bets, Underbets and Underraises',
             title_he: 'הימורים שגויים, Underbets ו-Underraises',
             en: 'A: In limit and no-limit, opening or raising for less than the minimum allowed is corrected anywhere in the current street. B: In pot-limit, if a player bets below the pot due to a miscalculation — if the pot count is too high (an illegal bet), it is corrected for all players anywhere in the current street; if too low, it is corrected until SA has occurred after the bet.',
-            he: 'א: בלימיט ו-No-Limit, פתיחה או הגבהה בסכום הנמוך מהמינימום המותר מתוקנת בכל מקום ברחוב הנוכחי. ב: ב-Pot-Limit, אם שחקן מהמר מתחת לסיר בגלל ספירה שגויה — אם ספירת הסיר גבוהה מדי (הימור בלתי חוקי), יתוקן לכל השחקנים בכל מקום ברחוב; אם נמוכה מדי, יתוקן עד שתתרחש SA לאחר ההימור.',
+            he: 'א: בלימיט ו-No-Limit, פתיחה או הגבהה בסכום הנמוך מהמינימום המותר מתוקנת בכל מקום ברחוב הנוכחי. ב: ב-Pot-Limit, אם שחקן מהמר מתחת לקופה בגלל ספירה שגויה — אם ספירת הקופה גבוהה מדי (הימור בלתי חוקי), יתוקן לכל השחקנים בכל מקום ברחוב; אם נמוכה מדי, יתוקן עד שתתרחש SA לאחר ההימור.',
           },
           {
             id: '53',
@@ -427,9 +427,9 @@ export const TDA_PARTS = [
           {
             id: '54',
             title_en: 'Pot Size and Pot-Limit Bets',
-            title_he: 'גודל הסיר והימורי Pot-Limit',
+            title_he: 'גודל הקופה והימורי Pot-Limit',
             en: 'A: Players are entitled to a pot count in pot-limit only. Dealers will not count the pot in limit and no-limit. B: Pre-flop, a dead blind or a short all-in does not affect pot calculation. C: Post-flop, bets are based on the actual pot size. D: Declaring "I bet the pot" is not a valid bet in no-limit but binds the player to make a valid bet (at least the minimum).',
-            he: 'א: שחקנים זכאים לספירת סיר ב-Pot-Limit בלבד. דילרים לא יספרו את הסיר בלימיט וב-No-Limit. ב: לפני ה-Flop, Blind מת או All-in קצר לא ישפיע על חישוב הסיר. ג: אחרי ה-Flop, ההימורים מבוססים על גודל הסיר בפועל. ד: הכרזת "אני מהמר את הסיר" אינה הימור תקף ב-No-Limit אך מחייבת שחקן לבצע הימור תקף (לפחות מינימום).',
+            he: 'א: שחקנים זכאים לספירת קופה ב-Pot-Limit בלבד. דילרים לא יספרו את הקופה בלימיט וב-No-Limit. ב: לפני ה-Flop, Blind מת או All-in קצר לא ישפיע על חישוב הקופה. ג: אחרי ה-Flop, ההימורים מבוססים על גודל הקופה בפועל. ד: הכרזת "אני מהמר את הקופה" אינה הימור תקף ב-No-Limit אך מחייבת שחקן לבצע הימור תקף (לפחות מינימום).',
           },
           {
             id: '55',
@@ -450,7 +450,7 @@ export const TDA_PARTS = [
             title_en: 'Non-Standard and Unclear Betting',
             title_he: 'הימור לא-סטנדרטי ולא ברור',
             en: 'Players use unofficial betting terms and gestures at their own risk; these may be interpreted differently than intended. Also, if a declared bet is legally open to multiple interpretations, the highest reasonable amount that is less than or equal to the pot size before the bet is made will be assigned.',
-            he: 'שחקנים משתמשים במונחי הימור ומחוות לא-רשמיים על אחריותם. אלה עלולים להתפרש אחרת ממה שהשחקן התכוון. כמו כן, אם הימור מוכרז יכול חוקית לקבל פירושים מרובים, ייקבע הסכום הגבוה ביותר הסביר הנמוך מגודל הסיר לפני ההימור או שווה לו.',
+            he: 'שחקנים משתמשים במונחי הימור ומחוות לא-רשמיים על אחריותם. אלה עלולים להתפרש אחרת ממה שהשחקן התכוון. כמו כן, אם הימור מוכרז יכול חוקית לקבל פירושים מרובים, ייקבע הסכום הגבוה ביותר הסביר הנמוך מגודל הקופה לפני ההימור או שווה לו.',
           },
           {
             id: '58',
@@ -662,9 +662,9 @@ export const TDA_PARTS = [
           {
             id: 'RP-13',
             title_en: 'Dealers Should Stack Chips in Split-Pot Games',
-            title_he: 'דילרים חייבים לערום ג\'טונים במשחקי סיר מחולק',
+            title_he: 'דילרים חייבים לערום ג\'טונים במשחקי קופה מחולקת',
             en: 'When possible, dealers will stack pot chips in split-pot games. Chip stacking should not obscure the sight lines of players.',
-            he: 'ככל האפשר, דילרים יערמו ג\'טוני סיר במשחקי חלוקה. ערימת ג\'טונים לא תסתיר את שדה הראייה של שחקנים.',
+            he: 'ככל האפשר, דילרים יערמו ג\'טוני קופה במשחקי חלוקה. ערימת ג\'טונים לא תסתיר את שדה הראייה של שחקנים.',
           },
           {
             id: 'RP-14',
@@ -718,9 +718,9 @@ export const TDA_PARTS = [
           {
             id: 'RP-21',
             title_en: 'Spreading the Pot',
-            title_he: 'פריסת הסיר',
+            title_he: 'פריסת הקופה',
             en: 'The pot is only counted in pot-limit events. Upon request, the pot may be spread to increase visibility of chips.',
-            he: 'הסיר יספר רק באירועי Pot-Limit. לפי בקשה ניתן לפרוס את הסיר להגדלת נראות הג\'טונים.',
+            he: 'הקופה תיספר רק באירועי Pot-Limit. לפי בקשה ניתן לפרוס את הקופה להגדלת נראות הג\'טונים.',
           },
           {
             id: 'RP-22',

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import HandVideoCanvas from './HandVideoCanvas';
 import api from '../../utils/api';
@@ -74,7 +74,7 @@ export default function HandSummary({ handState, narrative, onSaveSuccess, onRes
   const resultColor = handState.result === 'won'
     ? 'text-emerald-400' : handState.result === 'lost' ? 'text-red-400' : 'text-amber-400';
   const resultLabel = handState.result === 'won' ? '🏆 ניצחון'
-    : handState.result === 'lost' ? '💀 הפסד' : '🤝 סיר מחולק';
+    : handState.result === 'lost' ? '💀 הפסד' : '🤝 קופה מחולקת';
 
   const atLimit = user && handCount !== null && handCount >= MAX_SAVED_HANDS;
 
