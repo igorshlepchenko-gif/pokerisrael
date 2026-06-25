@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import { TDA_PARTS } from '../data/tdaRules';
 
 const HANDS = [
   { name: 'Royal Flush', emoji: '👑', desc: 'A-K-Q-J-10 מאותו צבע', example: 'A♦ K♦ Q♦ J♦ 10♦' },
@@ -56,8 +57,47 @@ const HOW_TO_PLAY_SECTIONS = [
   },
 ];
 
+function highlight(text, query) {
+  if (!query) return text;
+  const idx = text.toLowerCase().indexOf(query.toLowerCase());
+  if (idx === -1) return text;
+  return (
+    <>
+      {text.slice(0, idx)}
+      <mark className="bg-yellow-400/30 text-yellow-200 rounded px-0.5">{text.slice(idx, idx + query.length)}</mark>
+      {highlight(text.slice(idx + query.length), query)}
+    </>
+  );
+}
+
 export default function Rules() {
   const [tab, setTab] = useState('how');
+  const [tdaLang, setTdaLang] = useState('he');
+  const [tdaSearch, setTdaSearch] = useState('');
+  const [tdaPart, setTdaPart] = useState(1);
+
+  const activePart = useMemo(() => TDA_PARTS.find(p => p.id === tdaPart), [tdaPart]);
+
+  const filteredSections = useMemo(() => {
+    if (!activePart) return [];
+    const q = tdaSearch.toLowerCase().trim();
+    if (!q) return activePart.sections;
+    return activePart.sections
+      .map(sec => ({
+        ...sec,
+        rules: sec.rules.filter(r =>
+          r.id.toLowerCase().includes(q) ||
+          r.title_en.toLowerCase().includes(q) ||
+          r.title_he.toLowerCase().includes(q) ||
+          r.en.toLowerCase().includes(q) ||
+          r.he.toLowerCase().includes(q)
+        ),
+      }))
+      .filter(sec => sec.rules.length > 0);
+  }, [tdaSearch, tdaPart, activePart]);
+
+  const totalResults = filteredSections.reduce((n, s) => n + s.rules.length, 0);
+  const q = tdaSearch.trim();
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-200" dir="rtl">
@@ -133,14 +173,105 @@ export default function Rules() {
           </div>
         )}
 
-        {/* ── TDA ── */}
+        {/* ── TDA RULES ── */}
         {tab === 'tda' && (
-          <div className="text-center py-20 space-y-4">
-            <div className="text-5xl">📋</div>
-            <h2 className="text-xl font-bold text-slate-300">TDA Rules — בקרוב</h2>
-            <p className="text-slate-500 text-sm max-w-sm mx-auto">
-              חוקי ה-Tournament Directors Association יתווספו כאן בקרוב.
-            </p>
+          <div className="space-y-5">
+
+            {/* Controls row */}
+            <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+              {/* Language toggle */}
+              <div className="flex rounded-lg overflow-hidden border border-slate-700 shrink-0">
+                <button onClick={() => setTdaLang('he')}
+                  className={`px-4 py-2 text-sm font-bold transition-all ${tdaLang === 'he' ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-slate-200'}`}>
+                  🇮🇱 עברית
+                </button>
+                <button onClick={() => setTdaLang('en')}
+                  className={`px-4 py-2 text-sm font-bold transition-all ${tdaLang === 'en' ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-slate-200'}`}>
+                  🇺🇸 English
+                </button>
+              </div>
+              {/* Search */}
+              <div className="relative flex-1 max-w-sm w-full">
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm pointer-events-none">🔍</span>
+                <input type="text" value={tdaSearch} onChange={e => setTdaSearch(e.target.value)}
+                  placeholder={tdaLang === 'he' ? 'חיפוש בכל החוקים...' : 'Search all rules...'}
+                  dir="auto"
+                  className="w-full bg-slate-800/60 border border-slate-700 rounded-lg px-4 py-2 pr-9 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/30 transition-all" />
+                {tdaSearch && (
+                  <button onClick={() => setTdaSearch('')}
+                    className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 text-xs px-1">✕</button>
+                )}
+              </div>
+            </div>
+
+            {/* Part selector */}
+            <div className="flex gap-2 flex-wrap">
+              {TDA_PARTS.map(p => (
+                <button key={p.id} onClick={() => { setTdaPart(p.id); setTdaSearch(''); }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${tdaPart === p.id
+                    ? 'bg-blue-600/20 border-blue-500/40 text-blue-300'
+                    : 'bg-slate-800/60 border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600'}`}>
+                  {tdaLang === 'he' ? p.title_he : p.title_en}
+                </button>
+              ))}
+            </div>
+
+            {/* Search result count */}
+            {q && (
+              <div className="text-xs text-slate-500 px-1">
+                {tdaLang === 'he' ? `${totalResults} תוצאות עבור "${q}"` : `${totalResults} results for "${q}"`}
+              </div>
+            )}
+
+            {/* Rules list */}
+            {filteredSections.length === 0 ? (
+              <div className="text-center py-16 text-slate-500">
+                <div className="text-3xl mb-3">🔍</div>
+                <p>{tdaLang === 'he' ? 'לא נמצאו תוצאות' : 'No results found'}</p>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {filteredSections.map(sec => (
+                  <div key={sec.title_en}>
+                    <h3 className="text-xs font-black uppercase tracking-widest text-blue-400/70 mb-3 px-1">
+                      {tdaLang === 'he' ? sec.title_he : sec.title_en}
+                    </h3>
+                    <div className="space-y-2">
+                      {sec.rules.map(rule => {
+                        const title = tdaLang === 'he' ? rule.title_he : rule.title_en;
+                        const body  = tdaLang === 'he' ? rule.he : rule.en;
+                        return (
+                          <div key={rule.id}
+                            className="rounded-xl border border-slate-800 bg-slate-900/60 hover:border-slate-700 transition-all overflow-hidden">
+                            <div className="flex items-start gap-3 p-4">
+                              <span className="shrink-0 mt-0.5 px-2 py-0.5 rounded-md bg-blue-600/15 text-blue-400 text-xs font-black font-mono border border-blue-500/20">
+                                {rule.id}
+                              </span>
+                              <div className="min-w-0 flex-1">
+                                <div className="font-bold text-white text-sm mb-1.5">
+                                  {q ? highlight(title, q) : title}
+                                </div>
+                                <p className="text-slate-300 text-sm leading-relaxed"
+                                  dir={tdaLang === 'he' ? 'rtl' : 'ltr'}>
+                                  {q ? highlight(body, q) : body}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Copyright */}
+            <div className="pt-4 border-t border-slate-800 text-center">
+              <p className="text-xs text-slate-600">
+                TDA rules used by permission of the Poker TDA · Copyright 2024 pokertda.com
+              </p>
+            </div>
           </div>
         )}
       </div>
