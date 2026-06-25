@@ -47,12 +47,27 @@ exports.getAll = async (req, res) => {
     `;
 
     // מיון
+    // לטורנירים חוזרים מחשבים את המופע הבא לפי day_of_week + שעה (בשעון ישראל)
+    const nextOccurrenceExpr = `CASE
+      WHEN t.is_recurring AND t.day_of_week IS NOT NULL THEN
+        (NOW() AT TIME ZONE 'Asia/Jerusalem')::date
+        + (((t.day_of_week - EXTRACT(DOW FROM NOW() AT TIME ZONE 'Asia/Jerusalem')::int + 7) % 7
+           + CASE
+               WHEN (t.day_of_week - EXTRACT(DOW FROM NOW() AT TIME ZONE 'Asia/Jerusalem')::int + 7) % 7 = 0
+                    AND (NOW() AT TIME ZONE 'Asia/Jerusalem')::time > t.start_time::time
+               THEN 7 ELSE 0
+             END
+          )::text || ' days')::interval
+        + t.start_time::time
+      ELSE t.start_time
+    END`;
+
     const sortClause =
       sort === 'venue_name' ? 'ORDER BY t.is_boosted DESC, v.name ASC' :
       sort === 'cost_asc'   ? 'ORDER BY t.is_boosted DESC, t.cost ASC NULLS LAST' :
       sort === 'cost_desc'  ? 'ORDER BY t.is_boosted DESC, t.cost DESC NULLS LAST' :
       sort === 'day'        ? 'ORDER BY t.is_boosted DESC, t.day_of_week ASC NULLS LAST, t.start_time ASC' :
-      /* start_time default */ 'ORDER BY t.is_boosted DESC, t.start_time ASC';
+      /* start_time default */ `ORDER BY t.is_boosted DESC, ${nextOccurrenceExpr} ASC`;
 
     let query, params = [], idx = 1;
 
