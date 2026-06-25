@@ -245,6 +245,87 @@ function attachBotHandlers(bot) {
   });
 }
 
+// ── Detect weekly tournament schedule (≥3 buy-in blocks = schedule, not reminder) ──
+function detectWeeklySchedule(text) {
+  return (text.match(/כניסה:/g) || []).length >= 3;
+}
+
+// ── Parse ALL tournaments from a weekly schedule text message ─────────────────
+const WEEKLY_SCHEDULE_TEXT_SYSTEM = `You are parsing a Hebrew WhatsApp weekly poker tournament schedule message from an Israeli poker club.
+Extract ALL individual tournaments listed and return ONLY valid JSON — no markdown, no explanation.`;
+
+async function parseWeeklyScheduleText(text) {
+  const groq = getGroq();
+  if (!groq) return [];
+  try {
+    const r = await groq.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      temperature: 0.1,
+      max_tokens: 2000,
+      response_format: { type: 'json_object' },
+      messages: [
+        { role: 'system', content: WEEKLY_SCHEDULE_TEXT_SYSTEM },
+        { role: 'user', content:
+          `Parse this Hebrew weekly poker schedule and extract ALL tournaments.\n` +
+          `For each tournament return:\n` +
+          `- name: English/caps name (e.g. "Omaha Mindset", "Mystery Bounty", "The Playground")\n` +
+          `- date_str: "DD.MM" format (e.g. "21.6")\n` +
+          `- start_time: exact "HH:MM" 24h (e.g. "18:00", "11:00", "20:30")\n` +
+          `- cost: total buy-in integer\n` +
+          `- starting_stack: chip count integer (300,000→300000)\n` +
+          `- re_entry: integer (X2→2, X3→3)\n` +
+          `- level_count: level duration minutes integer\n\n` +
+          `Return ONLY: {"tournaments":[{"name":"...","date_str":"21.6","start_time":"18:00","cost":800,"starting_stack":300000,"re_entry":2,"level_count":20}]}\n\n` +
+          `Message:\n---\n${text.slice(0, 6000)}\n---`
+        },
+      ],
+    });
+    const raw   = r.choices[0]?.message?.content || '{}';
+    const clean = raw.replace(/```json\n?|\n?```/g, '').trim();
+    const obj   = JSON.parse(clean);
+    console.log(`[Agent] Parsed ${obj.tournaments?.length || 0} tournaments from weekly schedule text`);
+    return obj.tournaments || [];
+  } catch (e) {
+    console.error('[Agent] parseWeeklyScheduleText error:', e?.message);
+    return [];
+  }
+}
+
+// ── Find venue by WhatsApp group name (tokenizes name, searches DB) ───────────
+async function findVenueByGroupName(groupName) {
+  const words = (groupName || '').toLowerCase()
+    .split(/[\s\-|♣♠♥♦✨🎰]+/)
+    .filter(w => w.length >= 3 && !/^(the|and|for|its|of)$/.test(w));
+  for (const word of words) {
+    try {
+      const r = await pool.query(
+        `SELECT id, name FROM venues WHERE name ILIKE $1 LIMIT 1`, [`%${word}%`]
+      );
+      if (r.rows[0]) return r.rows[0];
+    } catch {}
+  }
+  return null;
+}
+
+// ── Process a full weekly schedule text message (multi-tournament) ─────────────
+async function processWeeklyScheduleMessage(platform, text, groupName) {
+  try {
+    const venue = await findVenueByGroupName(groupName);
+    if (!venue) {
+      console.warn(`[Agent] No venue for group "${groupName}" — weekly schedule skipped`);
+      return { imported: 0, updated: 0 };
+    }
+    const tournaments = await parseWeeklyScheduleText(text);
+    if (!tournaments.length) return { imported: 0, updated: 0 };
+    const result = await importWeeklySchedule(tournaments, venue.id);
+    console.log(`[Agent] Weekly schedule "${groupName}" → ${result.imported} new, ${result.updated} updated → ${venue.name}`);
+    return result;
+  } catch (e) {
+    console.error('[Agent] processWeeklyScheduleMessage error:', e?.message);
+    return { imported: 0, updated: 0 };
+  }
+}
+
 // ── Process a single message text ────────────────────────────────────────────
 async function processMessage(platform, text, sourceId, hash = null) {
   if (!text || text.length < 20) return false;
@@ -325,19 +406,22 @@ async function scanTelegramSources() {
 // ── WhatsApp webhook messages (stored in DB by the webhook handler) ───────────
 async function scanWhatsAppPending() {
   try {
-    // The webhook stores raw messages in a temp table; we process them here
     const rows = await pool.query(
       `SELECT * FROM whatsapp_inbox WHERE processed=false ORDER BY created_at ASC LIMIT 50`
     );
     let found = 0;
     for (const row of rows.rows) {
-      const ok = await processMessage('whatsapp', row.body, null);
-      if (ok) found++;
+      if (detectWeeklySchedule(row.body)) {
+        const r = await processWeeklyScheduleMessage('whatsapp', row.body, row.from_num || '');
+        if (r.imported > 0 || r.updated > 0) found++;
+      } else {
+        const ok = await processMessage('whatsapp', row.body, null);
+        if (ok) found++;
+      }
       await pool.query(`UPDATE whatsapp_inbox SET processed=true WHERE id=$1`, [row.id]);
     }
     return { scanned: rows.rows.length, found };
   } catch {
-    // Table may not exist yet — that's fine
     return { scanned: 0, found: 0 };
   }
 }
@@ -390,13 +474,18 @@ function startAgent() {
   getBot();
   console.log('[Agent] 🤖 Telegram bot started');
 
-  // Daily cron: 08:00 Israel time (UTC+3 = 05:00 UTC)
-  const schedule = process.env.AGENT_CRON || '0 5 * * *';
+  // Daily cron: 08:00 Israel time
+  const schedule = process.env.AGENT_CRON || '0 8 * * *';
   cron.schedule(schedule, () => {
     runDailyScan().catch(e => console.error('[Agent] cron error:', e?.message));
   }, { timezone: 'Asia/Jerusalem' });
+  console.log(`[Agent] ⏰ Daily scan scheduled (08:00 IL)`);
 
-  console.log(`[Agent] ⏰ Daily scan scheduled (${schedule} UTC / 08:00 IL)`);
+  // Evening crons: 20:00, 21:00, 22:00 IL — catch SUITS weekly schedule messages
+  cron.schedule('0 20,21,22 * * *', () => {
+    scanWhatsAppPending().catch(e => console.error('[Agent] evening scan error:', e?.message));
+  }, { timezone: 'Asia/Jerusalem' });
+  console.log(`[Agent] ⏰ Evening WhatsApp scans scheduled (20:00, 21:00, 22:00 IL)`);
 }
 
 // ── Weekly Schedule Image Parser (Groq Vision) ────────────────────────────────
@@ -417,7 +506,7 @@ For each tournament extract:
 Return ONLY valid JSON, no markdown, no explanation:
 {"tournaments":[{"name":"...","day_hebrew":"...","date_str":"21.6","time_hint":"ערב","cost":800,"starting_stack":300000,"re_entry":2,"level_count":20}]}`;
 
-async function parseScheduleImage(imageBase64, mimeType = 'image/jpeg') {
+async function parseScheduleImage(imageBase64, mimeType = 'image/jpeg', captionText = '') {
   const groq = getGroq();
   if (!groq) throw new Error('GROQ_API_KEY not configured');
 
@@ -426,6 +515,11 @@ async function parseScheduleImage(imageBase64, mimeType = 'image/jpeg') {
     'llama-3.2-90b-vision-preview',
     'llama-3.2-11b-vision-preview',
   ];
+
+  // If caption text is provided (e.g. full Hebrew schedule), use it to get exact times
+  const prompt = captionText
+    ? `${SCHEDULE_VISION_PROMPT}\n\nAdditional context from the accompanying message text — use this for exact start times and any details not visible in the image:\n${captionText.slice(0, 2000)}`
+    : SCHEDULE_VISION_PROMPT;
 
   let lastErr;
   for (const model of VISION_MODELS) {
@@ -437,7 +531,7 @@ async function parseScheduleImage(imageBase64, mimeType = 'image/jpeg') {
         messages: [{
           role: 'user',
           content: [
-            { type: 'text', text: SCHEDULE_VISION_PROMPT },
+            { type: 'text', text: prompt },
             { type: 'image_url', image_url: { url: `data:${mimeType};base64,${imageBase64}` } },
           ],
         }],
@@ -517,4 +611,4 @@ async function importWeeklySchedule(rawTournaments, venueId) {
   return { imported, updated };
 }
 
-module.exports = { startAgent, runDailyScan, processMessage, parseWithAI, parseScheduleImage, importWeeklySchedule };
+module.exports = { startAgent, runDailyScan, processMessage, parseWithAI, parseScheduleImage, importWeeklySchedule, detectWeeklySchedule, parseWeeklyScheduleText, processWeeklyScheduleMessage, findVenueByGroupName };

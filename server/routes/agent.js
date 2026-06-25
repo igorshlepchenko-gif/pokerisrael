@@ -1,7 +1,7 @@
 const express = require('express');
 const pool    = require('../config/db');
 const { authenticate, requireRole } = require('../middleware/auth');
-const { runDailyScan, processMessage } = require('../services/importAgent');
+const { runDailyScan, processMessage, detectWeeklySchedule, processWeeklyScheduleMessage, findVenueByGroupName } = require('../services/importAgent');
 const wa = require('../services/whatsappListener');
 
 const router = express.Router();
@@ -128,6 +128,18 @@ async function ensureWhatsAppTable() {
 }
 ensureWhatsAppTable();
 
+// Auto-register SUITS WhatsApp group as a monitored source
+async function ensureSuitsAgentSource() {
+  try {
+    await pool.query(`
+      INSERT INTO agent_sources (platform, name, identifier, active)
+      VALUES ('whatsapp', 'SUITS WhatsApp', 'SUITS - The Mind''s Playground ♣️', true)
+      ON CONFLICT DO NOTHING
+    `);
+  } catch {}
+}
+ensureSuitsAgentSource();
+
 // POST /api/agent/import-schedule — accept pre-parsed tournament list (no auth, internal use)
 router.post('/import-schedule', async (req, res) => {
   try {
@@ -161,24 +173,27 @@ router.post('/whatsapp-image', async (req, res) => {
 
     const { parseScheduleImage, importWeeklySchedule } = require('../services/importAgent');
 
-    const tournaments = await parseScheduleImage(imageBase64, mimeType);
+    // Pass caption text so Groq can extract exact times (image often omits them)
+    const tournaments = await parseScheduleImage(imageBase64, mimeType, caption || '');
     if (!tournaments?.length) {
       console.log('[Agent] No tournaments parsed from image');
       return res.json({ imported: 0, updated: 0, message: 'no tournaments found' });
     }
 
-    // Find SUITS venue (or match by group name in future)
-    const vRes = await pool.query(
-      `SELECT id, name FROM venues WHERE name ILIKE '%suits%' LIMIT 1`
-    );
-    if (!vRes.rows[0]) {
-      console.warn('[Agent] SUITS venue not found in DB');
-      return res.json({ imported: 0, updated: 0, message: 'SUITS venue not found' });
+    // Find venue by group name, fallback to 'suits' keyword search
+    let venue = from ? await findVenueByGroupName(from) : null;
+    if (!venue) {
+      const r = await pool.query(`SELECT id, name FROM venues WHERE name ILIKE '%suits%' LIMIT 1`);
+      venue = r.rows[0] || null;
+    }
+    if (!venue) {
+      console.warn('[Agent] Venue not found for image from:', from);
+      return res.json({ imported: 0, updated: 0, message: 'venue not found' });
     }
 
-    const { imported, updated } = await importWeeklySchedule(tournaments, vRes.rows[0].id);
-    console.log(`[Agent] ✅ Weekly schedule: ${imported} new, ${updated} updated → ${vRes.rows[0].name}`);
-    res.json({ imported, updated, total: tournaments.length, venue: vRes.rows[0].name });
+    const { imported, updated } = await importWeeklySchedule(tournaments, venue.id);
+    console.log(`[Agent] ✅ Weekly schedule: ${imported} new, ${updated} updated → ${venue.name}`);
+    res.json({ imported, updated, total: tournaments.length, venue: venue.name });
   } catch (e) {
     console.error('[Agent] whatsapp-image error:', e?.message);
     res.status(500).json({ error: e?.message });
@@ -201,8 +216,13 @@ router.post('/whatsapp-webhook', async (req, res) => {
       [from, body.slice(0, 8000)]
     );
 
-    // Process immediately (don't wait for daily cron)
-    processMessage('whatsapp', body, null).catch(() => {});
+    // Detect weekly schedule (≥3 buy-in blocks) vs single-tournament message
+    if (detectWeeklySchedule(body)) {
+      console.log(`[Agent] Weekly schedule detected from "${from}" — parsing all tournaments`);
+      processWeeklyScheduleMessage('whatsapp', body, from).catch(() => {});
+    } else {
+      processMessage('whatsapp', body, null).catch(() => {});
+    }
 
     res.status(200).send('OK');
   } catch (e) {
