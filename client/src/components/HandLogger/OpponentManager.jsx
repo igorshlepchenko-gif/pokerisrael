@@ -1,6 +1,6 @@
 const ALL_POSITIONS = ['UTG', 'UTG+1', 'MP', 'HJ', 'CO', 'BTN', 'SB', 'BB'];
 
-export default function OpponentManager({ opponents, onChange, heroPosition, unit = 'BB' }) {
+export default function OpponentManager({ opponents, onChange, heroPosition, unit = 'BB', heroStack }) {
   const usedPositions = new Set([heroPosition, ...opponents.map(o => o.position)]);
 
   const addOpponent = () => {
@@ -9,14 +9,19 @@ export default function OpponentManager({ opponents, onChange, heroPosition, uni
       id: Date.now(),
       label: `יריב ${opponents.length + 1}`,
       position: available || '',
-      stack: 100,
+      stack: parseInt(heroStack) || 100,
+      stackTouched: false,
       cards: null,
     };
     onChange([...opponents, newOpp]);
   };
 
   const updateOpponent = (id, field, value) => {
-    onChange(opponents.map(o => o.id === id ? { ...o, [field]: value } : o));
+    onChange(opponents.map(o => {
+      if (o.id !== id) return o;
+      if (field === 'stack') return { ...o, stack: value, stackTouched: true };
+      return { ...o, [field]: value };
+    }));
   };
 
   const removeOpponent = (id) => {
@@ -46,7 +51,7 @@ export default function OpponentManager({ opponents, onChange, heroPosition, uni
             </div>
             {/* Position */}
             <div className="col-span-2">
-              <label className="block text-[10px] text-slate-500 mb-1 text-right">עמדה</label>
+              <label className="block text-[10px] text-slate-300 mb-1 text-right">עמדה</label>
               <select
                 value={opp.position}
                 onChange={e => updateOpponent(opp.id, 'position', e.target.value)}
@@ -60,12 +65,16 @@ export default function OpponentManager({ opponents, onChange, heroPosition, uni
             </div>
             {/* Stack */}
             <div>
-              <label className="block text-[10px] text-slate-500 mb-1 text-right">ערימה ({unit})</label>
+              <label className="block text-[10px] text-slate-300 mb-1 text-right">ערימה ({unit})</label>
               <input
-                type="number" min="1" placeholder="100"
+                type="number" min="1"
                 value={opp.stack}
                 onChange={e => updateOpponent(opp.id, 'stack', parseInt(e.target.value) || 0)}
-                className="w-full px-2 py-1.5 rounded-lg bg-slate-900 border border-slate-600 text-slate-200 text-sm text-right focus:border-blue-500 focus:outline-none"
+                onFocus={e => { if (!opp.stackTouched) e.target.select(); }}
+                className={`w-full px-2 py-1.5 rounded-lg bg-slate-900 border text-sm text-right focus:border-blue-500 focus:outline-none transition-colors
+                  ${opp.stackTouched
+                    ? 'border-slate-600 text-slate-200'
+                    : 'border-slate-700 text-slate-500'}`}
               />
             </div>
           </div>

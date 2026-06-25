@@ -1,3 +1,5 @@
+import { useState } from 'react';
+
 const RANKS = ['A','K','Q','J','T','9','8','7','6','5','4','3','2'];
 
 const SUITS = [
@@ -10,20 +12,45 @@ const SUITS = [
 function cardKey(rank, suit) { return `${rank}${suit}`; }
 
 export default function CardPicker({ selected = [], onChange, max = 2, disabled = [] }) {
+  const [pendingSwap, setPendingSwap] = useState(null); // key of card being replaced
+
   const disabledSet = new Set(disabled.map(c => cardKey(c.rank, c.suit)));
   const selectedSet = new Set(selected.map(c => cardKey(c.rank, c.suit)));
+
+  const sortCards = (cards) =>
+    [...cards].sort((a, b) => {
+      const rankDiff = RANKS.indexOf(a.rank) - RANKS.indexOf(b.rank);
+      if (rankDiff !== 0) return rankDiff;
+      return SUITS.findIndex(s => s.key === a.suit) - SUITS.findIndex(s => s.key === b.suit);
+    });
 
   const toggle = (rank, suit) => {
     const key = cardKey(rank, suit);
     if (disabledSet.has(key)) return;
+
+    if (pendingSwap) {
+      if (key === pendingSwap) {
+        // לחיצה שנייה על אותו קלף — ביטול החלפה
+        setPendingSwap(null);
+        return;
+      }
+      if (selectedSet.has(key)) return; // לא מחליפים בקלף שכבר נבחר
+      const newSelected = selected.map(c =>
+        cardKey(c.rank, c.suit) === pendingSwap ? { rank, suit } : c
+      );
+      onChange(sortCards(newSelected));
+      setPendingSwap(null);
+      return;
+    }
+
     if (selectedSet.has(key)) {
-      onChange(selected.filter(c => cardKey(c.rank, c.suit) !== key));
+      // סימון להחלפה במקום מחיקה
+      setPendingSwap(key);
     } else if (selected.length < max) {
-      onChange([...selected, { rank, suit }]);
+      onChange(sortCards([...selected, { rank, suit }]));
     }
   };
 
-  // Responsive grid: suit-symbol col + 13 equal-width card cols
   const gridStyle = { gridTemplateColumns: 'repeat(13, 1fr)', gap: '2px' };
 
   return (
@@ -31,11 +58,11 @@ export default function CardPicker({ selected = [], onChange, max = 2, disabled 
       {/* Card rows */}
       {SUITS.map(suit => (
         <div key={suit.key} className="grid mb-1" style={gridStyle}>
-          {/* Cards */}
           {RANKS.map(rank => {
             const key = cardKey(rank, suit.key);
-            const isSel = selectedSet.has(key);
-            const isDis = disabledSet.has(key);
+            const isSel   = selectedSet.has(key);
+            const isDis   = disabledSet.has(key);
+            const isPending = pendingSwap === key;
             return (
               <button
                 key={key}
@@ -44,7 +71,14 @@ export default function CardPicker({ selected = [], onChange, max = 2, disabled 
                 title={`${rank}${suit.symbol}`}
                 className="rounded aspect-[2/3] text-xs font-black border transition-all duration-100 select-none w-full"
                 style={
-                  isSel ? {
+                  isPending ? {
+                    background: '#f97316',
+                    borderColor: '#fff',
+                    color: '#fff',
+                    boxShadow: '0 0 12px #f9731699, 0 0 4px #fff8',
+                    transform: 'scale(1.15)',
+                    animation: 'pulse 1s infinite',
+                  } : isSel ? {
                     background: suit.hover,
                     borderColor: '#fff',
                     color: '#fff',
@@ -75,13 +109,30 @@ export default function CardPicker({ selected = [], onChange, max = 2, disabled 
       {selected.length > 0 && (
         <div className="flex gap-3 mt-4 justify-center">
           {selected.map(c => {
-            const s = SUITS.find(x => x.key === c.suit);
+            const key     = cardKey(c.rank, c.suit);
+            const s       = SUITS.find(x => x.key === c.suit);
+            const isPending = pendingSwap === key;
             return (
-              <div key={cardKey(c.rank, c.suit)}
-                className="flex flex-col items-center justify-center w-14 h-20 rounded-xl border-2 shadow-xl"
-                style={{ background: s?.color, borderColor: '#fff', boxShadow: `0 4px 20px ${s?.color}60` }}>
+              <div
+                key={key}
+                onClick={() => toggle(c.rank, c.suit)}
+                className="flex flex-col items-center justify-center w-14 h-20 rounded-xl border-2 shadow-xl cursor-pointer transition-all duration-150 hover:scale-105"
+                style={isPending ? {
+                  background: '#f97316',
+                  borderColor: '#fff',
+                  boxShadow: '0 0 20px #f9731699, 0 0 6px #fff8',
+                  transform: 'scale(1.1)',
+                } : {
+                  background: s?.color,
+                  borderColor: '#fff',
+                  boxShadow: `0 4px 20px ${s?.color}60`,
+                }}
+              >
                 <span className="text-2xl font-black leading-none text-white">{c.rank}</span>
                 <span className="text-2xl leading-none text-white">{s?.symbol}</span>
+                {isPending && (
+                  <span className="text-[9px] text-white/80 font-bold mt-0.5">החלף</span>
+                )}
               </div>
             );
           })}
@@ -92,6 +143,13 @@ export default function CardPicker({ selected = [], onChange, max = 2, disabled 
             </div>
           ))}
         </div>
+      )}
+
+      {/* הנחיה בזמן המתנה להחלפה */}
+      {pendingSwap && (
+        <p className="text-center text-xs text-orange-400 mt-2 font-bold" dir="rtl">
+          בחר קלף חלופי מהטבלה • לחץ שוב לביטול
+        </p>
       )}
     </div>
   );
