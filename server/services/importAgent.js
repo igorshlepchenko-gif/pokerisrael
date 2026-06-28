@@ -497,14 +497,15 @@ For each tournament extract:
 - name: tournament name exactly as shown (e.g. "Omaha Mindset", "Mystery Bounty", "The Playground")
 - day_hebrew: Hebrew day shown (ראשון/שני/שלישי/רביעי/חמישי/שישי/שבת)
 - date_str: date string as shown in image (e.g. "21.6", "22.6", "25.6") — day.month format
-- time_hint: any time word shown near the tournament ("בוקר" for morning, "ערב" for evening, or exact time if visible)
+- start_time: exact start time as "HH:MM" if visible (e.g. "18:00", "11:00", "20:30"); null if not shown
+- time_hint: fallback hint when exact time is unknown — "בוקר" for morning, "ערב" for evening, or null
 - cost: total buy-in as integer (e.g. 800, 600, 1000)
 - starting_stack: chip stack as integer (300k→300000, 75k→75000, 100k→100000)
 - re_entry: re-entry count as integer (X1→1, X2→2, X3→3)
 - level_count: levels count as integer (18, 20, 25)
 
 Return ONLY valid JSON, no markdown, no explanation:
-{"tournaments":[{"name":"...","day_hebrew":"...","date_str":"21.6","time_hint":"ערב","cost":800,"starting_stack":300000,"re_entry":2,"level_count":20}]}`;
+{"tournaments":[{"name":"...","day_hebrew":"...","date_str":"21.6","start_time":null,"time_hint":"ערב","cost":800,"starting_stack":300000,"re_entry":2,"level_count":20}]}`;
 
 async function parseScheduleImage(imageBase64, mimeType = 'image/jpeg', captionText = '') {
   const groq = getGroq();
