@@ -576,7 +576,7 @@ async function importWeeklySchedule(rawTournaments, venueId) {
   for (const t of rawTournaments) {
     try {
       const date       = parseDateStr(t.date_str, year);
-      const startTime  = guessStartTime(t.time_hint);
+      const startTime  = t.start_time || guessStartTime(t.time_hint);
       const startDt    = date ? `${date}T${startTime}:00` : null;
       const firstName  = (t.name || '').split(' ')[0];
 
