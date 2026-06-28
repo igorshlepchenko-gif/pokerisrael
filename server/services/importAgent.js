@@ -591,9 +591,9 @@ async function importWeeklySchedule(rawTournaments, venueId) {
       if (existing.rows.length > 0) {
         await pool.query(
           `UPDATE tournaments
-           SET cost=$1, starting_stack=$2, re_entry=$3, level_duration=$4, name=$5
-           WHERE id=$6`,
-          [t.cost||null, t.starting_stack||null, t.re_entry||null, t.level_count||null, t.name, existing.rows[0].id]
+           SET cost=$1, starting_stack=$2, re_entry=$3, level_duration=$4, name=$5, start_time=$6
+           WHERE id=$7`,
+          [t.cost||null, t.starting_stack||null, t.re_entry||null, t.level_count||null, t.name, startDt, existing.rows[0].id]
         );
         updated++;
       } else {
