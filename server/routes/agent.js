@@ -200,6 +200,22 @@ router.post('/whatsapp-image', async (req, res) => {
   }
 });
 
+// POST /api/agent/jokerclub-sync — called by local jokerclub-scraper script (headless
+// browser scrape of jokerclub.co.il/reg, which has no public API) with parsed tournaments
+router.post('/jokerclub-sync', async (req, res) => {
+  try {
+    const { tournaments } = req.body;
+    if (!Array.isArray(tournaments)) return res.status(400).json({ error: 'tournaments array required' });
+
+    const { syncJokerClub } = require('../services/jokerClubSync');
+    const result = await syncJokerClub(tournaments);
+    res.json(result);
+  } catch (e) {
+    console.error('[Agent] jokerclub-sync error:', e?.message);
+    res.status(500).json({ error: e?.message });
+  }
+});
+
 // POST /api/agent/whatsapp-webhook
 // Compatible with Twilio, CallMeBot, or any service that POSTs body text
 router.post('/whatsapp-webhook', async (req, res) => {

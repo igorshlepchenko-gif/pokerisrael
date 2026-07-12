@@ -1,0 +1,13 @@
+{
+  "name": "jokerclub-scraper",
+  "version": "1.0.0",
+  "description": "Headless-browser scrape of jokerclub.co.il/reg → pokerisrael.org sync, every 2 hours",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "node-cron": "^4.2.1",
+    "puppeteer": "24.38.0"
+  }
+}
