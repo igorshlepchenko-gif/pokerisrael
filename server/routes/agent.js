@@ -128,17 +128,23 @@ async function ensureWhatsAppTable() {
 }
 ensureWhatsAppTable();
 
-// Auto-register SUITS WhatsApp group as a monitored source
-async function ensureSuitsAgentSource() {
-  try {
-    await pool.query(`
-      INSERT INTO agent_sources (platform, name, identifier, active)
-      VALUES ('whatsapp', 'SUITS WhatsApp', 'SUITS - The Mind''s Playground ♣️', true)
-      ON CONFLICT DO NOTHING
-    `);
-  } catch {}
+// Auto-register the known fully-automatic WhatsApp groups as monitored sources
+const AUTO_AGENT_SOURCES = [
+  { name: 'SUITS WhatsApp', identifier: "SUITS - The Mind's Playground ♣️" },
+  { name: 'HOUSE WhatsApp',  identifier: 'האוס אירועים House ♦️' },
+];
+async function ensureAgentSources() {
+  for (const src of AUTO_AGENT_SOURCES) {
+    try {
+      await pool.query(`
+        INSERT INTO agent_sources (platform, name, identifier, active)
+        VALUES ('whatsapp', $1, $2, true)
+        ON CONFLICT DO NOTHING
+      `, [src.name, src.identifier]);
+    } catch {}
+  }
 }
-ensureSuitsAgentSource();
+ensureAgentSources();
 
 // POST /api/agent/import-schedule — accept pre-parsed tournament list (no auth, internal use)
 router.post('/import-schedule', async (req, res) => {
@@ -180,12 +186,9 @@ router.post('/whatsapp-image', async (req, res) => {
       return res.json({ imported: 0, updated: 0, message: 'no tournaments found' });
     }
 
-    // Find venue by group name, fallback to 'suits' keyword search
-    let venue = from ? await findVenueByGroupName(from) : null;
-    if (!venue) {
-      const r = await pool.query(`SELECT id, name FROM venues WHERE name ILIKE '%suits%' LIMIT 1`);
-      venue = r.rows[0] || null;
-    }
+    // Find venue by WhatsApp group name — no cross-venue fallback: an unmatched group must
+    // never silently land in another club's venue (this used to default to SUITS).
+    const venue = from ? await findVenueByGroupName(from) : null;
     if (!venue) {
       console.warn('[Agent] Venue not found for image from:', from);
       return res.json({ imported: 0, updated: 0, message: 'venue not found' });

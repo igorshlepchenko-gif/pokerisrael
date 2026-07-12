@@ -503,6 +503,10 @@ For each tournament extract:
 - starting_stack: chip stack as integer (300k→300000, 75k→75000, 100k→100000)
 - re_entry: re-entry count as integer (X1→1, X2→2, X3→3)
 - level_count: levels count as integer (18, 20, 25)
+- is_online: true only if this row is explicitly labeled online (e.g. "MAIN ONLINE", "אונליין" in
+  its name or nearby text); false for physical/live events at the club
+- platform: the online platform name exactly as shown (e.g. "Microz") if is_online is true and a
+  platform is visible; null otherwise
 
 Multi-day tournaments: "Day 1" often runs as several separate starting flights on different
 dates — "Day 1A", "Day 1B", "Day 1C" (or Hebrew "יום 1א", "יום 1ב"...). Each flight is a fresh
@@ -514,7 +518,7 @@ whose buy-in/stack/re-entry are shown crossed out / blank in the image — must 
 starting_stack:null, re_entry:null.
 
 Return ONLY valid JSON, no markdown, no explanation:
-{"tournaments":[{"name":"...","day_hebrew":"...","date_str":"21.6","start_time":null,"time_hint":"ערב","cost":800,"starting_stack":300000,"re_entry":2,"level_count":20}]}`;
+{"tournaments":[{"name":"...","day_hebrew":"...","date_str":"21.6","start_time":null,"time_hint":"ערב","cost":800,"starting_stack":300000,"re_entry":2,"level_count":20,"is_online":false,"platform":null}]}`;
 
 async function parseScheduleImage(imageBase64, mimeType = 'image/jpeg', captionText = '') {
   const groq = getGroq();
@@ -633,6 +637,9 @@ async function importWeeklySchedule(rawTournaments, venueId) {
       }
       cost = cost ?? 0;
 
+      const tournamentType = t.is_online ? 'online' : 'live';
+      const platform       = t.is_online ? (t.platform || null) : null;
+
       // Check if a tournament for this venue+name+date already exists
       const existing = await pool.query(
         `SELECT id FROM tournaments
@@ -643,17 +650,20 @@ async function importWeeklySchedule(rawTournaments, venueId) {
       if (existing.rows.length > 0) {
         await pool.query(
           `UPDATE tournaments
-           SET cost=$1, starting_stack=$2, re_entry=$3, level_duration=$4, name=$5, start_time=$6
-           WHERE id=$7`,
-          [cost, t.starting_stack||null, t.re_entry||null, t.level_count||null, t.name, startDt, existing.rows[0].id]
+           SET cost=$1, starting_stack=$2, re_entry=$3, level_duration=$4, name=$5, start_time=$6,
+               tournament_type=$7, platform=$8
+           WHERE id=$9`,
+          [cost, t.starting_stack||null, t.re_entry||null, t.level_count||null, t.name, startDt,
+           tournamentType, platform, existing.rows[0].id]
         );
         updated++;
       } else {
         await pool.query(
           `INSERT INTO tournaments
-             (venue_id, name, cost, start_time, starting_stack, re_entry, level_duration, is_recurring, status)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,false,'approved')`,
-          [venueId, t.name||'טורניר', cost, startDt, t.starting_stack||null, t.re_entry||null, t.level_count||null]
+             (venue_id, name, cost, start_time, starting_stack, re_entry, level_duration, is_recurring, status, tournament_type, platform)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,false,'approved',$8,$9)`,
+          [venueId, t.name||'טורניר', cost, startDt, t.starting_stack||null, t.re_entry||null, t.level_count||null,
+           tournamentType, platform]
         );
         imported++;
       }
