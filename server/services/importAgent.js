@@ -507,8 +507,11 @@ For each tournament extract:
 Multi-day tournaments: "Day 1" often runs as several separate starting flights on different
 dates — "Day 1A", "Day 1B", "Day 1C" (or Hebrew "יום 1א", "יום 1ב"...). Each flight is a fresh
 paid entry — extract its real cost. Players who advance from ANY Day 1 flight later meet for
-"Day 2" (and sometimes "Day 3") — this is a continuation, not a new sale: no additional buy-in
-is charged. When you see "Day 2"/"Day 3"/"יום 2"/"יום 3" (no flight letter), set cost to 0.
+"Day 2", then sometimes a "Day 3" or "FINAL DAY"/"יום אחרון" — every one of these follow-up
+days is a continuation, not a new sale: no additional buy-in, no fresh stack, no re-entry. Any
+row labeled "Day 2"/"Day 3"/"Final Day"/"יום 2"/"יום 3"/"יום אחרון" (no flight letter) — or
+whose buy-in/stack/re-entry are shown crossed out / blank in the image — must get cost:0,
+starting_stack:null, re_entry:null.
 
 Return ONLY valid JSON, no markdown, no explanation:
 {"tournaments":[{"name":"...","day_hebrew":"...","date_str":"21.6","start_time":null,"time_hint":"ערב","cost":800,"starting_stack":300000,"re_entry":2,"level_count":20}]}`;
