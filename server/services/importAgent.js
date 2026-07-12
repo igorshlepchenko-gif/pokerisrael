@@ -504,6 +504,12 @@ For each tournament extract:
 - re_entry: re-entry count as integer (X1→1, X2→2, X3→3)
 - level_count: levels count as integer (18, 20, 25)
 
+Multi-day tournaments: "Day 1" often runs as several separate starting flights on different
+dates — "Day 1A", "Day 1B", "Day 1C" (or Hebrew "יום 1א", "יום 1ב"...). Each flight is a fresh
+paid entry — extract its real cost. Players who advance from ANY Day 1 flight later meet for
+"Day 2" (and sometimes "Day 3") — this is a continuation, not a new sale: no additional buy-in
+is charged. When you see "Day 2"/"Day 3"/"יום 2"/"יום 3" (no flight letter), set cost to 0.
+
 Return ONLY valid JSON, no markdown, no explanation:
 {"tournaments":[{"name":"...","day_hebrew":"...","date_str":"21.6","start_time":null,"time_hint":"ערב","cost":800,"starting_stack":300000,"re_entry":2,"level_count":20}]}`;
 
@@ -524,6 +530,7 @@ async function parseScheduleImage(imageBase64, mimeType = 'image/jpeg', captionT
 
   let lastErr;
   for (const model of VISION_MODELS) {
+    let raw;
     try {
       const r = await groq.chat.completions.create({
         model,
@@ -537,11 +544,7 @@ async function parseScheduleImage(imageBase64, mimeType = 'image/jpeg', captionT
           ],
         }],
       });
-      const raw   = r.choices[0]?.message?.content || '{}';
-      const clean = raw.replace(/```json\n?|\n?```/g, '').trim();
-      const obj   = JSON.parse(clean);
-      console.log(`[Agent] Vision model ${model} parsed ${obj.tournaments?.length || 0} tournaments`);
-      return obj.tournaments || [];
+      raw = r.choices[0]?.message?.content || '{}';
     } catch (e) {
       lastErr = e;
       if (e?.status === 404 || e?.message?.includes('model') || e?.message?.includes('vision')) {
@@ -550,15 +553,31 @@ async function parseScheduleImage(imageBase64, mimeType = 'image/jpeg', captionT
       }
       throw e;
     }
+
+    // A truncated/malformed response shouldn't kill the whole image — fall through to the next model.
+    try {
+      const clean = raw.replace(/```json\n?|\n?```/g, '').trim();
+      const obj   = JSON.parse(clean);
+      console.log(`[Agent] Vision model ${model} parsed ${obj.tournaments?.length || 0} tournaments`);
+      return obj.tournaments || [];
+    } catch (parseErr) {
+      lastErr = parseErr;
+      console.warn(`[Agent] Vision model ${model} returned invalid JSON (${parseErr.message}), trying next...`);
+      continue;
+    }
   }
   throw lastErr || new Error('No vision model available');
 }
 
 function parseDateStr(dateStr, year) {
   if (!dateStr) return null;
-  const m = String(dateStr).match(/^(\d{1,2})\.(\d{1,2})$/);
+  // Multi-day announcements sometimes give a range ("05/07-13/07") — anchor on the start date.
+  const first = String(dateStr).split('-')[0].trim();
+  // Model sometimes includes the year ("04.07.2026"), sometimes not ("21.6") — accept both.
+  const m = first.match(/^(\d{1,2})[./](\d{1,2})(?:[./](\d{4}))?$/);
   if (!m) return null;
-  return `${year}-${String(m[2]).padStart(2,'0')}-${String(m[1]).padStart(2,'0')}`;
+  const yr = m[3] || year;
+  return `${yr}-${String(m[2]).padStart(2,'0')}-${String(m[1]).padStart(2,'0')}`;
 }
 
 function guessStartTime(timeHint) {
@@ -568,6 +587,21 @@ function guessStartTime(timeHint) {
   if (explicit) return `${explicit[1].padStart(2,'0')}:${explicit[2]}`;
   if (h.includes('בוקר') || h.includes('morning') || h.includes('midday') || h.includes('mid')) return '13:00';
   return '20:00';
+}
+
+// Last real (non-zero) price seen for this tournament series at this venue — used when the
+// vision model couldn't read a price off a partial photo. Loose ILIKE on the first word is
+// intentional: it's the same matching the row-dedup lookup below already relies on.
+async function lookupLastKnownCost(venueId, name) {
+  const firstName = (name || '').split(' ')[0];
+  if (!firstName) return null;
+  const r = await pool.query(
+    `SELECT cost FROM tournaments
+     WHERE venue_id=$1 AND name ILIKE $2 AND cost IS NOT NULL AND cost > 0
+     ORDER BY start_time DESC LIMIT 1`,
+    [venueId, `%${firstName}%`]
+  );
+  return r.rows[0]?.cost ?? null;
 }
 
 async function importWeeklySchedule(rawTournaments, venueId) {
@@ -581,6 +615,21 @@ async function importWeeklySchedule(rawTournaments, venueId) {
       const startDt    = date ? `${date}T${startTime}:00` : null;
       const firstName  = (t.name || '').split(' ')[0];
 
+      if (!startDt) {
+        console.warn('[Agent] importWeeklySchedule skipped row (unparseable date):', JSON.stringify(t));
+        continue;
+      }
+
+      // tournaments.cost is NOT NULL. t.cost === 0 means the model identified this as a
+      // multi-day Day 2/3 continuation — already paid on Day 1, correctly free. t.cost == null
+      // means it just couldn't read a price on a partial photo, so carry forward the last real
+      // price for this series instead of defaulting to 0 (which would wrongly show it as free).
+      let cost = t.cost;
+      if (cost === null || cost === undefined) {
+        cost = await lookupLastKnownCost(venueId, t.name);
+      }
+      cost = cost ?? 0;
+
       // Check if a tournament for this venue+name+date already exists
       const existing = await pool.query(
         `SELECT id FROM tournaments
@@ -593,7 +642,7 @@ async function importWeeklySchedule(rawTournaments, venueId) {
           `UPDATE tournaments
            SET cost=$1, starting_stack=$2, re_entry=$3, level_duration=$4, name=$5, start_time=$6
            WHERE id=$7`,
-          [t.cost||null, t.starting_stack||null, t.re_entry||null, t.level_count||null, t.name, startDt, existing.rows[0].id]
+          [cost, t.starting_stack||null, t.re_entry||null, t.level_count||null, t.name, startDt, existing.rows[0].id]
         );
         updated++;
       } else {
@@ -601,7 +650,7 @@ async function importWeeklySchedule(rawTournaments, venueId) {
           `INSERT INTO tournaments
              (venue_id, name, cost, start_time, starting_stack, re_entry, level_duration, is_recurring, status)
            VALUES ($1,$2,$3,$4,$5,$6,$7,false,'approved')`,
-          [venueId, t.name||'טורניר', t.cost||null, startDt, t.starting_stack||null, t.re_entry||null, t.level_count||null]
+          [venueId, t.name||'טורניר', cost, startDt, t.starting_stack||null, t.re_entry||null, t.level_count||null]
         );
         imported++;
       }
