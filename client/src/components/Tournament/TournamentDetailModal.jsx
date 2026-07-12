@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { buildVenueContactLink, buildWhatsAppLink, formatTime, formatDate, formatCost, DAYS_HE, getStageDurations, formatGames, venueDisplayName, eventDisplayDate } from '../../utils/whatsapp';
+import { buildGoogleCalendarUrl, downloadICS } from '../../utils/calendar';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
 import RegistrationModal from './RegistrationModal';
@@ -24,6 +25,7 @@ export default function TournamentDetailModal({ tournament: t, onClose, brands =
 
   const { user } = useAuth();
   const [showRegModal, setShowRegModal] = useState(false);
+  const [showCalendarOptions, setShowCalendarOptions] = useState(false);
 
   const openWhatsApp = (name, phone) => {
     api.post('/registrations', {
@@ -312,6 +314,34 @@ export default function TournamentDetailModal({ tournament: t, onClose, brands =
               : (t.tournament_type === 'cash' || t.tournament_type === 'online_cash' ? 'הצטרפות למשחק בוואטסאפ' : 'הרשמה לטורניר בוואטסאפ')}
           </button>
 
+          {/* הוספה ליומן האישי */}
+          <div className="relative">
+            <button
+              onClick={() => setShowCalendarOptions(p => !p)}
+              className="flex items-center justify-center gap-2 w-full border border-slate-600 hover:border-slate-500 hover:bg-slate-700/40 text-slate-300 font-semibold py-2 px-4 rounded-xl transition-all text-sm"
+            >
+              📅 הוסף ליומן שלי
+            </button>
+            {showCalendarOptions && (
+              <div className="absolute bottom-full mb-2 left-0 right-0 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl overflow-hidden z-10">
+                <a
+                  href={buildGoogleCalendarUrl(t)}
+                  target="_blank" rel="noopener noreferrer"
+                  onClick={() => setShowCalendarOptions(false)}
+                  className="flex items-center gap-2.5 px-4 py-3 text-sm font-semibold text-slate-200 hover:bg-slate-800 transition-colors"
+                >
+                  <GoogleCalIcon /> Google Calendar
+                </a>
+                <button
+                  onClick={() => { downloadICS(t); setShowCalendarOptions(false); }}
+                  className="flex items-center gap-2.5 w-full px-4 py-3 text-sm font-semibold text-slate-200 hover:bg-slate-800 transition-colors border-t border-slate-800"
+                >
+                  <span className="w-4 text-center shrink-0">🍎</span> Apple / Outlook (.ics)
+                </button>
+              </div>
+            )}
+          </div>
+
           {/* רישום כפול — דרך המארגן */}
           {hasOrganizer && t.organizer_whatsapp && (
             <button
@@ -381,6 +411,17 @@ export default function TournamentDetailModal({ tournament: t, onClose, brands =
         )}
       </div>
     </div>
+  );
+}
+
+function GoogleCalIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="w-4 h-4 shrink-0" xmlns="http://www.w3.org/2000/svg">
+      <rect x="3" y="4" width="18" height="17" rx="2" fill="#fff" stroke="#4285F4" strokeWidth="1.5" />
+      <rect x="3" y="4" width="18" height="5" rx="2" fill="#4285F4" />
+      <rect x="7" y="12" width="4" height="4" fill="#34A853" />
+      <rect x="13" y="12" width="4" height="4" fill="#FBBC05" />
+    </svg>
   );
 }
 

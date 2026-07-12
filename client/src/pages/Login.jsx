@@ -110,6 +110,20 @@ export default function Login() {
               {loading ? 'מתחבר...' : '🂡 כניסה'}
             </button>
           </form>
+
+          <div className="flex items-center gap-3 my-5">
+            <div className="flex-1 h-px bg-slate-700" />
+            <span className="text-xs text-slate-500 font-semibold">או</span>
+            <div className="flex-1 h-px bg-slate-700" />
+          </div>
+
+          <a
+            href="/api/auth/google"
+            className="flex items-center justify-center gap-2 w-full bg-white hover:bg-slate-100 text-slate-800 font-bold py-3 px-4 rounded-xl transition-all duration-200 hover:scale-[1.02] active:scale-95 text-sm shadow-lg"
+          >
+            <GoogleIcon />
+            המשך עם Google
+          </a>
         </div>
 
         <p className="text-center text-slate-400 text-sm mt-5">

@@ -156,6 +156,22 @@ export default function Register() {
             <div className="animate-fade-in">
               <h2 className="text-lg font-bold text-slate-200 mb-1 text-center">איך תרצו להירשם?</h2>
               <p className="text-slate-400 text-sm text-center mb-5">בחר את סוג הפעילות המתאימה לך</p>
+
+              <a
+                href="/api/auth/google"
+                className="flex items-center justify-center gap-2 w-full bg-white hover:bg-slate-100 text-slate-800 font-bold py-3 px-4 rounded-xl transition-all duration-200 hover:scale-[1.02] active:scale-95 text-sm shadow-lg mb-2"
+              >
+                <GoogleIcon />
+                הרשמה מהירה עם Google (לשחקנים)
+              </a>
+              <p className="text-[11px] text-slate-500 text-center mb-4">מועדוני פוקר: השתמשו בטופס למטה</p>
+
+              <div className="flex items-center gap-3 mb-4">
+                <div className="flex-1 h-px bg-slate-700" />
+                <span className="text-xs text-slate-500 font-semibold">או</span>
+                <div className="flex-1 h-px bg-slate-700" />
+              </div>
+
               <div className="space-y-3">
                 {ROLE_OPTIONS.map(opt => (
                   <button
