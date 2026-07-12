@@ -163,5 +163,12 @@ ensureSchema().then(() => {
       console.log('[feedSync] running daily sync…');
       syncAllFeeds().catch(e => console.error('[feedSync] daily run failed:', e.message));
     }, { timezone: 'Asia/Jerusalem' });
+
+    // Daily LetsPoker sync (08:05 Israel time) — לוח הטורנירים של EVPlus
+    const { syncLetsPoker } = require('./services/letsPokerSync');
+    cron.schedule(process.env.LETSPOKER_SYNC_CRON || '5 8 * * *', () => {
+      console.log('[letsPokerSync] running daily sync…');
+      syncLetsPoker().catch(e => console.error('[letsPokerSync] daily run failed:', e.message));
+    }, { timezone: 'Asia/Jerusalem' });
   });
 });
