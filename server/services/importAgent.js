@@ -627,6 +627,14 @@ async function importWeeklySchedule(rawTournaments, venueId) {
         continue;
       }
 
+      // Online tournaments are detected but not yet browsable on the site (no type filter/
+      // toggle in the UI to find them), so auto-import skips them for now rather than create
+      // rows nobody can see. Revisit once that UI exists.
+      if (t.is_online) {
+        console.log('[Agent] importWeeklySchedule skipped online row (not auto-imported yet):', t.name);
+        continue;
+      }
+
       // tournaments.cost is NOT NULL. t.cost === 0 means the model identified this as a
       // multi-day Day 2/3 continuation — already paid on Day 1, correctly free. t.cost == null
       // means it just couldn't read a price on a partial photo, so carry forward the last real
@@ -636,9 +644,6 @@ async function importWeeklySchedule(rawTournaments, venueId) {
         cost = await lookupLastKnownCost(venueId, t.name);
       }
       cost = cost ?? 0;
-
-      const tournamentType = t.is_online ? 'online' : 'live';
-      const platform       = t.is_online ? (t.platform || null) : null;
 
       // Check if a tournament for this venue+name+date already exists
       const existing = await pool.query(
@@ -651,19 +656,17 @@ async function importWeeklySchedule(rawTournaments, venueId) {
         await pool.query(
           `UPDATE tournaments
            SET cost=$1, starting_stack=$2, re_entry=$3, level_duration=$4, name=$5, start_time=$6,
-               tournament_type=$7, platform=$8
-           WHERE id=$9`,
-          [cost, t.starting_stack||null, t.re_entry||null, t.level_count||null, t.name, startDt,
-           tournamentType, platform, existing.rows[0].id]
+               tournament_type='live', platform=NULL
+           WHERE id=$7`,
+          [cost, t.starting_stack||null, t.re_entry||null, t.level_count||null, t.name, startDt, existing.rows[0].id]
         );
         updated++;
       } else {
         await pool.query(
           `INSERT INTO tournaments
-             (venue_id, name, cost, start_time, starting_stack, re_entry, level_duration, is_recurring, status, tournament_type, platform)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,false,'approved',$8,$9)`,
-          [venueId, t.name||'טורניר', cost, startDt, t.starting_stack||null, t.re_entry||null, t.level_count||null,
-           tournamentType, platform]
+             (venue_id, name, cost, start_time, starting_stack, re_entry, level_duration, is_recurring, status, tournament_type)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,false,'approved','live')`,
+          [venueId, t.name||'טורניר', cost, startDt, t.starting_stack||null, t.re_entry||null, t.level_count||null]
         );
         imported++;
       }
