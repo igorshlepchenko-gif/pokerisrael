@@ -148,7 +148,7 @@ ensureSchema().then(() => {
   cleanOldLogs();
   setInterval(cleanOldLogs, 24 * 60 * 60 * 1000);
 
-  app.listen(PORT, () => {
+  const server = app.listen(PORT, () => {
     console.log(`🂡 שרת פוקר לייב ישראל פועל על פורט ${PORT}`);
     // Start the import agent (Telegram bot + daily cron)
     const { startAgent } = require('./services/importAgent');
@@ -171,4 +171,24 @@ ensureSchema().then(() => {
       syncLetsPoker().catch(e => console.error('[letsPokerSync] daily run failed:', e.message));
     }, { timezone: 'Asia/Jerusalem' });
   });
+
+  // ── טיימאאוטים ברמת ה-socket — ללא זה חיבור תקוע נשאר פתוח לנצח ──
+  server.keepAliveTimeout = 65_000; // מעל טיימאאוט טיפוסי של 60s בפרוקסי/load balancer
+  server.headersTimeout = 66_000;   // חייב להיות גדול מ-keepAliveTimeout (דרישת Node)
+  server.timeout = 120_000;         // מנתק socket לא פעיל לגמרי אחרי 2 דקות
+
+  // ── כיבוי מסודר — סוגר את השרת ואת ה-pool במקום לנטוש חיבורים ──
+  function shutdown(signal) {
+    console.log(`${signal} התקבל — מכבה בצורה מסודרת...`);
+    server.close(() => {
+      pool.end(() => {
+        console.log('השרת וה-pool נסגרו בהצלחה');
+        process.exit(0);
+      });
+    });
+    // כפיית יציאה אם הסגירה נתקעת (למשל חיבורים פעילים שלא משתחררים)
+    setTimeout(() => process.exit(1), 10_000).unref();
+  }
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
 });

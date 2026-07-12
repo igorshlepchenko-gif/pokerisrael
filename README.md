@@ -117,7 +117,6 @@ DB_NAME=poker_live_israel
 DB_USER=postgres
 DB_PASSWORD=הסיסמה_שלך
 JWT_SECRET=מפתח_סודי_חזק_לפחות_32_תווים
-JWT_EXPIRES_IN=7d
 ADMIN_EMAIL=המייל_שלך@דומיין.com
 CLIENT_URL=http://localhost:5173
 ```

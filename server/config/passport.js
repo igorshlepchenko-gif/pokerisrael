@@ -25,7 +25,7 @@ if (googleConfigured) {
 
         // 1. חיפוש לפי google_id
         let result = await pool.query(
-          'SELECT id, name, email, phone, role, is_active FROM users WHERE google_id = $1',
+          'SELECT id, name, email, phone, role, is_active, token_version FROM users WHERE google_id = $1',
           [googleId]
         );
         if (result.rows[0]) {
@@ -36,7 +36,7 @@ if (googleConfigured) {
         // 2. חיפוש לפי מייל — קישור לחשבון קיים
         if (email) {
           result = await pool.query(
-            'SELECT id, name, email, phone, role, is_active FROM users WHERE email = $1',
+            'SELECT id, name, email, phone, role, is_active, token_version FROM users WHERE email = $1',
             [email]
           );
           if (result.rows[0]) {
@@ -55,7 +55,7 @@ if (googleConfigured) {
           `INSERT INTO users
              (name, email, google_id, auth_provider, role, is_active, email_verified, password, phone)
            VALUES ($1, $2, $3, 'google', 'player', true, true, null, null)
-           RETURNING id, name, email, phone, role`,
+           RETURNING id, name, email, phone, role, token_version`,
           [name, email, googleId]
         );
         done(null, result.rows[0]);

@@ -5,20 +5,35 @@ const { validationResult } = require('express-validator');
 const pool = require('../config/db');
 const { sendVerificationEmail } = require('../utils/emailService');
 
+// חלון הפעלה גולש (idle timeout) — קבוע בקוד ולא ב-env בכוונה: זו החלטת אבטחה,
+// לא הגדרת סביבה, וזה מבטיח שה-exp האמיתי בתוך ה-JWT תמיד יתאים בדיוק ל-Max-Age
+// של העוגייה. (JWT_EXPIRES_IN הישן ב-.env נשאר על 7d ולא משפיע יותר על טוקן זה.)
+const SESSION_IDLE_TIMEOUT_SECONDS = 30 * 60; // 30 דקות
+
+// tokenVersion נכלל בכל טוקן — logout מעלה את המונה ב-DB וכך מבטל מיידית טוקנים ישנים,
+// גם אם הם עדיין "תקפים" מבחינת jwt.verify (ראה middleware/auth.js)
 const generateToken = (user) =>
-  jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+  jwt.sign({ id: user.id, role: user.role, tokenVersion: user.token_version ?? 0 }, process.env.JWT_SECRET, {
+    expiresIn: SESSION_IDLE_TIMEOUT_SECONDS,
   });
 
+// לא זמן קבוע: middleware/auth.js מרענן את העוגייה (ואת ה-JWT) בכל בקשה מאומתת,
+// כך שמשתמש פעיל לא ינותק, ורק חוסר-פעילות אמיתית של 30 דקות תגרום לניתוק
 const COOKIE_OPTS = {
   httpOnly: true,                                          // אינו נגיש מ-JS
   secure: process.env.NODE_ENV === 'production',           // HTTPS בפרודקשן
   sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
-  maxAge: 7 * 24 * 60 * 60 * 1000,                        // 7 ימים במילישניות
+  maxAge: SESSION_IDLE_TIMEOUT_SECONDS * 1000,             // אותו חלון בדיוק, במילישניות
 };
 
 const setAuthCookie = (res, token) => res.cookie('pli_token', token, COOKIE_OPTS);
 const clearAuthCookie = (res) => res.clearCookie('pli_token', { ...COOKIE_OPTS, maxAge: 0 });
+
+// משותפים עם routes/auth.js (Google OAuth callback) ו-middleware/auth.js (רענון עוגייה)
+// כדי שכל נתיבי ההנפקה/רענון של הטוקן ישתמשו באותה לוגיקה בדיוק
+exports.generateToken = generateToken;
+exports.setAuthCookie = setAuthCookie;
+exports.COOKIE_OPTS = COOKIE_OPTS;
 
 exports.register = async (req, res) => {
   const errors = validationResult(req);
@@ -183,7 +198,7 @@ exports.login = async (req, res) => {
     const result = await pool.query(
       `SELECT id, name, email, password, phone, role, is_active,
               email_verified, is_locked, failed_login_attempts, locked_at,
-              hand_logger_access
+              hand_logger_access, token_version
        FROM users WHERE email = $1`,
       [email]
     );
@@ -258,8 +273,8 @@ exports.login = async (req, res) => {
       [user.id]
     );
 
-    const { password: _, failed_login_attempts: __, locked_at: ___, ...userData } = user;
-    const token = generateToken(userData);
+    const token = generateToken(user);
+    const { password: _, failed_login_attempts: __, locked_at: ___, token_version: ____, ...userData } = user;
     setAuthCookie(res, token);
     res.json({ token, user: userData });
   } catch (err) {
@@ -272,7 +287,17 @@ exports.getMe = async (req, res) => {
   res.json({ user: req.user });
 };
 
-exports.logout = (req, res) => {
+exports.logout = async (req, res) => {
+  try {
+    // מעלה את מונה הגרסה — כל טוקן שהונפק לפני הרגע הזה נחשב מבוטל,
+    // גם אם הוא עדיין "תקף" מבחינת jwt.verify (נבדק ב-middleware/auth.js)
+    if (req.user?.id) {
+      await pool.query('UPDATE users SET token_version = token_version + 1 WHERE id = $1', [req.user.id]);
+    }
+  } catch (err) {
+    console.error('[LOGOUT] שגיאה בעדכון token_version:', err.message);
+    // ממשיכים לנקות את העוגייה גם אם העדכון נכשל — לא חוסמים את המשתמש מלהתנתק בצד הלקוח
+  }
   clearAuthCookie(res);
   res.json({ message: 'התנתקת בהצלחה' });
 };

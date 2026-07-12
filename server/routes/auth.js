@@ -1,20 +1,12 @@
 const express = require('express');
 const { body } = require('express-validator');
-const { register, login, getMe, logout, verifyEmail, resendVerification } = require('../controllers/authController');
+const { register, login, getMe, logout, verifyEmail, resendVerification, generateToken, setAuthCookie } = require('../controllers/authController');
 const { authenticate } = require('../middleware/auth');
 const passport = require('../config/passport');
-const jwt = require('jsonwebtoken');
 
 const router = express.Router();
 
 // ── Google OAuth ───────────────────────────────────────────────────
-const COOKIE_OPTS = {
-  httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
-  maxAge: 7 * 24 * 60 * 60 * 1000,
-};
-
 const googleEnabled = () =>
   process.env.GOOGLE_CLIENT_ID &&
   !process.env.GOOGLE_CLIENT_ID.includes('your-google');
@@ -31,12 +23,10 @@ router.get('/google/callback',
     passport.authenticate('google', { session: false, failureRedirect: `${process.env.CLIENT_URL || 'http://localhost:5173'}/login?error=google` })(req, res, next);
   },
   (req, res) => {
-    const token = jwt.sign(
-      { id: req.user.id, role: req.user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
-    );
-    res.cookie('pli_token', token, COOKIE_OPTS);
+    // generateToken/setAuthCookie משותפים עם authController.js כדי שכל טוקן —
+    // כולל התחברות דרך Google — יכלול tokenVersion ויקבל אותו חלון 30 דקות גולש
+    const token = generateToken(req.user);
+    setAuthCookie(res, token);
     res.redirect(process.env.CLIENT_URL || 'http://localhost:5173');
   }
 );
@@ -61,6 +51,8 @@ router.post('/resend-verification', [
 ], resendVerification);
 
 router.get('/me', authenticate, getMe);
-router.post('/logout', logout);
+// authenticate כאן כדי ש-logout ידע איזה משתמש לבטל (מעלה token_version) —
+// אם הטוקן כבר לא תקף, ה-middleware עצמו יחזיר 401 והלקוח פשוט ינקה את המצב מקומית
+router.post('/logout', authenticate, logout);
 
 module.exports = router;

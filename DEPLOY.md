@@ -42,12 +42,13 @@
 |--------|------|
 | `NODE_ENV` | `production` |
 | `JWT_SECRET` | מחרוזת אקראית ארוכה (אפשר את הקיימת ב-.env המקומי) |
-| `JWT_EXPIRES_IN` | `7d` |
 | `CLIENT_URL` | `https://pokerisrael.org` |
 | `SERVER_URL` | `https://pokerisrael.org` |
 | `ADMIN_EMAIL` | המייל שלך (יקבל הרשאת אדמין) |
 | `GMAIL_USER` / `GMAIL_APP_PASSWORD` | אם רוצים אימות מייל (אופציונלי) |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | אם רוצים כניסה עם Google |
+
+> חלון ההתחברות (session idle timeout) קבוע בקוד על 30 דקות גולשות — `JWT_EXPIRES_IN` הוסר כי הוא כבר לא נקרא. אפשר למחוק אותו ממשתני הסביבה ב-Railway, הוא פשוט לא עושה כלום יותר.
 
 `DATABASE_URL` כבר מוגדר אוטומטית — אל תיגע בו.
 

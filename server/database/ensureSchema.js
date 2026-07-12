@@ -102,6 +102,8 @@ async function ensureSchema() {
       `ALTER TABLE venues ADD COLUMN IF NOT EXISTS registration_url VARCHAR(500)`,
       `ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS address TEXT`,
       `ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS city VARCHAR(100)`,
+      // מונה גרסת טוקן — מאפשר ביטול מיידי של כל הטוקנים הקיימים בלחיצת logout
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0`,
     ];
     for (const sql of MIGRATIONS) {
       try { await pool.query(sql); } catch (e) { console.error('migration failed:', e.message); }
