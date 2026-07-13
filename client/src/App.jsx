@@ -13,6 +13,7 @@ import Privacy from './pages/Privacy';
 import Accessibility from './pages/Accessibility';
 import HandHistoryPage from './pages/HandHistoryPage';
 import Rules from './pages/Rules';
+import Podcasts from './pages/Podcasts';
 import CookieConsent from './components/CookieConsent';
 import AccessibilityWidget from './components/AccessibilityWidget';
 
@@ -36,6 +37,7 @@ function AppRoutes() {
           <Route path="/register" element={<Register />} />
           <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/rules" element={<Rules />} />
+          <Route path="/podcasts" element={<Podcasts />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/accessibility" element={<Accessibility />} />
           <Route path="/dashboard" element={
