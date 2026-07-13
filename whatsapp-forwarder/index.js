@@ -21,6 +21,8 @@ const WEBHOOK_URL   = process.env.WEBHOOK_URL   || `${BASE_URL}/api/agent/whatsa
 const IMAGE_URL     = process.env.IMAGE_URL     || `${BASE_URL}/api/agent/whatsapp-image`;
 const HEARTBEAT_URL = process.env.HEARTBEAT_URL || `${BASE_URL}/api/agent/whatsapp/forwarder-heartbeat`;
 const GROUP_FILTER  = (process.env.GROUPS || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+// חייב להתאים ל-AGENT_SECRET בסביבת השרת — בלעדיו כל הבקשות מהסקריפט הזה יידחו ב-401/503
+const AGENT_SECRET  = process.env.AGENT_SECRET || '';
 const AUTH_DIR      = path.join(__dirname, '.auth');
 
 let makeWASocket, useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion, downloadContentFromMessage;
@@ -54,7 +56,11 @@ function postJSON(targetUrl, data) {
       port: url.port || (url.protocol === 'https:' ? 443 : 80),
       path: url.pathname,
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) },
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(payload),
+        'X-Agent-Secret': AGENT_SECRET,
+      },
     }, (res) => { res.resume(); resolve(res.statusCode); });
     req.on('error', () => resolve(0));
     req.write(payload);

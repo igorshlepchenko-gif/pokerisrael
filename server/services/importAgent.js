@@ -612,7 +612,7 @@ async function lookupLastKnownCost(venueId, name) {
 }
 
 async function importWeeklySchedule(rawTournaments, venueId) {
-  let imported = 0, updated = 0;
+  let imported = 0, updated = 0, skipped = 0;
   const year = new Date().getFullYear();
 
   for (const t of rawTournaments) {
@@ -647,12 +647,19 @@ async function importWeeklySchedule(rawTournaments, venueId) {
 
       // Check if a tournament for this venue+name+date already exists
       const existing = await pool.query(
-        `SELECT id FROM tournaments
+        `SELECT id, manually_edited FROM tournaments
          WHERE venue_id=$1 AND name ILIKE $2 AND DATE(start_time)=$3 LIMIT 1`,
         [venueId, `%${firstName}%`, date]
       );
 
       if (existing.rows.length > 0) {
+        // לא נוגעים בטורניר שאדמין תיקן ידנית — אותה הגנה שקיימת בכל שירותי הסנכרון
+        // האחרים (feedSync/jokerClubSync/letsPokerSync); כאן היא הייתה חסרה, וזו הסיבה
+        // שתיקונים ידניים חזרו לערך השגוי בסריקה המתוזמנת הבאה בלי שום עקבות ביומן.
+        if (existing.rows[0].manually_edited) {
+          skipped++;
+          continue;
+        }
         await pool.query(
           `UPDATE tournaments
            SET cost=$1, starting_stack=$2, re_entry=$3, level_duration=$4, name=$5, start_time=$6,
@@ -674,7 +681,7 @@ async function importWeeklySchedule(rawTournaments, venueId) {
       console.error('[Agent] importWeeklySchedule row error:', e?.message, JSON.stringify(t));
     }
   }
-  return { imported, updated };
+  return { imported, updated, skipped };
 }
 
 module.exports = { startAgent, runDailyScan, processMessage, parseWithAI, parseScheduleImage, importWeeklySchedule, detectWeeklySchedule, parseWeeklyScheduleText, processWeeklyScheduleMessage, findVenueByGroupName };

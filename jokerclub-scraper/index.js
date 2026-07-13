@@ -20,6 +20,8 @@ const { parseJokerClubText } = require('./parse');
 const BASE_URL = process.env.BASE_URL || 'https://www.pokerisrael.org';
 const SYNC_URL = process.env.SYNC_URL || `${BASE_URL}/api/agent/jokerclub-sync`;
 const TARGET_URL = 'https://jokerclub.co.il/reg';
+// חייב להתאים ל-AGENT_SECRET בסביבת השרת — בלעדיו הבקשות מהסקריפט הזה יידחו ב-401/503
+const AGENT_SECRET = process.env.AGENT_SECRET || '';
 
 function postJSON(targetUrl, data) {
   return new Promise((resolve) => {
@@ -31,7 +33,11 @@ function postJSON(targetUrl, data) {
       port: url.port || (url.protocol === 'https:' ? 443 : 80),
       path: url.pathname,
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) },
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(payload),
+        'X-Agent-Secret': AGENT_SECRET,
+      },
     }, (res) => {
       let body = '';
       res.on('data', c => body += c);

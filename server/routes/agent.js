@@ -1,6 +1,7 @@
 const express = require('express');
 const pool    = require('../config/db');
 const { authenticate, requireRole } = require('../middleware/auth');
+const { requireAgentSecret } = require('../middleware/agentAuth');
 const { runDailyScan, processMessage, detectWeeklySchedule, processWeeklyScheduleMessage, findVenueByGroupName } = require('../services/importAgent');
 const wa = require('../services/whatsappListener');
 
@@ -10,8 +11,8 @@ const router = express.Router();
 let forwarderLastSeen = null; // ms timestamp
 let forwarderInfo     = null; // { pushname, number, groups }
 
-// POST /api/agent/whatsapp/forwarder-heartbeat — no auth, called by local script
-router.post('/whatsapp/forwarder-heartbeat', (req, res) => {
+// POST /api/agent/whatsapp/forwarder-heartbeat — shared-secret auth, called by local script
+router.post('/whatsapp/forwarder-heartbeat', requireAgentSecret, (req, res) => {
   forwarderLastSeen = Date.now();
   forwarderInfo     = req.body || null;
   res.json({ ok: true });
@@ -146,8 +147,8 @@ async function ensureAgentSources() {
 }
 ensureAgentSources();
 
-// POST /api/agent/import-schedule — accept pre-parsed tournament list (no auth, internal use)
-router.post('/import-schedule', async (req, res) => {
+// POST /api/agent/import-schedule — accept pre-parsed tournament list (shared-secret auth, internal use)
+router.post('/import-schedule', requireAgentSecret, async (req, res) => {
   try {
     const { tournaments, venue_name = 'suits' } = req.body;
     if (!Array.isArray(tournaments) || !tournaments.length)
@@ -159,9 +160,9 @@ router.post('/import-schedule', async (req, res) => {
     if (!vRes.rows[0]) return res.status(404).json({ error: `venue "${venue_name}" not found` });
 
     const { importWeeklySchedule } = require('../services/importAgent');
-    const { imported, updated } = await importWeeklySchedule(tournaments, vRes.rows[0].id);
-    console.log(`[Agent] import-schedule: ${imported} new, ${updated} updated → ${vRes.rows[0].name}`);
-    res.json({ imported, updated, venue: vRes.rows[0].name });
+    const { imported, updated, skipped } = await importWeeklySchedule(tournaments, vRes.rows[0].id);
+    console.log(`[Agent] import-schedule: ${imported} new, ${updated} updated, ${skipped} skipped (manually edited) → ${vRes.rows[0].name}`);
+    res.json({ imported, updated, skipped, venue: vRes.rows[0].name });
   } catch (e) {
     console.error('[Agent] import-schedule error:', e?.message);
     res.status(500).json({ error: e?.message });
@@ -169,7 +170,7 @@ router.post('/import-schedule', async (req, res) => {
 });
 
 // POST /api/agent/whatsapp-image — called by local forwarder with base64 image
-router.post('/whatsapp-image', async (req, res) => {
+router.post('/whatsapp-image', requireAgentSecret, async (req, res) => {
   try {
     const { from, imageBase64, mimeType = 'image/jpeg', caption } = req.body;
     if (!imageBase64) return res.status(400).json({ error: 'no image data' });
@@ -194,9 +195,9 @@ router.post('/whatsapp-image', async (req, res) => {
       return res.json({ imported: 0, updated: 0, message: 'venue not found' });
     }
 
-    const { imported, updated } = await importWeeklySchedule(tournaments, venue.id);
-    console.log(`[Agent] ✅ Weekly schedule: ${imported} new, ${updated} updated → ${venue.name}`);
-    res.json({ imported, updated, total: tournaments.length, venue: venue.name });
+    const { imported, updated, skipped } = await importWeeklySchedule(tournaments, venue.id);
+    console.log(`[Agent] ✅ Weekly schedule: ${imported} new, ${updated} updated, ${skipped} skipped (manually edited) → ${venue.name}`);
+    res.json({ imported, updated, skipped, total: tournaments.length, venue: venue.name });
   } catch (e) {
     console.error('[Agent] whatsapp-image error:', e?.message);
     res.status(500).json({ error: e?.message });
@@ -205,7 +206,7 @@ router.post('/whatsapp-image', async (req, res) => {
 
 // POST /api/agent/jokerclub-sync — called by local jokerclub-scraper script (headless
 // browser scrape of jokerclub.co.il/reg, which has no public API) with parsed tournaments
-router.post('/jokerclub-sync', async (req, res) => {
+router.post('/jokerclub-sync', requireAgentSecret, async (req, res) => {
   try {
     const { tournaments } = req.body;
     if (!Array.isArray(tournaments)) return res.status(400).json({ error: 'tournaments array required' });
@@ -219,9 +220,12 @@ router.post('/jokerclub-sync', async (req, res) => {
   }
 });
 
-// POST /api/agent/whatsapp-webhook
-// Compatible with Twilio, CallMeBot, or any service that POSTs body text
-router.post('/whatsapp-webhook', async (req, res) => {
+// POST /api/agent/whatsapp-webhook — shared-secret auth (X-Agent-Secret header).
+// NOTE: if this is ever pointed at a real Twilio/CallMeBot webhook (no evidence one is
+// configured today — the live path is the whatsapp-forwarder script below), that provider
+// needs to be configured to send the header too, or this needs provider-specific signature
+// verification instead.
+router.post('/whatsapp-webhook', requireAgentSecret, async (req, res) => {
   try {
     // Twilio format: req.body.Body + req.body.From
     // CallMeBot / generic: req.body.text or req.body.message
