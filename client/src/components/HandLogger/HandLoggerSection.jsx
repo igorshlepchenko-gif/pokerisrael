@@ -45,6 +45,47 @@ function HandPreview({ hand }) {
   );
 }
 
+function PokerWinIllustration() {
+  return (
+    <div className="flex-shrink-0 w-32 sm:w-40 self-center sm:self-auto">
+      <svg viewBox="0 0 200 220" className="w-full h-auto" role="img">
+        <title>שחקן פוקר חוגג אחרי שמירת היד</title>
+        <desc>דמות נשענת לאחור באגרוף ניצחון, מחזיקה טלפון עם אישור שמירה, קונפטי עולה</desc>
+        <defs>
+          <linearGradient id="handLoggerBodyGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#3a5da0" />
+            <stop offset="100%" stopColor="#1a2e5e" />
+          </linearGradient>
+        </defs>
+        <g transform="rotate(-5 100 140)">
+          <g className="animate-float-y">
+            <ellipse cx="100" cy="213" rx="72" ry="6" fill="#000" opacity="0.25" />
+            <path d="M70 100 Q100 90 130 100 L145 202 Q100 217 55 202 Z" fill="url(#handLoggerBodyGrad)" />
+            <path d="M62 100 Q100 80 138 100 L138 113 Q100 94 62 113 Z" fill="#1c3468" />
+            <circle cx="100" cy="70" r="24" fill="url(#handLoggerBodyGrad)" />
+            <rect x="82" y="66" width="16" height="10" rx="4" fill="#0a1830" stroke="#4ade80" strokeWidth="1.5" />
+            <rect x="102" y="66" width="16" height="10" rx="4" fill="#0a1830" stroke="#4ade80" strokeWidth="1.5" />
+            <line x1="98" y1="70" x2="102" y2="70" stroke="#4ade80" strokeWidth="1.5" />
+            <path d="M78 90 Q100 98 122 90" stroke="#16294f" strokeWidth="2" fill="none" opacity="0.6" />
+            <path d="M132 100 Q150 78 148 52" stroke="url(#handLoggerBodyGrad)" strokeWidth="16" strokeLinecap="round" fill="none" />
+            <circle cx="147" cy="48" r="10" fill="#33538e" />
+            <path d="M68 106 Q46 122 42 156" stroke="url(#handLoggerBodyGrad)" strokeWidth="16" strokeLinecap="round" fill="none" />
+            <circle cx="42" cy="157" r="9" fill="#33538e" />
+            <rect x="24" y="150" width="34" height="48" rx="6" fill="#0a1830" stroke="#4ade80" strokeWidth="1.5" />
+            <g className="animate-pulse">
+              <circle cx="55" cy="152" r="7" fill="#22c55e" />
+              <path d="M52 152 L54.5 154.5 L59 149" stroke="#fff" strokeWidth="1.6" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+            </g>
+            <path className="animate-rise" d="M150 30 l2 5 l5 2 l-5 2 l-2 5 l-2 -5 l-5 -2 l5 -2 z" fill="#4ade80" />
+            <path className="animate-rise" style={{ animationDelay: '0.5s' }} d="M168 45 l1.5 4 l4 1.5 l-4 1.5 l-1.5 4 l-1.5 -4 l-4 -1.5 l4 -1.5 z" fill="#f5b942" />
+            <path className="animate-rise" style={{ animationDelay: '0.9s' }} d="M130 25 l1.5 4 l4 1.5 l-4 1.5 l-1.5 4 l-1.5 -4 l-4 -1.5 l4 -1.5 z" fill="#3b82f6" />
+          </g>
+        </g>
+      </svg>
+    </div>
+  );
+}
+
 function NoAccessModal({ user, onClose }) {
   const waPhone = '972545861119';
   const waText  = encodeURIComponent(`שלום, שמי ${user?.name || ''} ואני מעוניין להשתמש בכלי רישום הידיים שלכם`);
@@ -184,21 +225,8 @@ export default function HandLoggerSection() {
                 </div>
               </div>
 
-              {/* Feature highlights */}
-              <div className="flex sm:flex-col gap-2 flex-shrink-0 flex-wrap sm:flex-nowrap">
-                {[
-                  { icon: '📝', text: 'תיאור היד במלל מקצועי' },
-                  { icon: '🎬', text: 'אנימציית GGPoker-style' },
-                  { icon: '💬', text: 'הפק סרטון ושלח לחברים' },
-                ].map(f => (
-                  <div key={f.text}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/10 backdrop-blur-sm border border-white/10 flex-shrink-0"
-                    dir="rtl">
-                    <span className="text-sm">{f.icon}</span>
-                    <span className="text-xs text-white/90 font-bold">{f.text}</span>
-                  </div>
-                ))}
-              </div>
+              {/* Illustration */}
+              <PokerWinIllustration />
             </div>
 
             {/* Recent hands preview */}
