@@ -47,57 +47,57 @@ const BLIND_PRESETS = {
     label: '⚡ Hyper',
     defaultDuration: 5,
     levels: [
-      { level: 1,  small_blind: 25,   big_blind: 50,   ante: 0   },
-      { level: 2,  small_blind: 50,   big_blind: 100,  ante: 0   },
-      { level: 3,  small_blind: 75,   big_blind: 150,  ante: 0   },
-      { level: 4,  small_blind: 100,  big_blind: 200,  ante: 25  },
-      { level: 5,  small_blind: 150,  big_blind: 300,  ante: 25  },
-      { level: 6,  small_blind: 200,  big_blind: 400,  ante: 50  },
-      { level: 7,  small_blind: 300,  big_blind: 600,  ante: 75  },
-      { level: 8,  small_blind: 400,  big_blind: 800,  ante: 100 },
-      { level: 9,  small_blind: 600,  big_blind: 1200, ante: 150 },
-      { level: 10, small_blind: 800,  big_blind: 1600, ante: 200 },
-      { level: 11, small_blind: 1000, big_blind: 2000, ante: 300 },
-      { level: 12, small_blind: 1500, big_blind: 3000, ante: 400 },
+      { level: 1,  small_blind: 25,   big_blind: 50,   ante: 50   },
+      { level: 2,  small_blind: 50,   big_blind: 100,  ante: 100  },
+      { level: 3,  small_blind: 75,   big_blind: 150,  ante: 150  },
+      { level: 4,  small_blind: 100,  big_blind: 200,  ante: 200  },
+      { level: 5,  small_blind: 150,  big_blind: 300,  ante: 300  },
+      { level: 6,  small_blind: 200,  big_blind: 400,  ante: 400  },
+      { level: 7,  small_blind: 300,  big_blind: 600,  ante: 600  },
+      { level: 8,  small_blind: 400,  big_blind: 800,  ante: 800  },
+      { level: 9,  small_blind: 600,  big_blind: 1200, ante: 1200 },
+      { level: 10, small_blind: 800,  big_blind: 1600, ante: 1600 },
+      { level: 11, small_blind: 1000, big_blind: 2000, ante: 2000 },
+      { level: 12, small_blind: 1500, big_blind: 3000, ante: 3000 },
     ],
   },
   turbo: {
     label: '🔥 Turbo',
     defaultDuration: 10,
     levels: [
-      { level: 1,  small_blind: 25,   big_blind: 50,   ante: 0   },
-      { level: 2,  small_blind: 50,   big_blind: 100,  ante: 0   },
-      { level: 3,  small_blind: 100,  big_blind: 200,  ante: 25  },
-      { level: 4,  small_blind: 150,  big_blind: 300,  ante: 25  },
-      { level: 5,  small_blind: 200,  big_blind: 400,  ante: 50  },
-      { level: 6,  small_blind: 300,  big_blind: 600,  ante: 75  },
-      { level: 7,  small_blind: 400,  big_blind: 800,  ante: 100 },
-      { level: 8,  small_blind: 600,  big_blind: 1200, ante: 150 },
-      { level: 9,  small_blind: 800,  big_blind: 1600, ante: 200 },
-      { level: 10, small_blind: 1000, big_blind: 2000, ante: 300 },
-      { level: 11, small_blind: 1500, big_blind: 3000, ante: 400 },
-      { level: 12, small_blind: 2000, big_blind: 4000, ante: 500 },
+      { level: 1,  small_blind: 25,   big_blind: 50,   ante: 50   },
+      { level: 2,  small_blind: 50,   big_blind: 100,  ante: 100  },
+      { level: 3,  small_blind: 100,  big_blind: 200,  ante: 200  },
+      { level: 4,  small_blind: 150,  big_blind: 300,  ante: 300  },
+      { level: 5,  small_blind: 200,  big_blind: 400,  ante: 400  },
+      { level: 6,  small_blind: 300,  big_blind: 600,  ante: 600  },
+      { level: 7,  small_blind: 400,  big_blind: 800,  ante: 800  },
+      { level: 8,  small_blind: 600,  big_blind: 1200, ante: 1200 },
+      { level: 9,  small_blind: 800,  big_blind: 1600, ante: 1600 },
+      { level: 10, small_blind: 1000, big_blind: 2000, ante: 2000 },
+      { level: 11, small_blind: 1500, big_blind: 3000, ante: 3000 },
+      { level: 12, small_blind: 2000, big_blind: 4000, ante: 4000 },
     ],
   },
   regular: {
     label: '🃏 Regular',
     defaultDuration: 20,
     levels: [
-      { level: 1,  small_blind: 25,   big_blind: 50,   ante: 0   },
-      { level: 2,  small_blind: 50,   big_blind: 100,  ante: 0   },
-      { level: 3,  small_blind: 75,   big_blind: 150,  ante: 0   },
-      { level: 4,  small_blind: 100,  big_blind: 200,  ante: 25  },
-      { level: 5,  small_blind: 150,  big_blind: 300,  ante: 25  },
-      { level: 6,  small_blind: 200,  big_blind: 400,  ante: 50  },
-      { level: 7,  small_blind: 300,  big_blind: 600,  ante: 75  },
-      { level: 8,  small_blind: 400,  big_blind: 800,  ante: 100 },
-      { level: 9,  small_blind: 500,  big_blind: 1000, ante: 100 },
-      { level: 10, small_blind: 600,  big_blind: 1200, ante: 150 },
-      { level: 11, small_blind: 800,  big_blind: 1600, ante: 200 },
-      { level: 12, small_blind: 1000, big_blind: 2000, ante: 250 },
-      { level: 13, small_blind: 1500, big_blind: 3000, ante: 300 },
-      { level: 14, small_blind: 2000, big_blind: 4000, ante: 500 },
-      { level: 15, small_blind: 3000, big_blind: 6000, ante: 600 },
+      { level: 1,  small_blind: 25,   big_blind: 50,   ante: 50   },
+      { level: 2,  small_blind: 50,   big_blind: 100,  ante: 100  },
+      { level: 3,  small_blind: 75,   big_blind: 150,  ante: 150  },
+      { level: 4,  small_blind: 100,  big_blind: 200,  ante: 200  },
+      { level: 5,  small_blind: 150,  big_blind: 300,  ante: 300  },
+      { level: 6,  small_blind: 200,  big_blind: 400,  ante: 400  },
+      { level: 7,  small_blind: 300,  big_blind: 600,  ante: 600  },
+      { level: 8,  small_blind: 400,  big_blind: 800,  ante: 800  },
+      { level: 9,  small_blind: 500,  big_blind: 1000, ante: 1000 },
+      { level: 10, small_blind: 600,  big_blind: 1200, ante: 1200 },
+      { level: 11, small_blind: 800,  big_blind: 1600, ante: 1600 },
+      { level: 12, small_blind: 1000, big_blind: 2000, ante: 2000 },
+      { level: 13, small_blind: 1500, big_blind: 3000, ante: 3000 },
+      { level: 14, small_blind: 2000, big_blind: 4000, ante: 4000 },
+      { level: 15, small_blind: 3000, big_blind: 6000, ante: 6000 },
     ],
   },
 };
@@ -369,7 +369,13 @@ export default function TournamentForm({ venues, tournament = null, onSuccess, o
   };
 
   const updateBlindRow = (idx, field, value) => {
-    setBlinds(prev => prev.map((row, i) => i === idx ? { ...row, [field]: value === '' ? '' : Number(value) } : row));
+    const num = value === '' ? '' : Number(value);
+    setBlinds(prev => prev.map((row, i) => {
+      if (i !== idx) return row;
+      const updated = { ...row, [field]: num };
+      if (field === 'big_blind') updated.ante = num; // האנטה תמיד שווה לביג-בליינד
+      return updated;
+    }));
     setActivePreset('');
   };
 
@@ -379,7 +385,7 @@ export default function TournamentForm({ venues, tournament = null, onSuccess, o
     const nextSB    = lastLevel ? lastLevel.big_blind : 25;
     const nextBB    = nextSB * 2;
     const dur       = form.level_duration !== '' ? parseInt(form.level_duration) : (lastLevel?.duration ?? 20);
-    setBlinds(prev => [...prev, { type: 'level', level: nextLevel, small_blind: nextSB, big_blind: nextBB, ante: lastLevel?.ante ?? 0, duration: dur }]);
+    setBlinds(prev => [...prev, { type: 'level', level: nextLevel, small_blind: nextSB, big_blind: nextBB, ante: nextBB, duration: dur }]);
     setActivePreset('');
   };
 
