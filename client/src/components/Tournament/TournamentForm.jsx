@@ -117,12 +117,16 @@ const FIELD_LABELS = {
   description:         'תיאור',
 };
 
-// המרת timestamp ל-datetime-local (שומרת שעה מקומית)
+// המרת start_time ל-datetime-local. הערך מה-API נראה כמו "...T20:00:00.000Z", אבל לפי
+// מוסכמת האחסון של האפליקציה (ראו nextOccurrence ב-utils/whatsapp.js) זו מחרוזת שעון-קיר
+// ישראלי נטולת אזור זמן אמיתי עם "Z" מזויף שמצרף driver ה-DB — לא רגע UTC אמיתי. לכן
+// קוראים את הספרות ישירות מהמחרוזת במקום להעביר דרך המרת אזור-זמן של Date/Intl, שהייתה
+// מכפילה את ההיסט של שעון ישראל. גם getHours() הישן וגם Intl עם Asia/Jerusalem מפורש
+// שגויים מאותה סיבה בדיוק — שניהם מתייחסים לערך כאל רגע אמיתי במקום כמחרוזת שעון-קיר נאיבית.
 function toLocalDT(iso) {
   if (!iso) return '';
-  const d = new Date(iso);
-  const pad = n => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const m = String(iso).match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/);
+  return m ? `${m[1]}T${m[2]}` : '';
 }
 
 function parseStages(raw) {

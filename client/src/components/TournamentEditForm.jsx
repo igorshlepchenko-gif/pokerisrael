@@ -4,12 +4,18 @@ import api from '../utils/api';
 const DAYS_HE = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
 const RE_ENTRY_OPTIONS = ['1X', '2X', '3X', '4X', '5X', 'Unlimited'];
 
-// Convert ISO UTC string → "YYYY-MM-DDTHH:mm" in Israel local time (for datetime-local input)
+// Convert stored start_time → "YYYY-MM-DDTHH:mm" for the datetime-local input.
+// The value from the API always looks like "...T20:00:00.000Z", but per this app's storage
+// convention (see nextOccurrence() in utils/whatsapp.js) that's a naive Israel wall-clock
+// reading with a UTC suffix tacked on by the DB driver — NOT a real UTC instant. So we read
+// the digits straight off the string instead of going through Date/Intl timezone conversion,
+// which would double-apply Israel's UTC offset. Using getTimezoneOffset() (the old code) or
+// Intl with an explicit Asia/Jerusalem zone are both wrong for the same underlying reason —
+// they treat the value as a real instant instead of the naive wall-clock string it is.
 function toLocalInput(iso) {
   if (!iso) return '';
-  const d = new Date(iso);
-  const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
-  return local.toISOString().slice(0, 16);
+  const m = String(iso).match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/);
+  return m ? `${m[1]}T${m[2]}` : '';
 }
 
 export default function TournamentEditForm({ tournament: t, onSave, onCancel }) {
