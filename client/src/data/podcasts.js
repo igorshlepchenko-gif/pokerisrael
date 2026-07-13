@@ -36,6 +36,17 @@ export const PODCASTS = [
     facebookUrl: '',
     youtubeUrl: 'https://www.youtube.com/@PokerGeeks',
   },
+  {
+    id: 'keves-hakvasim',
+    name: 'כבש הכבשים',
+    emoji: '🐑',
+    logo: '/podcasts/keves-hakvasim.png',
+    color: '#dc2626',
+    spotifyUrl: 'https://open.spotify.com/show/6RtRCByd3YLtetY5avmMC1',
+    instagramUrl: '',
+    facebookUrl: '',
+    youtubeUrl: 'https://www.youtube.com/playlist?list=PLeBFdRI-34EHNr8MqcAX7ykf84WqlB072',
+  },
 ];
 
 // מקבל כתובת show/episode רגילה מ-Spotify ומחזיר את כתובת ה-iframe להטמעה.
