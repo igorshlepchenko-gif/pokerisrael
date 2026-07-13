@@ -5,6 +5,7 @@ import ActionSelector from './ActionSelector';
 import OpponentManager from './OpponentManager';
 import HandSummary from './HandSummary';
 import { generateNarrative } from '../../utils/handNarrative';
+import { bestHandEval, compareEvals, describeHandHe } from '../../utils/handEvaluator';
 
 const PREFLOP_ORDER  = ['UTG', 'UTG+1', 'MP', 'HJ', 'CO', 'BTN', 'SB', 'BB'];
 const POSTFLOP_ORDER = ['SB', 'BB', 'UTG', 'UTG+1', 'MP', 'HJ', 'CO', 'BTN'];
@@ -106,6 +107,8 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
   const [notes, setNotes] = useState(_d?.notes ?? '');
   const [showShowdown, setShowShowdown] = useState(_d?.showShowdown ?? false);
   const [oppRevealedCards, setOppRevealedCards] = useState(_d?.oppRevealedCards ?? []);
+  const [autoDecided, setAutoDecided] = useState(_d?.autoDecided ?? false);
+  const [autoReason, setAutoReason] = useState(_d?.autoReason ?? '');
 
   // Narrative (generated at result step)
   const [narrative, setNarrative] = useState(_d?.narrative ?? '');
@@ -117,10 +120,115 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
       step, gameType, tournamentStage, blindPreset, customSb, customBb, ante,
       stakesPreset, customStakes, playersCount, opponents, heroPosition, heroStack,
       heroCards, handData, result, heroProfit, splitDist, notes, showShowdown, oppRevealedCards, narrative,
+      autoDecided, autoReason,
     }));
   }, [step, gameType, tournamentStage, blindPreset, customSb, customBb, ante,
       stakesPreset, customStakes, playersCount, opponents, heroPosition, heroStack,
-      heroCards, handData, result, heroProfit, splitDist, notes, showShowdown, oppRevealedCards, narrative]);
+      heroCards, handData, result, heroProfit, splitDist, notes, showShowdown, oppRevealedCards, narrative,
+      autoDecided, autoReason]);
+
+  // ── Auto-decide the winner at showdown ──────────────────────
+  // A player who folds can never win, so a fold alone can settle the hand.
+  // Otherwise, once every remaining player's cards are known, compare best 5-card hands.
+  const getFoldedAll = () => new Set([
+    ...getFoldedBefore('flop'),
+    ...(handData.streets.flop?.actions  || []).filter(a => a.action === 'fold').map(a => a.actor),
+    ...(handData.streets.turn?.actions  || []).filter(a => a.action === 'fold').map(a => a.actor),
+    ...(handData.streets.river?.actions || []).filter(a => a.action === 'fold').map(a => a.actor),
+  ]);
+
+  const getShowdownPlayers = () => {
+    const folded = getFoldedAll();
+    return sortedPlayers(heroPosition, opponents, 'preflop').filter(p => !folded.has(p.actor));
+  };
+
+  const getRevealedCards = (actor) => {
+    if (actor === 'hero') return heroCards;
+    const idx = opponents.findIndex(o => String(o.id) === String(actor));
+    if (idx < 0) return [];
+    const cards = idx === 0 ? oppRevealedCards : (handData.showdown?.opponent_cards?.[idx] || []);
+    return cards?.length === 2 ? cards : [];
+  };
+
+  const computeAutoResult = () => {
+    const sdPlayers = getShowdownPlayers();
+    const heroIn = sdPlayers.some(p => p.actor === 'hero');
+
+    if (!heroIn) {
+      const reason = sdPlayers.length === 1
+        ? `קיפלת מול ${sdPlayers[0].label} — ${sdPlayers[0].label} מנצח בקופה`
+        : 'קיפלת — הפסדת את הקופה';
+      return { result: 'lost', winners: sdPlayers.map(p => p.actor), reason };
+    }
+    if (sdPlayers.length === 1) {
+      return { result: 'won', winners: ['hero'], reason: 'כל היריבים קיפלו — ניצחת בקופה ללא קרב קלפים' };
+    }
+
+    // 2+ players remain — need everyone's cards to compare hand strength
+    const withCards = sdPlayers.map(p => ({ ...p, cards: getRevealedCards(p.actor) }));
+    if (withCards.some(p => p.cards.length !== 2)) return null;
+
+    const evals = withCards.map(p => ({ ...p, ev: bestHandEval(p.cards, allBoardCards) }));
+    if (evals.some(e => !e.ev)) return null;
+
+    let best = evals[0].ev;
+    evals.forEach(e => { if (compareEvals(e.ev, best) > 0) best = e.ev; });
+    const winners = evals.filter(e => compareEvals(e.ev, best) === 0);
+
+    if (winners.length > 1) {
+      return {
+        result: 'split', winners: winners.map(w => w.actor),
+        reason: `חלוקה — ${winners.map(w => w.label).join(' + ')} עם ${describeHandHe(best)}`,
+      };
+    }
+    const winner = winners[0];
+    if (winner.actor === 'hero') {
+      const others = evals.filter(e => e.actor !== 'hero').map(e => `${e.label} (${describeHandHe(e.ev)})`).join(', ');
+      return { result: 'won', winners: ['hero'], reason: `${describeHandHe(best)} מנצח את ${others}` };
+    }
+    const heroEval = evals.find(e => e.actor === 'hero');
+    return {
+      result: 'lost', winners: [winner.actor],
+      reason: `${winner.label} מנצח עם ${describeHandHe(best)} מול ${describeHandHe(heroEval.ev)} שלך`,
+    };
+  };
+
+  const splitAmong = (pot, winnerActors, allPlayers) => {
+    const dist = {};
+    allPlayers.forEach(p => { dist[p.actor] = 0; });
+    const n = Math.max(winnerActors.length, 1);
+    const eq = Math.floor(pot / n);
+    winnerActors.forEach((actor, i) => {
+      dist[actor] = i === winnerActors.length - 1 ? pot - eq * (n - 1) : eq;
+    });
+    return dist;
+  };
+
+  const applyAutoResult = (auto) => {
+    const finalPot = calculatePot('river');
+    if (result !== auto.result) setResult(auto.result);
+    if (auto.result === 'won') {
+      if (heroProfit !== String(finalPot)) setHeroProfit(String(finalPot));
+      if (Object.keys(splitDist).length) setSplitDist({});
+    } else if (auto.result === 'lost') {
+      if (heroProfit !== String(-finalPot)) setHeroProfit(String(-finalPot));
+      if (Object.keys(splitDist).length) setSplitDist({});
+    } else if (auto.result === 'split') {
+      const dist = splitAmong(finalPot, auto.winners, getShowdownPlayers());
+      if (JSON.stringify(dist) !== JSON.stringify(splitDist)) setSplitDist(dist);
+      const heroAmt = String(dist['hero'] ?? 0);
+      if (heroProfit !== heroAmt) setHeroProfit(heroAmt);
+    }
+    if (auto.reason !== autoReason) setAutoReason(auto.reason);
+    if (!autoDecided) setAutoDecided(true);
+  };
+
+  useEffect(() => {
+    if (step !== 10) return;
+    const auto = computeAutoResult();
+    if (!auto) return;
+    if (result === '' || autoDecided) applyAutoResult(auto);
+  }, [step, handData, oppRevealedCards, opponents, heroCards, heroPosition]);
 
   const isTournament = gameType === 'tournament' || gameType === 'tournament_online';
   const unit = isTournament ? 'BB' : '₪';
@@ -292,6 +400,13 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
     setStep(s => Math.min(s + 1, steps.length - 1));
   };
   const goBack = () => setStep(s => Math.max(s - 1, 0));
+
+  // אם היד כבר הוכרעה בפולד (פחות מ-2 שחקנים נותרו) — קפוץ ישר לתוצאה
+  // במקום להעביר את המשתמש דרך שלבי פלופ/טרן/ריבר/קלפי-יריב ריקים
+  const skipStreet = (street) => {
+    if (handEndedByFold(street)) setStep(10);
+    else goNext();
+  };
 
   const stepLabel = steps[step] || '';
 
@@ -683,7 +798,7 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
             playerStack={getPlayerCurrentStack(p.actor, 'preflop')}
             onAction={a => addAction('preflop', { ...a, actor: p.actor })} />
         ))}
-        <button onClick={goNext}
+        <button onClick={() => skipStreet('preflop')}
           className="w-full py-2 rounded-xl text-xs text-slate-500 border border-dashed border-slate-700 hover:border-slate-600 hover:text-slate-400 transition-all">
           ⏭ דלג לפלופ (קיפלנו / ניצחנו)
         </button>
@@ -719,7 +834,7 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
           </div>
         )}
         {handEndedByFold('flop') && (
-          <button onClick={goNext}
+          <button onClick={() => skipStreet('flop')}
             className="w-full py-2 rounded-xl text-xs text-slate-500 border border-dashed border-slate-700 hover:border-slate-600 hover:text-slate-400 transition-all">
             ⏭ דלג — היד הסתיימה בפלופ
           </button>
@@ -756,7 +871,7 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
           </div>
         )}
         {handEndedByFold('turn') && (
-          <button onClick={goNext}
+          <button onClick={() => skipStreet('turn')}
             className="w-full py-2 rounded-xl text-xs text-slate-500 border border-dashed border-slate-700 hover:border-slate-600 hover:text-slate-400 transition-all">
             ⏭ דלג — היד הסתיימה בטרן
           </button>
@@ -800,7 +915,7 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
           </div>
         )}
         {!streetRoundComplete('river') && (
-          <button onClick={goNext}
+          <button onClick={() => skipStreet('river')}
             className="w-full py-2 rounded-xl text-xs text-slate-500 border border-dashed border-slate-700 hover:border-slate-600 hover:text-slate-400 transition-all">
             ⏭ המשך לתוצאה
           </button>
@@ -818,14 +933,7 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
         : `₪${finalPot.toLocaleString('he-IL')}${potBbs ? ` (${potBbs}BB)` : ''}`;
 
       // שחקנים שלא קיפלו — נמצאים בשואודאון
-      const foldedAll = new Set([
-        ...getFoldedBefore('flop'),
-        ...(handData.streets.flop?.actions  || []).filter(a => a.action === 'fold').map(a => a.actor),
-        ...(handData.streets.turn?.actions  || []).filter(a => a.action === 'fold').map(a => a.actor),
-        ...(handData.streets.river?.actions || []).filter(a => a.action === 'fold').map(a => a.actor),
-      ]);
-      const sdPlayers = sortedPlayers(heroPosition, opponents, 'preflop')
-        .filter(p => !foldedAll.has(p.actor));
+      const sdPlayers = getShowdownPlayers();
 
       const PLAYER_COLORS = ['#3b82f6','#f97316','#22c55e','#a855f7','#ef4444','#06b6d4'];
 
@@ -857,8 +965,21 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
           <span className="text-amber-400/70 text-sm font-bold">💰 קופה סופית</span>
         </div>
 
+        {autoDecided && autoReason && (
+          <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-blue-500/10 border border-blue-500/30" dir="rtl">
+            <span className="text-lg flex-shrink-0">🤖</span>
+            <div className="min-w-0">
+              <div className="text-xs font-bold text-blue-300">התוצאה זוהתה אוטומטית</div>
+              <div className="text-xs text-slate-400 mt-0.5">{autoReason}</div>
+            </div>
+          </div>
+        )}
+
         <div>
-          <label className="block text-sm font-bold text-slate-300 mb-3 text-right">מי ניצח את הקופה?</label>
+          <label className="block text-sm font-bold text-slate-300 mb-3 text-right">
+            מי ניצח את הקופה?
+            {autoDecided && <span className="text-slate-500 font-normal"> (ניתן לשנות ידנית)</span>}
+          </label>
           <div className="flex gap-2 justify-center">
             {[
               { key: 'won',   icon: '🏆', label: 'ניצחתי',  color: 'border-emerald-400 bg-emerald-600/20' },
@@ -867,6 +988,7 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
             ].map(r => (
               <button key={r.key}
                 onClick={() => {
+                  setAutoDecided(false);
                   setResult(r.key);
                   if (r.key === 'won')  { setHeroProfit(String(finalPot));  setSplitDist({}); }
                   if (r.key === 'lost') { setHeroProfit(String(-finalPot)); setSplitDist({}); }
@@ -1031,7 +1153,7 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
         handState={buildState()}
         narrative={narrative}
         onSaveSuccess={() => { clearDraft(); onSaved?.(); }}
-        onReset={() => { clearDraft(); setStep(0); setGameType(null); setHandData(initHandData()); setHeroCards([]); setOpponents([]); setResult(''); setNarrative(''); setOppRevealedCards([]); setHeroProfit(''); setSplitDist({}); setNotes(''); }}
+        onReset={() => { clearDraft(); setStep(0); setGameType(null); setHandData(initHandData()); setHeroCards([]); setOpponents([]); setResult(''); setNarrative(''); setOppRevealedCards([]); setHeroProfit(''); setSplitDist({}); setNotes(''); setAutoDecided(false); setAutoReason(''); }}
       />
     );
 

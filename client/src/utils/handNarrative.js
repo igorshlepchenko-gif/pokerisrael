@@ -1,12 +1,7 @@
 // PokerStars-style hand history generator for PokerIsrael
+import { bestHandEval, describeHandEn } from './handEvaluator';
 
 const POSITION_ORDER = ['UTG', 'UTG+1', 'MP', 'HJ', 'CO', 'BTN', 'SB', 'BB'];
-
-const RANK_NAMES = {
-  A: 'Aces', K: 'Kings', Q: 'Queens', J: 'Jacks', T: 'Tens',
-  9: 'Nines', 8: 'Eights', 7: 'Sevens', 6: 'Sixes',
-  5: 'Fives', 4: 'Fours', 3: 'Threes', 2: 'Twos',
-};
 
 function psCard(c) {
   if (!c || !c.rank || !c.suit) return '??';
@@ -77,40 +72,11 @@ function isAggressive(action) {
   return ['raise', 'three-bet', 'four-bet', 'allin'].includes(action);
 }
 
-// Evaluate approximate hand strength from hole cards + board
+// Best 5-card hand strength from hole cards + board (shared evaluator)
 function handStrength(holeCards, boardCards) {
   if (!holeCards || holeCards.length < 2) return 'best hand';
-  const all = [...holeCards, ...(boardCards || [])];
-  const ranks = all.map(c => c.rank);
-  const suits = all.map(c => c.suit);
-
-  const rankCnt = {};
-  ranks.forEach(r => { rankCnt[r] = (rankCnt[r] || 0) + 1; });
-  const counts = Object.values(rankCnt).sort((a, b) => b - a);
-
-  const suitCnt = {};
-  suits.forEach(s => { suitCnt[s] = (suitCnt[s] || 0) + 1; });
-  const hasFlush = Object.values(suitCnt).some(v => v >= 5);
-
-  if (counts[0] >= 4) return 'four of a kind';
-  if (counts[0] === 3 && counts[1] >= 2) return 'a full house';
-  if (hasFlush) return 'a flush';
-  if (counts[0] === 3) {
-    const tripRank = Object.keys(rankCnt).find(r => rankCnt[r] === 3);
-    return `three of a kind, ${RANK_NAMES[tripRank] || tripRank}`;
-  }
-  if (counts[0] === 2 && counts[1] === 2) return 'two pair';
-  if (counts[0] === 2) {
-    const pairRank = Object.keys(rankCnt).find(r => rankCnt[r] === 2);
-    return `a pair of ${RANK_NAMES[pairRank] || pairRank + 's'}`;
-  }
-  // High card — use highest hole card
-  const RV = { A: 14, K: 13, Q: 12, J: 11, T: 10 };
-  const high = holeCards.reduce((b, c) => {
-    return (RV[c.rank] || parseInt(c.rank) || 0) > (RV[b.rank] || parseInt(b.rank) || 0) ? c : b;
-  }, holeCards[0]);
-  const highName = { A: 'Ace', K: 'King', Q: 'Queen', J: 'Jack', T: 'Ten' };
-  return `${highName[high.rank] || high.rank} high`;
+  const ev = bestHandEval(holeCards, boardCards);
+  return ev ? describeHandEn(ev) : 'best hand';
 }
 
 export function generateNarrative(state) {
