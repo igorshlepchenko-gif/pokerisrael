@@ -154,8 +154,18 @@ export default function HandLoggerSection() {
                   <h2 className="text-xl font-black text-white">רישום ידיים מקצועי</h2>
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-blue-500/30 text-blue-300 border border-blue-400/30">BETA</span>
                 </div>
-                <p className="text-blue-200/80 text-sm leading-relaxed mb-3">
-                  תעד ידיים שיחקת, קבל ניתוח מקצועי בעברית וצור סרטון לשיתוף — בכמה לחיצות בלבד.
+                <p
+                  className="text-base font-semibold leading-relaxed mb-3 animate-gradient-text"
+                  style={{
+                    background: 'linear-gradient(90deg, #93c5fd, #22d3ee, #f59e0b, #93c5fd)',
+                    backgroundSize: '300% auto',
+                    WebkitBackgroundClip: 'text',
+                    backgroundClip: 'text',
+                    color: 'transparent',
+                    WebkitTextFillColor: 'transparent',
+                  }}
+                >
+                  תעדו ידיים, קבלו ניתוח מקצועי וצורו סרטונים לשיתוף בכמה לחיצות בלבד.
                 </p>
                 <div className="flex items-center gap-4 flex-wrap">
                   <button

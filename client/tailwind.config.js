@@ -29,6 +29,7 @@ export default {
         'card-flip':  'cardFlip 0.6s ease-in-out',
         'pulse-blue': 'pulseBlue 3s ease-in-out infinite',
         'pulse-slow': 'pulseSlow 2.5s ease-in-out infinite',
+        'gradient-text': 'gradientText 5s ease infinite',
       },
       keyframes: {
         fadeIn:     { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
@@ -36,6 +37,7 @@ export default {
         cardFlip:   { '0%': { transform: 'rotateY(0deg)' }, '100%': { transform: 'rotateY(180deg)' } },
         pulseBlue:  { '0%,100%': { opacity: '0.6' }, '50%': { opacity: '1' } },
         pulseSlow:  { '0%,100%': { boxShadow: '0 0 12px rgba(99,102,241,0.5)' }, '50%': { boxShadow: '0 0 28px rgba(99,102,241,0.95)' } },
+        gradientText: { '0%,100%': { backgroundPosition: '0% 50%' }, '50%': { backgroundPosition: '100% 50%' } },
       },
     },
   },
