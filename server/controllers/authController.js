@@ -84,7 +84,7 @@ exports.register = async (req, res) => {
       `INSERT INTO users
          (name, email, password, phone, role, is_active, email_verified)
        VALUES ($1,$2,$3,$4,$5, true, true)
-       RETURNING id, name, email, phone, role`,
+       RETURNING id, name, email, phone, role, token_version`,
       [name, email, hash, phone, role]
     );
 
@@ -99,7 +99,8 @@ exports.register = async (req, res) => {
 
     const token = generateToken(user);
     setAuthCookie(res, token);
-    res.status(201).json({ token, user });
+    const { token_version: _tv, ...userData } = user;
+    res.status(201).json({ token, user: userData });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'שגיאת שרת' });
@@ -112,7 +113,7 @@ exports.verifyEmail = async (req, res) => {
 
   try {
     const result = await pool.query(
-      `SELECT id, name, email, role, verification_expires
+      `SELECT id, name, email, role, verification_expires, token_version
        FROM users
        WHERE verification_token = $1 AND email_verified = false`,
       [token]
@@ -143,7 +144,7 @@ exports.verifyEmail = async (req, res) => {
     ).catch(() => {});
 
     // מחזיר JWT כדי שהמשתמש יכנס מיד
-    const jwt_token = generateToken({ id: user.id, role: user.role });
+    const jwt_token = generateToken({ id: user.id, role: user.role, token_version: user.token_version });
     setAuthCookie(res, jwt_token);
     res.json({
       message: 'המייל אומת בהצלחה! החשבון פעיל.',
@@ -238,17 +239,21 @@ exports.login = async (req, res) => {
     const valid = await bcrypt.compare(password, user.password);
 
     if (!valid) {
-      const attempts = (user.failed_login_attempts || 0) + 1;
-      const shouldLock = attempts >= 10;
-
-      await pool.query(
+      // עדכון אטומי בשורה אחת — לא read-then-write: אם זה נעשה בשתי שאילתות (קרוא
+      // failed_login_attempts, חשב ב-JS, כתוב בחזרה), בקשות מקבילות עם סיסמה שגויה
+      // יכולות כולן לקרוא את אותו ערך ישן לפני שמישהי כותבת בחזרה, כך שהמונה נתקע
+      // נמוך ונעילת 10-הנסיונות אף פעם לא מופעלת מול ניסיון מבוזר/מקבילי
+      const result = await pool.query(
         `UPDATE users
-         SET failed_login_attempts = $1,
-             is_locked  = $2,
-             locked_at  = $3
-         WHERE id = $4`,
-        [attempts, shouldLock, shouldLock ? new Date() : user.locked_at, user.id]
+         SET failed_login_attempts = failed_login_attempts + 1,
+             is_locked  = (failed_login_attempts + 1 >= 10),
+             locked_at  = CASE WHEN (failed_login_attempts + 1 >= 10) THEN NOW() ELSE locked_at END
+         WHERE id = $1
+         RETURNING failed_login_attempts, is_locked`,
+        [user.id]
       );
+      const attempts = result.rows[0].failed_login_attempts;
+      const shouldLock = result.rows[0].is_locked;
 
       if (shouldLock) {
         console.warn(`[AUTH] חשבון ננעל: ${email} — ${attempts} ניסיונות כושלים`);

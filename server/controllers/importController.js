@@ -207,6 +207,18 @@ exports.approveImport = async (req, res) => {
       return res.status(400).json({ message: 'חסרים תאריך ושעה — יש למלא אותם לפני האישור' });
     }
 
+    // תפיסה אטומית — ה-WHERE בודק status='pending' באותה שאילתה שמעדכנת אותו, אחרי
+    // שכל הבדיקות עברו, כך שלחיצה כפולה על הכפתור (או שתי בקשות מקבילות) לא יכולות
+    // שתיהן לעבור: רק הראשונה שתופסת את השורה ממשיכה ליצור טורניר, והשנייה נעצרת
+    // כאן במקום ליצור טורניר כפול
+    const claim = await pool.query(
+      `UPDATE tournament_imports SET status='processing' WHERE id=$1 AND status='pending'`,
+      [id]
+    );
+    if (claim.rowCount === 0) {
+      return res.status(409).json({ message: 'הפריט כבר טופל (אושר/נדחה) על ידי בקשה אחרת' });
+    }
+
     const tRes = await pool.query(
       `INSERT INTO tournaments
          (venue_id, name, description, cost, start_time,
@@ -239,6 +251,12 @@ exports.approveImport = async (req, res) => {
     res.json({ tournament_id: tRes.rows[0].id, message: 'Tournament created successfully' });
   } catch (err) {
     console.error('[importController] approveImport:', err?.message);
+    // אם התפיסה כבר קרתה (status='processing') אבל יצירת הטורניר נכשלה, מחזירים
+    // ל-pending כדי שהפריט יהיה ניתן לניסיון חוזר במקום להיתקע לצמיתות "בעיבוד"
+    await pool.query(
+      `UPDATE tournament_imports SET status='pending' WHERE id=$1 AND status='processing'`,
+      [id]
+    ).catch(() => {});
     res.status(500).json({ message: 'Server error', detail: err?.message });
   }
 };

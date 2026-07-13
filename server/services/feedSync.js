@@ -184,7 +184,10 @@ async function syncFeed(feed) {
   }
 
   // 4. מחיקה — טורנירים שירדו מהפיד (הסתיימו / בוטלו)
-  const toRemove = existingRes.rows.filter(r => !feedIds.has(r.external_id));
+  // לא נוגעים בטורניר שנערך ידנית — אותה הגנה שקיימת ב-jokerClubSync/letsPokerSync,
+  // שהייתה חסרה כאן: בלעדיה, שינוי קל ב-external_id מהצד השני (שינוי טקסט אצל
+  // המארגן) יכול למחוק לצמיתות תיקון ידני שאדמין עשה, בלי שום עקבות ביומן.
+  const toRemove = existingRes.rows.filter(r => !feedIds.has(r.external_id) && !r.manually_edited);
   const existingCount = existingRes.rows.length;
 
   // הגנה: פיד ריק או ירידה חשודה → אל תמחק (כנראה תקלה אצל הספק, לא ביטול אמיתי)

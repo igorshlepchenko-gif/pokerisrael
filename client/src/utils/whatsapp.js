@@ -41,32 +41,79 @@ export function buildVenueContactLink(whatsappNumber, venueName) {
 
 export const DAYS_HE = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
 
-// מחזיר מחרוזת תאריך YYYY-MM-DD (זמן מקומי)
-function toDateStr(d) {
-  const pad = n => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+// כל הזמנים מחושבים לפי שעון ישראל — ללא תלות באזור הזמן של הדפדפן של הצופה.
+// (הועבר למעלה כי nextOccurrence צריך אותו)
+const IL_TZ = 'Asia/Jerusalem';
+
+// מפרק Date לרכיבי שעון-קיר (שנה/חודש/יום/שעה/דקה/יום-בשבוע) כפי שהם נראים
+// באזור זמן נתון, כמספרים פשוטים — לא כאובייקט Date נוסף שתלוי בפרשנות אזור זמן
+function tzParts(date, tz) {
+  const fmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23', weekday: 'short',
+  });
+  const p = Object.fromEntries(fmt.formatToParts(date).map(x => [x.type, x.value]));
+  const WEEKDAY_NUM = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  return {
+    year: Number(p.year), month: Number(p.month), day: Number(p.day),
+    hour: Number(p.hour), minute: Number(p.minute), second: Number(p.second),
+    weekday: WEEKDAY_NUM[p.weekday],
+  };
 }
 
-// מחשב את התאריך של המופע הקרוב הבא לאירוע שבועי קבוע
-// startTime: תאריך מקורי (לקביעת השעה), dayOfWeek: 0-6, skipped: מערך תאריכים לדילוג
+// בונה Date שמייצג רגע UTC אמיתי מתוך שעון-קיר Y/M/D/H/M באזור זמן נתון. אין
+// דרך ישירה לכך ב-JS הרגיל (בניגוד ל-Date.UTC, שמקבל רק מספרים ב-UTC) — זה
+// הטריק המקובל: מנחשים UTC, בודקים איך הניחוש הזה היה *נראה* באזור היעד, ומתקנים
+// לפי ההפרש. מתכנס תמיד לתשובה הנכונה, כולל בימי מעבר שעון קיץ.
+function zonedTimeToUTC(year, month, day, hour, minute, tz) {
+  const guess = new Date(Date.UTC(year, month - 1, day, hour, minute, 0, 0));
+  const shown = tzParts(guess, tz);
+  const shownAsUTC = Date.UTC(shown.year, shown.month - 1, shown.day, shown.hour, shown.minute, shown.second);
+  return new Date(guess.getTime() + (guess.getTime() - shownAsUTC));
+}
+
+// מחזיר מחרוזת תאריך YYYY-MM-DD של רגע נתון, לפי אזור זמן נתון
+function toDateStrInTZ(date, tz) {
+  const p = tzParts(date, tz);
+  const pad = n => String(n).padStart(2, '0');
+  return `${p.year}-${pad(p.month)}-${pad(p.day)}`;
+}
+
+// מחשב את התאריך של המופע הקרוב הבא לאירוע שבועי קבוע, בשעון ישראל — ללא תלות
+// באזור הזמן של מי שמריץ את הפונקציה (דפדפן הצופה). startTime מגיע כמחרוזת נאיבית
+// (ללא אזור זמן) שמייצגת שעון-קיר ישראל לפי המוסכמה של האפליקציה; חילוץ השעה/דקה
+// שלה נעשה ישירות מהמחרוזת (regex), לא דרך new Date().getHours(), כי זה האחרון
+// תלוי באיך אזור הזמן של הריצה הנוכחית "היה מפרש" אותה כזמן מקומי.
+// dayOfWeek: 0-6, skipped: מערך תאריכים לדילוג
 export function nextOccurrence(startTime, dayOfWeek, skipped = []) {
   if (!startTime) return null;
+  const m = String(startTime).match(/T(\d{2}):(\d{2})/);
+  const baseHour = m ? Number(m[1]) : 0;
+  const baseMinute = m ? Number(m[2]) : 0;
+
   const base = new Date(startTime);
   const dow = (dayOfWeek === null || dayOfWeek === undefined) ? base.getDay() : Number(dayOfWeek);
   const skipList = Array.isArray(skipped) ? skipped : (() => { try { return JSON.parse(skipped || '[]'); } catch { return []; } })();
 
-  const now = new Date();
-  const res = new Date(now);
-  res.setHours(base.getHours(), base.getMinutes(), 0, 0);
+  const nowParts = tzParts(new Date(), IL_TZ);
+  const nowInstant = zonedTimeToUTC(nowParts.year, nowParts.month, nowParts.day, nowParts.hour, nowParts.minute, IL_TZ);
+  const todayCandidate = zonedTimeToUTC(nowParts.year, nowParts.month, nowParts.day, baseHour, baseMinute, IL_TZ);
 
-  let daysAhead = (dow - res.getDay() + 7) % 7;
-  if (daysAhead === 0 && res <= now) daysAhead = 7; // היום אבל השעה עברה → שבוע הבא
-  res.setDate(res.getDate() + daysAhead);
+  let daysAhead = (dow - nowParts.weekday + 7) % 7;
+  if (daysAhead === 0 && todayCandidate <= nowInstant) daysAhead = 7; // היום אבל השעה עברה → שבוע הבא
+
+  // מתקדמים על גבי תאריך יומן פשוט (UTC-anchored, רק לצורך חשבון הימים עצמו),
+  // ואז ממירים כל תאריך-מועמד מחדש דרך zonedTimeToUTC — כך שההיסט הנכון של אזור
+  // הזמן (כולל שעון קיץ) מחושב מחדש לכל תאריך יעד, ולא רק מוזז בכמות מ"ש קבועה
+  const targetDate = new Date(Date.UTC(nowParts.year, nowParts.month - 1, nowParts.day));
+  targetDate.setUTCDate(targetDate.getUTCDate() + daysAhead);
+  let res = zonedTimeToUTC(targetDate.getUTCFullYear(), targetDate.getUTCMonth() + 1, targetDate.getUTCDate(), baseHour, baseMinute, IL_TZ);
 
   // דילוג על תאריכים שסומנו (חגים וכו')
   let guard = 0;
-  while (skipList.includes(toDateStr(res)) && guard < 60) {
-    res.setDate(res.getDate() + 7);
+  while (skipList.includes(toDateStrInTZ(res, IL_TZ)) && guard < 60) {
+    targetDate.setUTCDate(targetDate.getUTCDate() + 7);
+    res = zonedTimeToUTC(targetDate.getUTCFullYear(), targetDate.getUTCMonth() + 1, targetDate.getUTCDate(), baseHour, baseMinute, IL_TZ);
     guard++;
   }
   return res;
@@ -80,9 +127,6 @@ export function eventDisplayDate(t) {
   }
   return t.start_time;
 }
-
-// כל הזמנים מוצגים בשעון ישראל — ללא תלות במיקום הצופה
-const IL_TZ = 'Asia/Jerusalem';
 
 export function formatTime(dateStr) {
   if (!dateStr) return '';

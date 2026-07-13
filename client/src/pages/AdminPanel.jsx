@@ -159,6 +159,7 @@ export default function AdminPanel() {
   const [pendingImports,   setPendingImports]   = useState([]);
   const [pendingVenues,    setPendingVenues]    = useState({});   // { [importId]: venueId }
   const [pendingDates,     setPendingDates]     = useState({});   // { [importId]: { date, start_time } }
+  const [approvingIds,     setApprovingIds]     = useState({});   // { [importId]: true } — guards double-click while a claim is in flight
   const [pendingVenueList, setPendingVenueList] = useState([]);
   const [expandedImport,   setExpandedImport]   = useState(null);
 
@@ -284,11 +285,22 @@ export default function AdminPanel() {
     if (!deleteVenueModal) return;
     setDeleteLoading(true);
     try {
-      await api.delete(`/admin/venues/${deleteVenueModal.id}`);
+      // מועדון מאושר: השרת דורש את מספר הטורנירים העדכני כאישור, לא רק קליק — אם
+      // המספר שהוצג במודל התיישן (מישהו הוסיף/מחק טורניר מאז שהמודל נפתח), השרת
+      // יחזיר 409 עם המספר האמיתי, ואנחנו מעדכנים את המודל כדי שהאדמין יאשר שוב
+      // במקום למחוק בטעות מועדון עם יותר טורנירים ממה שחשב
+      await api.delete(`/admin/venues/${deleteVenueModal.id}`, {
+        data: deleteVenueModal.is_approved ? { confirmTournamentCount: deleteVenueModal.tournament_count ?? 0 } : {},
+      });
       setDeleteVenueModal(null);
       fetchData();
-    } catch {
-      alert('שגיאה במחיקת המועדון');
+    } catch (e) {
+      if (e?.response?.status === 409 && Number.isInteger(e.response.data?.tournamentCount)) {
+        setDeleteVenueModal(v => ({ ...v, tournament_count: e.response.data.tournamentCount }));
+        alert(`המספר התעדכן — למועדון יש כעת ${e.response.data.tournamentCount} טורנירים. בדוק ולחץ שוב למחיקה.`);
+      } else {
+        alert('שגיאה במחיקת המועדון');
+      }
     } finally {
       setDeleteLoading(false);
     }
@@ -911,6 +923,7 @@ export default function AdminPanel() {
             };
 
             const handleApprovePending = async (imp) => {
+              if (approvingIds[imp.id]) return; // כבר בתהליך — מונע בקשה כפולה מלחיצה כפולה
               const venueId = pendingVenues[imp.id] || imp.venue_id;
               if (!venueId) { alert('בחר מועדון לפני האישור'); return; }
               const d = imp.parsed_data || {};
@@ -920,6 +933,7 @@ export default function AdminPanel() {
                 alert('יש להזין תאריך ושעה לפני האישור');
                 return;
               }
+              setApprovingIds(p => ({ ...p, [imp.id]: true }));
               try {
                 const r = await api.patch(`/imports/${imp.id}/approve`, {
                   venue_id: parseInt(venueId),
@@ -928,7 +942,11 @@ export default function AdminPanel() {
                 });
                 setPendingImports(p => p.filter(i => i.id !== imp.id));
                 alert(`✅ טורניר נוצר! #${r.data.tournament_id}`);
-              } catch(e) { alert('שגיאה: ' + (e?.response?.data?.message || e.message)); }
+              } catch(e) {
+                alert('שגיאה: ' + (e?.response?.data?.message || e.message));
+              } finally {
+                setApprovingIds(p => { const n = { ...p }; delete n[imp.id]; return n; });
+              }
             };
 
             const handleRejectPending = async (id) => {
@@ -1046,8 +1064,9 @@ export default function AdminPanel() {
                               </select>
                               <button
                                 onClick={() => handleApprovePending(imp)}
-                                className="px-4 py-1.5 rounded-lg bg-emerald-600/80 hover:bg-emerald-600 text-white text-sm font-bold transition-all">
-                                ✅ אשר
+                                disabled={!!approvingIds[imp.id]}
+                                className="px-4 py-1.5 rounded-lg bg-emerald-600/80 hover:bg-emerald-600 text-white text-sm font-bold transition-all disabled:opacity-40">
+                                {approvingIds[imp.id] ? '⏳ מאשר...' : '✅ אשר'}
                               </button>
                               <button
                                 onClick={() => handleRejectPending(imp.id)}
@@ -1459,7 +1478,11 @@ export default function AdminPanel() {
             <div className="bg-red-950/50 border border-red-800/40 rounded-xl p-4 mb-5 text-sm text-red-300 space-y-1">
               <p className="font-bold">⚠️ שים לב — פעולה זו בלתי הפיכה:</p>
               <p>• המועדון יימחק לצמיתות מהמערכת</p>
-              <p>• כל הטורנירים של המועדון יימחקו גם הם</p>
+              <p>
+                • {Number.isInteger(deleteVenueModal.tournament_count) && deleteVenueModal.tournament_count > 0
+                  ? `${deleteVenueModal.tournament_count} הטורנירים של המועדון יימחקו גם הם`
+                  : 'כל הטורנירים של המועדון (אם יש) יימחקו גם הם'}
+              </p>
             </div>
             <div className="flex gap-3">
               <button

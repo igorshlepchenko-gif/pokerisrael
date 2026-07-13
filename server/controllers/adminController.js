@@ -26,6 +26,26 @@ exports.approveVenue = async (req, res) => {
 
 exports.rejectVenue = async (req, res) => {
   try {
+    const venue = await pool.query('SELECT is_approved FROM venues WHERE id = $1', [req.params.id]);
+    if (!venue.rows[0]) return res.status(404).json({ message: 'מועדון לא נמצא' });
+
+    // אותו endpoint משמש גם לדחיית בקשה שמעולם לא פורסמה (בטוח, is_approved=false)
+    // וגם למחיקת מועדון חי עם טורנירים אמיתיים — אלו שתי פעולות שונות לגמרי בהשלכות.
+    // עבור מועדון חי דורשים אישור עם מספר הטורנירים העדכני שיימחקו, לא רק קליק אחד:
+    // מונע בדיוק את המקרה של טאב ניהול פתוח (stale) שמציג התראה גנרית ולא ספירה
+    // אמיתית, ומאפשר למחוק בטעות מועדון פעיל בלי לדעת כמה נמחק יחד איתו.
+    if (venue.rows[0].is_approved) {
+      const tCount = await pool.query('SELECT COUNT(*)::int AS count FROM tournaments WHERE venue_id = $1', [req.params.id]);
+      const actualCount = tCount.rows[0].count;
+      const confirmedCount = Number.isInteger(req.body?.confirmTournamentCount) ? req.body.confirmTournamentCount : null;
+      if (confirmedCount !== actualCount) {
+        return res.status(409).json({
+          message: `למועדון יש כרגע ${actualCount} טורנירים שיימחקו יחד איתו — יש לאשר שוב עם המספר המעודכן`,
+          tournamentCount: actualCount,
+        });
+      }
+    }
+
     await pool.query('DELETE FROM venues WHERE id = $1', [req.params.id]);
     res.json({ message: 'המקום נדחה ונמחק' });
   } catch (err) {
@@ -78,7 +98,8 @@ exports.boostTournament = async (req, res) => {
 exports.getAllVenues = async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT v.*, u.name AS owner_name, u.email AS owner_email, u.phone AS owner_phone
+      SELECT v.*, u.name AS owner_name, u.email AS owner_email, u.phone AS owner_phone,
+             (SELECT COUNT(*)::int FROM tournaments t WHERE t.venue_id = v.id) AS tournament_count
       FROM venues v JOIN users u ON v.owner_id = u.id
       ORDER BY v.is_approved ASC, v.created_at DESC
     `);
