@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { formatTime, formatDate, formatCost, DAYS_HE, buildWhatsAppLink, getStageDurations, formatGames, venueDisplayName, eventDisplayDate } from '../../utils/whatsapp';
+import { formatTime, formatDate, formatCost, DAYS_HE, buildWhatsAppLink, getStageDurations, formatGames, venueDisplayName, eventDisplayDate, isLateRegClosed } from '../../utils/whatsapp';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
 import RegistrationModal from './RegistrationModal';
@@ -72,6 +72,7 @@ export default function TournamentCard({ t, index, onClick, brands = [] }) {
   const stages = Array.isArray(t.stages)
     ? t.stages
     : (typeof t.stages === 'string' ? JSON.parse(t.stages || '[]') : []);
+  const lateRegClosed = isLateRegClosed(t);
 
   return (
     <div
@@ -285,12 +286,19 @@ export default function TournamentCard({ t, index, onClick, brands = [] }) {
       {/* WhatsApp button — הרשמה דרך המארח */}
       <button
         onClick={handleRegister}
-        className="wa-btn flex items-center justify-center gap-2 w-full bg-[#25D366] hover:bg-[#1da851] text-white font-bold py-2.5 px-4 rounded-xl transition-all duration-200 hover:scale-105 active:scale-95 text-sm shadow-lg"
+        disabled={lateRegClosed}
+        className={`wa-btn flex items-center justify-center gap-2 w-full font-bold py-2.5 px-4 rounded-xl transition-all duration-200 text-sm shadow-lg ${
+          lateRegClosed
+            ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
+            : 'bg-[#25D366] hover:bg-[#1da851] text-white hover:scale-105 active:scale-95'
+        }`}
       >
         <WaIcon />
-        {hasOrganizer
-          ? `הרשמה דרך ${t.venue_name}`
-          : (t.tournament_type === 'cash' || t.tournament_type === 'online_cash' ? 'הצטרפות למשחק' : 'הרשמה לטורניר')}
+        {lateRegClosed
+          ? '⏳ ההרשמה נסגרה'
+          : hasOrganizer
+            ? `הרשמה דרך ${t.venue_name}`
+            : (t.tournament_type === 'cash' || t.tournament_type === 'online_cash' ? 'הצטרפות למשחק' : 'הרשמה לטורניר')}
       </button>
 
       {/* רישום כפול — הרשמה דרך המארגן (Runner Runner וכו') */}

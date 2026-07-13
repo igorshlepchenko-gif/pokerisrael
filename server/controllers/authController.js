@@ -39,7 +39,8 @@ exports.register = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
-  const { name, email, password, phone, role } = req.body;
+  const { name, email: rawEmail, password, phone, role } = req.body;
+  const email = rawEmail.toLowerCase();
 
   const allowedRoles = ['player', 'venue_owner'];
   if (!allowedRoles.includes(role)) {
@@ -158,8 +159,9 @@ exports.verifyEmail = async (req, res) => {
 };
 
 exports.resendVerification = async (req, res) => {
-  const { email } = req.body;
-  if (!email) return res.status(400).json({ message: 'כתובת מייל חסרה' });
+  const { email: rawEmail } = req.body;
+  if (!rawEmail) return res.status(400).json({ message: 'כתובת מייל חסרה' });
+  const email = rawEmail.toLowerCase();
 
   try {
     const result = await pool.query(
@@ -193,7 +195,8 @@ exports.login = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
-  const { email, password } = req.body;
+  const { email: rawEmail, password } = req.body;
+  const email = rawEmail.toLowerCase();
 
   try {
     const result = await pool.query(

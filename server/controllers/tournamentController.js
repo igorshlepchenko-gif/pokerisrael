@@ -62,11 +62,15 @@ exports.getAll = async (req, res) => {
       ELSE t.start_time
     END`;
 
+    // day_of_week מאוכלס רק לטורנירים חוזרים — לחד-פעמיים נגזר מ-start_time עצמו,
+    // אחרת הם כולם היו נופלים לסוף המיון (NULLS LAST) בלי קשר ליום שבו הם מתקיימים
+    const dayOfWeekExpr = `COALESCE(t.day_of_week, EXTRACT(DOW FROM t.start_time)::int)`;
+
     const sortClause =
       sort === 'venue_name' ? 'ORDER BY t.is_boosted DESC, v.name ASC' :
       sort === 'cost_asc'   ? 'ORDER BY t.is_boosted DESC, t.cost ASC NULLS LAST' :
       sort === 'cost_desc'  ? 'ORDER BY t.is_boosted DESC, t.cost DESC NULLS LAST' :
-      sort === 'day'        ? 'ORDER BY t.is_boosted DESC, t.day_of_week ASC NULLS LAST, t.start_time ASC' :
+      sort === 'day'        ? `ORDER BY t.is_boosted DESC, ${dayOfWeekExpr} ASC, t.start_time ASC` :
       /* start_time default */ `ORDER BY t.is_boosted DESC, ${nextOccurrenceExpr} ASC`;
 
     let query, params = [], idx = 1;
@@ -78,7 +82,7 @@ exports.getAll = async (req, res) => {
       // מקודמים תמיד מוצגים + תוצאות שמתאימות לפילטר
       const filterParts = [];
       if (city) { filterParts.push(`v.city ILIKE $${idx++}`); params.push(`%${city}%`); }
-      if (day !== undefined) { filterParts.push(`t.day_of_week = $${idx++}`); params.push(parseInt(day)); }
+      if (day !== undefined) { filterParts.push(`${dayOfWeekExpr} = $${idx++}`); params.push(parseInt(day)); }
       if (search) {
         filterParts.push(`(t.name ILIKE $${idx} OR v.name ILIKE $${idx})`);
         params.push(`%${search}%`);

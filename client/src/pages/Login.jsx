@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
 
@@ -16,6 +16,17 @@ export default function Login() {
   const [resendMsg, setResendMsg] = useState('');
   const { login } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // מציג הודעה ספציפית כשה-redirect לכאן הגיע מניתוק סשן (טוקן פג/בוטל) —
+  // במקום שהמשתמש פשוט "יימצא" במסך התחברות בלי הסבר
+  useEffect(() => {
+    const sessionMessage = searchParams.get('sessionMessage');
+    if (sessionMessage) {
+      setError(sessionMessage);
+      setSearchParams({}, { replace: true });
+    }
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

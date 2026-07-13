@@ -1,9 +1,11 @@
-import { buildWhatsAppLink, formatTime, formatDate, formatCost, DAYS_HE, getStageDurations, formatGames, venueDisplayName, eventDisplayDate } from '../../utils/whatsapp';
+import { buildWhatsAppLink, formatTime, formatDate, formatCost, DAYS_HE, getStageDurations, formatGames, venueDisplayName, eventDisplayDate, isLateRegClosed } from '../../utils/whatsapp';
 
 export default function TournamentListRow({ t, index, onClick }) {
   const waLink = buildWhatsAppLink(t.whatsapp_number, t);
   const stages = Array.isArray(t.stages) ? t.stages : (typeof t.stages === 'string' ? JSON.parse(t.stages || '[]') : []);
   const levelDur = getStageDurations(stages, t.level_duration);
+  const lateRegClosed = isLateRegClosed(t);
+  const registerLabel = t.tournament_type === 'cash' || t.tournament_type === 'online_cash' ? 'הצטרפות למשחק' : 'הרשמה לטורניר';
 
   return (
     <div onClick={onClick} className="group px-5 py-4 hover:bg-slate-700/30 transition-colors animate-fade-in cursor-pointer">
@@ -45,11 +47,17 @@ export default function TournamentListRow({ t, index, onClick }) {
             ערימה: {t.starting_stack.toLocaleString()}
           </span>
         )}
-        <a href={waLink} target="_blank" rel="noopener noreferrer"
-          onClick={(e) => e.stopPropagation()}
-          className="wa-btn flex items-center justify-center gap-2 w-full bg-[#25D366] hover:bg-[#1da851] text-white font-bold py-2 px-4 rounded-xl text-sm transition-all">
-          <WaIcon /> {t.tournament_type === 'cash' || t.tournament_type === 'online_cash' ? 'הצטרפות למשחק' : 'הרשמה לטורניר'}
-        </a>
+        {lateRegClosed ? (
+          <span className="flex items-center justify-center gap-2 w-full bg-slate-700 text-slate-400 font-bold py-2 px-4 rounded-xl text-sm cursor-not-allowed">
+            <WaIcon /> ⏳ ההרשמה נסגרה
+          </span>
+        ) : (
+          <a href={waLink} target="_blank" rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="wa-btn flex items-center justify-center gap-2 w-full bg-[#25D366] hover:bg-[#1da851] text-white font-bold py-2 px-4 rounded-xl text-sm transition-all">
+            <WaIcon /> {registerLabel}
+          </a>
+        )}
       </div>
 
       {/* Desktop layout */}
@@ -144,11 +152,17 @@ export default function TournamentListRow({ t, index, onClick }) {
         </div>
 
         {/* WhatsApp button */}
-        <a href={waLink} target="_blank" rel="noopener noreferrer"
-          onClick={(e) => e.stopPropagation()}
-          className="wa-btn flex items-center gap-1.5 bg-[#25D366] hover:bg-[#1da851] text-white font-bold py-2 px-3 rounded-xl text-xs whitespace-nowrap transition-all hover:scale-105">
-          <WaIcon /> הרשמה
-        </a>
+        {lateRegClosed ? (
+          <span className="flex items-center gap-1.5 bg-slate-700 text-slate-400 font-bold py-2 px-3 rounded-xl text-xs whitespace-nowrap cursor-not-allowed">
+            <WaIcon /> נסגרה
+          </span>
+        ) : (
+          <a href={waLink} target="_blank" rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="wa-btn flex items-center gap-1.5 bg-[#25D366] hover:bg-[#1da851] text-white font-bold py-2 px-3 rounded-xl text-xs whitespace-nowrap transition-all hover:scale-105">
+            <WaIcon /> הרשמה
+          </a>
+        )}
       </div>
 
       {/* Description tooltip on hover */}

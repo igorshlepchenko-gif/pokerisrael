@@ -242,43 +242,71 @@ export default function AdminPanel() {
   };
 
   const boostTournament = async (id) => {
-    const label = boostLabel[id] || 'מקודם';
-    const res = await api.patch(`/admin/tournaments/${id}/boost`, { label });
-    setAllTournaments(prev =>
-      prev.map(t => t.id === id ? { ...t, is_boosted: res.data.is_boosted, boost_label: res.data.boost_label } : t)
-    );
+    try {
+      const label = boostLabel[id] || 'מקודם';
+      const res = await api.patch(`/admin/tournaments/${id}/boost`, { label });
+      setAllTournaments(prev =>
+        prev.map(t => t.id === id ? { ...t, is_boosted: res.data.is_boosted, boost_label: res.data.boost_label } : t)
+      );
+    } catch (e) {
+      alert(e?.response?.data?.message || 'שגיאה בעדכון קידום הטורניר');
+    }
   };
 
   const approveVenue = async (id) => {
-    await api.patch(`/admin/venues/${id}/approve`);
-    fetchData();
+    try {
+      await api.patch(`/admin/venues/${id}/approve`);
+      fetchData();
+    } catch (e) {
+      alert(e?.response?.data?.message || 'שגיאה באישור המועדון');
+    }
   };
 
   const rejectVenue = async (id) => {
-    await api.delete(`/admin/venues/${id}`);
-    fetchData();
+    try {
+      await api.delete(`/admin/venues/${id}`);
+      fetchData();
+    } catch (e) {
+      alert(e?.response?.data?.message || 'שגיאה בדחיית המועדון');
+    }
   };
 
   const approveTournament = async (id) => {
-    await api.patch(`/admin/tournaments/${id}/approve`);
-    fetchData();
+    try {
+      await api.patch(`/admin/tournaments/${id}/approve`);
+      fetchData();
+    } catch (e) {
+      alert(e?.response?.data?.message || 'שגיאה באישור הטורניר');
+    }
   };
 
   const rejectTournament = async () => {
-    await api.patch(`/admin/tournaments/${rejectModal}/reject`, { reason: rejectReason });
-    setRejectModal(null);
-    setRejectReason('');
-    fetchData();
+    try {
+      await api.patch(`/admin/tournaments/${rejectModal}/reject`, { reason: rejectReason });
+      setRejectModal(null);
+      setRejectReason('');
+      fetchData();
+    } catch (e) {
+      alert(e?.response?.data?.message || 'שגיאה בדחיית הטורניר');
+    }
   };
 
   const toggleUser = async (id) => {
-    await api.patch(`/admin/users/${id}/toggle`);
-    fetchData();
+    try {
+      await api.patch(`/admin/users/${id}/toggle`);
+      fetchData();
+    } catch (e) {
+      alert(e?.response?.data?.message || 'שגיאה בעדכון סטטוס המשתמש');
+    }
   };
 
   const unlockUser = async (id) => {
-    await api.patch(`/admin/users/${id}/unlock`);
-    fetchData();
+    try {
+      await api.patch(`/admin/users/${id}/unlock`);
+      fetchData();
+    } catch (e) {
+      alert(e?.response?.data?.message || 'שגיאה בשחרור הנעילה');
+    }
   };
 
   const handleDeleteVenue = async () => {
@@ -602,17 +630,23 @@ export default function AdminPanel() {
                   rel="noopener noreferrer"
                   onClick={async (e) => {
                     e.preventDefault();
-                    const token = localStorage.getItem('pli_token');
-                    const res = await fetch('/api/registrations/export', {
-                      headers: { Authorization: `Bearer ${token}` },
-                    });
-                    const blob = await res.blob();
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `registrations_${new Date().toISOString().slice(0,10)}.xlsx`;
-                    a.click();
-                    URL.revokeObjectURL(url);
+                    try {
+                      const res = await api.get('/registrations/export', { responseType: 'blob' });
+                      const url = URL.createObjectURL(res.data);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `registrations_${new Date().toISOString().slice(0,10)}.xlsx`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    } catch (err) {
+                      // responseType: 'blob' means even error responses arrive as a Blob,
+                      // not parsed JSON — read it back out to surface the server's real message
+                      let message = 'שגיאה בייצוא לאקסל';
+                      if (err?.response?.data instanceof Blob) {
+                        try { message = JSON.parse(await err.response.data.text())?.message || message; } catch { /* not JSON, keep default */ }
+                      }
+                      alert(message);
+                    }
                   }}
                   className="flex items-center gap-2 bg-green-900/30 hover:bg-green-900/60 text-green-400 font-semibold py-2 px-4 rounded-xl transition-all text-sm shrink-0 border border-green-700/30"
                 >
