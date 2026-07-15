@@ -11,7 +11,11 @@ export function AuthProvider({ children }) {
     // קוראים תמיד — מתחשב גם ב-httpOnly cookie (כניסה עם Google)
     api.get('/auth/me')
       .then(res => setUser(res.data.user))
-      .catch(() => localStorage.removeItem('pli_token'))
+      .catch((err) => {
+        // רק כשל 401 אמיתי מבטל את הטוקן — שגיאת רשת/שרת חולפת לא אמורה
+        // לנתק משתמש שכבר מחובר כחוק
+        if (err.response?.status === 401) localStorage.removeItem('pli_token');
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -22,16 +26,6 @@ export function AuthProvider({ children }) {
     return res.data.user;
   };
 
-  const register = async (data) => {
-    const res = await api.post('/auth/register', data);
-    // כשאימות מייל מופעל — השרת מחזיר { message } בלבד, ללא טוקן
-    if (res.data.token) {
-      localStorage.setItem('pli_token', res.data.token);
-      setUser(res.data.user);
-    }
-    return res.data; // מחזיר { token, user } או { message }
-  };
-
   const logout = async () => {
     try { await api.post('/auth/logout'); } catch { /* עדיין מנקה בצד לקוח */ }
     localStorage.removeItem('pli_token');
@@ -39,7 +33,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

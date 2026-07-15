@@ -120,7 +120,10 @@ function isChanged(existing, fresh) {
     (existing.re_entry || null) !== (fresh.re_entry || null) ||
     Number(existing.late_reg_level ?? 0) !== Number(fresh.late_reg_level ?? 0) ||
     stableStringify(existing.stages) !== stableStringify(JSON.parse(fresh.stages)) ||
-    (existing.external_registration_url || null) !== (fresh.external_registration_url || null)
+    (existing.external_registration_url || null) !== (fresh.external_registration_url || null) ||
+    // נכתב ב-UPDATE למטה אבל לא נבדק כאן — שינוי שמערב רק אותו היה מוחזר
+    // כ"אין שינוי" ונשאר תקוע עם הערך הישן לצמיתות
+    Number(existing.level_duration ?? 0) !== Number(fresh.level_duration ?? 0)
   );
 }
 
@@ -133,7 +136,7 @@ async function syncLetsPoker() {
 
   const existingRes = await pool.query(
     `SELECT id, external_id, name, cost, start_time, description, starting_stack, gtd,
-            re_entry, late_reg_level, stages, external_registration_url, manually_edited
+            re_entry, late_reg_level, stages, external_registration_url, manually_edited, level_duration
      FROM tournaments WHERE external_source=$1 AND venue_id=$2`,
     [SOURCE_KEY, EVPLUS_VENUE_ID]
   );

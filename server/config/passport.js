@@ -21,7 +21,6 @@ if (googleConfigured) {
         const googleId = profile.id;
         const email    = profile.emails?.[0]?.value?.toLowerCase() || null;
         const name     = profile.displayName || profile.name?.givenName || 'משתמש Google';
-        const avatar   = profile.photos?.[0]?.value || null;
 
         // 1. חיפוש לפי google_id
         let result = await pool.query(

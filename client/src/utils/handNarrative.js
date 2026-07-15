@@ -72,6 +72,42 @@ function isAggressive(action) {
   return ['raise', 'three-bet', 'four-bet', 'allin'].includes(action);
 }
 
+// תורם יחיד לקופה: סכום פעולותיו + הבליינד שלו אם לא הימר בפרה-פלופ — בדיוק
+// אותה לוגיקה כמו playerContribution בוויזארד (HandLoggerWizard.jsx), כדי
+// שהקופה בסיכום/בנרטיב תמיד תואמת למה שהוצג לאורך היד עצמה
+function actorContribution(actorId, position, streets, sbSize, bbSize, isCash) {
+  let total = 0;
+  ['preflop', 'flop', 'turn', 'river'].forEach(street => {
+    const actions = (streets[street]?.actions || []).filter(a => String(a.actor) === String(actorId));
+    let streetTotal = 0;
+    let hasBet = false;
+    actions.forEach(a => {
+      if (['bet', 'raise', 'three-bet', 'four-bet'].includes(a.action) && a.amount) hasBet = true;
+      const raw = String(a.amount ?? '');
+      if (!raw || raw.endsWith('%')) return; // גודל יחסי, לא סכום צ'יפים מוחלט
+      const num = parseFloat(raw);
+      if (isNaN(num)) return;
+      // פרה-פלופ בטורניר: סכומים נשמרים כמכפלת BB (למשל "3" = 3BB), לא צ'יפים גולמיים
+      streetTotal += (!isCash && street === 'preflop' && bbSize && num <= 200) ? num * bbSize : num;
+    });
+    if (street === 'preflop' && !hasBet) {
+      if (position === 'BB') streetTotal += (bbSize || 0);
+      else if (position === 'SB') streetTotal += (sbSize || 0);
+    }
+    total += streetTotal;
+  });
+  return total;
+}
+
+// קופה אמיתית מסך תרומות כל השחקנים (לא ניחוש מ-hero_profit, שהוא רווח/הפסד
+// נטו של הירו — נכון רק חד-על-חד, ומטעה בקופה עם 3+ שחקנים או בחלוקה)
+function computeTotalPot(streets, sbSize, bbSize, ante, isCash, heroPosition, opponents) {
+  const actors = [{ id: 'hero', position: heroPosition }, ...opponents.map(o => ({ id: o.id, position: o.position }))];
+  let pot = (ante || 0) * actors.length;
+  actors.forEach(a => { pot += actorContribution(a.id, a.position, streets, sbSize, bbSize, isCash); });
+  return Math.round(pot);
+}
+
 // Best 5-card hand strength from hole cards + board (shared evaluator)
 function handStrength(holeCards, boardCards) {
   if (!holeCards || holeCards.length < 2) return 'best hand';
@@ -221,6 +257,8 @@ export function generateNarrative(state) {
   }
 
   // ── Showdown ───────────────────────────────────────────────
+  const totalPot = computeTotalPot(streets, sbSize, bbSize, ante, isCash, hero_position, opponents);
+  const totalPotFmt = totalPot > 0 ? `${isCash ? '$' : ''}${totalPot}` : 'the pot';
   const atShowdown = showdown?.reached || (result && allBoard.length > 0);
   if (atShowdown) {
     lines.push('*** SHOW DOWN ***');
@@ -239,8 +277,7 @@ export function generateNarrative(state) {
           lines.push(`${oppName}: mucks hand`);
         }
       });
-      const potFmt = hero_profit ? `${isCash ? '$' : ''}${Math.abs(hero_profit)}` : 'the pot';
-      lines.push(`Hero collected ${potFmt} from pot`);
+      lines.push(`Hero collected ${totalPotFmt} from pot`);
 
     } else if (result === 'lost') {
       lines.push(`Hero: mucks hand`);
@@ -250,8 +287,7 @@ export function generateNarrative(state) {
         if (oc?.length) {
           const strength = handStrength(oc, allBoard);
           lines.push(`${oppName}: shows ${psCards(oc)} (${strength})`);
-          const potFmt = hero_profit ? `${isCash ? '$' : ''}${Math.abs(hero_profit)}` : 'the pot';
-          lines.push(`${oppName} collected ${potFmt} from pot`);
+          lines.push(`${oppName} collected ${totalPotFmt} from pot`);
         }
       });
 
@@ -266,7 +302,9 @@ export function generateNarrative(state) {
           lines.push(`${oppName}: shows ${psCards(oc)} (${s})`);
         }
       });
-      const halfFmt = hero_profit ? `${isCash ? '$' : ''}${Math.abs(hero_profit)}` : 'half the pot';
+      // מניח חלוקה שווה בין הירו ליריב הראשון בשואודאון — הפירוט המדויק של
+      // חלוקה (splitDist) אינו נשמר להיסטוריית היד, רק hero_profit הכולל
+      const halfFmt = totalPot > 0 ? `${isCash ? '$' : ''}${Math.round(totalPot / 2)}` : 'half the pot';
       lines.push(`Hero collected ${halfFmt} from pot`);
       if (opponents[0]) {
         lines.push(`${opponents[0].label || 'Villain'} collected ${halfFmt} from pot`);
@@ -275,24 +313,14 @@ export function generateNarrative(state) {
   } else if (result) {
     // No showdown — hand ended without going to river/showdown
     if (result === 'won') {
-      const potFmt = hero_profit ? `${isCash ? '$' : ''}${Math.abs(hero_profit)}` : 'the pot';
-      lines.push(`Hero collected ${potFmt} from pot`);
+      lines.push(`Hero collected ${totalPotFmt} from pot`);
     }
   }
 
   // ── Summary ────────────────────────────────────────────────
   lines.push('*** SUMMARY ***');
   const rakeAmt = isCash ? '$0' : '0';
-  if (hero_profit) {
-    const potEst = result === 'won'
-      ? `${isCash ? '$' : ''}${Math.abs(hero_profit)}`
-      : result === 'lost'
-        ? `${isCash ? '$' : ''}${Math.abs(hero_profit) * 2}`
-        : `${isCash ? '$' : ''}${Math.abs(hero_profit) * 2}`;
-    lines.push(`Total pot ${potEst} | Rake ${rakeAmt}`);
-  } else {
-    lines.push(`Total pot unknown | Rake ${rakeAmt}`);
-  }
+  lines.push(`Total pot ${totalPotFmt} | Rake ${rakeAmt}`);
   if (allBoard.length > 0) {
     lines.push(`Board ${psCards(allBoard)}`);
   }
@@ -302,7 +330,7 @@ export function generateNarrative(state) {
     let suffix = '';
     if (p.name === 'Hero') {
       if (result === 'won') {
-        const won = hero_profit ? `${isCash ? '$' : ''}${Math.abs(hero_profit)}` : '';
+        const won = totalPot > 0 ? `${isCash ? '$' : ''}${totalPot}` : '';
         suffix = ` (${hero_position}) won ${won}`;
       } else if (result === 'lost') {
         suffix = ` (${hero_position}) lost`;

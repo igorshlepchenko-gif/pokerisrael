@@ -91,7 +91,13 @@ function isChanged(existing, feed) {
     (existing.description || null) !== (feed.description || null) ||
     Number(existing.starting_stack ?? 0) !== Number(feed.starting_stack ?? 0) ||
     (existing.address || null) !== (feed.host_street || null) ||
-    (existing.city    || null) !== (feed.host_city   || null)
+    (existing.city    || null) !== (feed.host_city   || null) ||
+    // השדות הבאים כן נכתבים ב-UPDATE למטה אבל לא נבדקו כאן — שינוי שמערב רק
+    // אותם היה מוחזר כ"אין שינוי" ונשאר תקוע עם הערך הישן לצמיתות
+    Number(existing.level_duration ?? 0) !== Number(feed.level_duration ?? 0) ||
+    (existing.re_entry || null) !== (feed.re_entry || null) ||
+    (existing.day_of_week ?? null) !== (feed.day_of_week ?? null) ||
+    JSON.stringify(existing.stages ?? []) !== (feed.stages ?? '[]')
   );
 }
 
@@ -121,7 +127,8 @@ async function syncFeed(feed) {
 
   // 2. טורנירים קיימים שמקורם בפיד הזה (לפי מארגן)
   const existingRes = await pool.query(
-    `SELECT id, external_id, name, cost, start_time, description, starting_stack, manually_edited, address, city
+    `SELECT id, external_id, name, cost, start_time, description, starting_stack, manually_edited, address, city,
+            level_duration, re_entry, day_of_week, stages
      FROM tournaments WHERE external_source = $1 AND organizer_venue_id = $2`,
     [sourceKey, organizerVenueId]
   );

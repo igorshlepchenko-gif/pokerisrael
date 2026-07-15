@@ -42,11 +42,6 @@ exports.register = async (req, res) => {
   const { name, email: rawEmail, password, phone, role } = req.body;
   const email = rawEmail.toLowerCase();
 
-  const allowedRoles = ['player', 'venue_owner'];
-  if (!allowedRoles.includes(role)) {
-    return res.status(400).json({ message: 'סוג משתמש לא חוקי' });
-  }
-
   try {
     const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
     if (existing.rows.length > 0) {
@@ -178,12 +173,20 @@ exports.resendVerification = async (req, res) => {
     const newToken = crypto.randomBytes(32).toString('hex');
     const newExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
+    try {
+      await sendVerificationEmail({ to: email, name: user.name, token: newToken });
+    } catch (mailErr) {
+      // השליחה נכשלה — לא מעדכנים את הטוקן ב-DB, כדי לא לבטל טוקן קודם שעדיין תקף
+      // ולהשאיר את המשתמש בלי שום קישור שמיש
+      console.error('[EMAIL] שגיאה בשליחת מייל אימות מחדש:', mailErr.message);
+      return res.json({ message: 'אם הכתובת קיימת ולא מאומתת, נשלח מייל חדש.' });
+    }
+
     await pool.query(
       'UPDATE users SET verification_token=$1, verification_expires=$2 WHERE id=$3',
       [newToken, newExpires, user.id]
     );
 
-    await sendVerificationEmail({ to: email, name: user.name, token: newToken });
     res.json({ message: 'אם הכתובת קיימת ולא מאומתת, נשלח מייל חדש.' });
   } catch (err) {
     console.error(err);

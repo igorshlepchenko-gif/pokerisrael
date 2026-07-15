@@ -34,6 +34,7 @@ export default function RegistrationModal({ tournament, onClose, onSubmit }) {
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+         role="dialog" aria-modal="true" aria-labelledby="registration-modal-title"
          onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
@@ -42,7 +43,7 @@ export default function RegistrationModal({ tournament, onClose, onSubmit }) {
         {/* כותרת */}
         <div className="flex items-center justify-between mb-5">
           <div>
-            <h3 className="font-black text-white text-lg">
+            <h3 id="registration-modal-title" className="font-black text-white text-lg">
               {tournament.tournament_type === 'cash' || tournament.tournament_type === 'online_cash' ? 'הצטרפות למשחק קאש' : 'הרשמה לטורניר'}
             </h3>
             <p className="text-poker-green-light text-sm font-semibold truncate max-w-[220px]">{tournament.name}</p>

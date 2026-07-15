@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { buildVenueContactLink, buildWhatsAppLink, formatTime, formatDate, formatCost, DAYS_HE, getStageDurations, formatGames, venueDisplayName, eventDisplayDate, isLateRegClosed } from '../../utils/whatsapp';
 import { buildGoogleCalendarUrl, downloadICS } from '../../utils/calendar';
 import { useAuth } from '../../context/AuthContext';
@@ -21,6 +21,12 @@ export default function TournamentDetailModal({ tournament: t, onClose, brands =
   useEffect(() => {
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = ''; };
+  }, []);
+
+  // מעביר פוקוס לכפתור הסגירה בפתיחה — כדי ש-Tab מתחיל בתוך הדיאלוג, לא נשאר על הרקע
+  const closeButtonRef = useRef(null);
+  useEffect(() => {
+    closeButtonRef.current?.focus();
   }, []);
 
   const { user } = useAuth();
@@ -76,6 +82,9 @@ export default function TournamentDetailModal({ tournament: t, onClose, brands =
 
   return (
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="tournament-detail-title"
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
@@ -96,11 +105,12 @@ export default function TournamentDetailModal({ tournament: t, onClose, brands =
               : <span className="w-12 h-12 rounded-full bg-slate-700 flex items-center justify-center text-2xl shrink-0">🏠</span>
             }
             <div className="min-w-0">
-              <h2 className="font-black text-white text-base leading-tight truncate">{t.name}</h2>
+              <h2 id="tournament-detail-title" className="font-black text-white text-base leading-tight truncate">{t.name}</h2>
               <p className="text-poker-green-light font-semibold text-sm truncate">{venueDisplayName(t.venue_name, t.venue_type, t.venue_club_number)}</p>
             </div>
           </div>
           <button
+            ref={closeButtonRef}
             onClick={onClose}
             className="shrink-0 flex items-center justify-center w-9 h-9 rounded-full bg-slate-700 hover:bg-red-500/80 text-slate-300 hover:text-white transition-all duration-200 hover:scale-110 active:scale-95 shadow-md"
             aria-label="סגור"

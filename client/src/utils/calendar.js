@@ -1,7 +1,7 @@
 // "Add to calendar" for a tournament — a Google Calendar quick-add link (zero friction
 // for Google Calendar users) plus a universal .ics download (Apple Calendar, Outlook, etc.)
 // No calendar API/OAuth scopes needed — both are plain client-side URL/file construction.
-import { formatCost } from './whatsapp';
+import { formatCost, eventDisplayDate } from './whatsapp';
 
 function pad(n) {
   return String(n).padStart(2, '0');
@@ -20,7 +20,8 @@ function toICSDate(date) {
 }
 
 function eventWindow(tournament) {
-  const start = new Date(tournament.start_time);
+  // אירוע חוזר — יום היומן צריך להיות המופע הבא, לא תאריך היצירה המקורי
+  const start = new Date(eventDisplayDate(tournament));
   const end = tournament.estimated_end_time
     ? new Date(tournament.estimated_end_time)
     : new Date(start.getTime() + 5 * 60 * 60 * 1000); // default 5h when no estimate is set

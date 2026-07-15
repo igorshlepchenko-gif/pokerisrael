@@ -61,15 +61,6 @@ const authLimiter = rateLimit({
   message: { message: 'יותר מדי ניסיונות התחברות — נסה שוב בעוד 15 דקות' },
 });
 
-// ── Rate limiting על הרשמות (ציבורי) ─────────────────────────────
-const registrationLimiter = rateLimit({
-  windowMs: 60 * 1000, // חלון של דקה
-  max: 10,             // 10 הרשמות בדקה מאותה IP
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { message: 'יותר מדי הרשמות — נסה שוב בעוד דקה' },
-});
-
 app.use(express.json({ limit: '20mb' })); // 20mb for WhatsApp image forwarding
 app.use(cookieParser());
 app.use(passport.initialize());

@@ -20,18 +20,24 @@ exports.createHand = async (req, res) => {
   if (!result || !['won', 'lost', 'split'].includes(result))
     return res.status(400).json({ message: 'תוצאה לא תקינה' });
 
+  // מגבלת 20 ידיים שמורות למשתמש — הבדיקה וההכנסה בתוך אותה טרנזקציה, נעולות
+  // ב-advisory lock לפי user_id, כדי ששתי שמירות מקבילות מאותו משתמש לא יעברו
+  // את הבדיקה שתיהן לפני שאף אחת הספיקה לכתוב (TOCTOU) ויביאו אותו מעל 20
+  const client = await pool.connect();
   try {
-    // מגבלת 20 ידיים שמורות למשתמש
-    const countRes = await pool.query(
+    await client.query('BEGIN');
+    await client.query('SELECT pg_advisory_xact_lock($1)', [req.user.id]);
+    const countRes = await client.query(
       'SELECT COUNT(*) FROM hand_histories WHERE user_id = $1',
       [req.user.id]
     );
     if (parseInt(countRes.rows[0].count) >= 20) {
+      await client.query('ROLLBACK');
       return res.status(403).json({
         message: `הגעת למגבלת 20 ידיים שמורות. מחק ידיים ישנות כדי לפנות מקום.`,
       });
     }
-    const r = await pool.query(
+    const r = await client.query(
       `INSERT INTO hand_histories
         (user_id, game_type, tournament_stage, blind_sb, blind_bb, ante, cash_stakes,
          players_count, hero_position, hero_stack, hero_cards, hand_data, result, hero_profit, narrative, notes)
@@ -45,16 +51,27 @@ exports.createHand = async (req, res) => {
         result, hero_profit || null, narrative || null, notes || null,
       ]
     );
+    await client.query('COMMIT');
     res.status(201).json({ id: r.rows[0].id, created_at: r.rows[0].created_at });
   } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
     console.error(err);
     res.status(500).json({ message: 'שגיאת שרת' });
+  } finally {
+    client.release();
   }
 };
 
 exports.getUserHands = async (req, res) => {
-  const limit = Math.min(parseInt(req.query.limit) || 20, 50);
-  const offset = parseInt(req.query.offset) || 0;
+  // parseInt('-5') === -5, שהוא truthy — || ברירת המחדל לא תופס מספרים שליליים,
+  // והם היו ממשיכים ישר ל-LIMIT/OFFSET שלילי ב-SQL שפוסטגרס דוחה עם 500 גנרי
+  const rawLimit = req.query.limit !== undefined ? parseInt(req.query.limit) : 20;
+  const rawOffset = req.query.offset !== undefined ? parseInt(req.query.offset) : 0;
+  if (!Number.isInteger(rawLimit) || rawLimit < 0 || !Number.isInteger(rawOffset) || rawOffset < 0) {
+    return res.status(400).json({ message: 'limit/offset לא תקינים' });
+  }
+  const limit = Math.min(rawLimit, 50);
+  const offset = rawOffset;
   try {
     const r = await pool.query(
       `SELECT id, game_type, tournament_stage, blind_sb, blind_bb, ante, cash_stakes,

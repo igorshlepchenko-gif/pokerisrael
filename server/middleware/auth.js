@@ -34,7 +34,8 @@ const authenticate = async (req, res, next) => {
     const { token_version, ...safeUser } = user;
     req.user = safeUser;
     next();
-  } catch {
+  } catch (err) {
+    console.error('[AUTH] שגיאה ב-middleware:', err.message);
     res.status(401).json({ message: 'טוקן לא תקין' });
   }
 };

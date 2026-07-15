@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import api from '../utils/api';
 
 const englishOnly = (value) => value.replace(/[^\x20-\x7E]/g, '');
 
@@ -43,12 +44,11 @@ export default function Register() {
     }
     setLoading(true);
     try {
-      const api = (await import('../utils/api')).default;
       const res = await api.post('/auth/register', { ...form, role });
 
       if (res.data.token) {
         // ביפאס — Gmail לא מוגדר, כניסה ישירה
-        localStorage.setItem('token', res.data.token);
+        localStorage.setItem('pli_token', res.data.token);
         window.location.href = '/';
       } else {
         // מייל אימות נשלח
@@ -66,7 +66,6 @@ export default function Register() {
     setResendLoading(true);
     setResendMsg('');
     try {
-      const api = (await import('../utils/api')).default;
       await api.post('/auth/resend-verification', { email: successEmail });
       setResendMsg('מייל אימות נשלח מחדש ✅');
     } catch {
@@ -213,7 +212,7 @@ export default function Register() {
               <div>
                 <label className="block text-sm font-semibold text-slate-300 mb-1">שם מלא *</label>
                 <input type="text" value={form.name} onChange={e => set('name', e.target.value)}
-                  className="input-field" placeholder="ישראל ישראלי" required />
+                  className="input-field" placeholder="ישראל ישראלי" required autoComplete="name" />
               </div>
 
               <div>
@@ -221,13 +220,13 @@ export default function Register() {
                 <input type="email" value={form.email}
                   onChange={e => set('email', englishOnly(e.target.value))}
                   onKeyDown={e => { if (/[^\x20-\x7E]/.test(e.key)) e.preventDefault(); }}
-                  className="input-field" placeholder="email@example.com" required dir="ltr" />
+                  className="input-field" placeholder="email@example.com" required dir="ltr" autoComplete="email" />
               </div>
 
               <div>
                 <label className="block text-sm font-semibold text-slate-300 mb-1">מספר טלפון *</label>
                 <input type="tel" value={form.phone} onChange={e => set('phone', e.target.value)}
-                  className="input-field" placeholder="050-0000000" required dir="ltr" />
+                  className="input-field" placeholder="050-0000000" required dir="ltr" autoComplete="tel" />
               </div>
 
               <div>
@@ -236,8 +235,9 @@ export default function Register() {
                   <input type={showPass ? 'text' : 'password'} value={form.password}
                     onChange={e => set('password', englishOnly(e.target.value))}
                     onKeyDown={e => { if (/[^\x20-\x7E]/.test(e.key)) e.preventDefault(); }}
-                    className="input-field pl-10" placeholder="לפחות 6 תווים" required dir="ltr" />
+                    className="input-field pl-10" placeholder="לפחות 6 תווים" required dir="ltr" autoComplete="new-password" />
                   <button type="button" onClick={() => setShowPass(p => !p)}
+                    aria-label={showPass ? 'הסתר סיסמה' : 'הצג סיסמה'}
                     className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200">
                     {showPass ? '🙈' : '👁️'}
                   </button>
@@ -260,7 +260,7 @@ export default function Register() {
                   onChange={e => set('confirmPassword', englishOnly(e.target.value))}
                   onKeyDown={e => { if (/[^\x20-\x7E]/.test(e.key)) e.preventDefault(); }}
                   className={`input-field ${form.confirmPassword && form.password !== form.confirmPassword ? 'border-red-500' : ''}`}
-                  placeholder="הזן שוב את הסיסמה" required dir="ltr" />
+                  placeholder="הזן שוב את הסיסמה" required dir="ltr" autoComplete="new-password" />
               </div>
 
               {error && <p className="text-red-400 text-sm bg-red-900/20 rounded-lg p-3">{error}</p>}

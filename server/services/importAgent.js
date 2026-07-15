@@ -218,7 +218,11 @@ function attachBotHandlers(bot) {
 
     if (data.startsWith('approve_')) {
       const importId = parseInt(data.split('_')[1]);
-      const result   = await autoApproveImport(importId);
+      // מזהה הטלגרם (query.from.id) אינו users.id באפליקציה — אין מיפוי שמור בין
+      // השניים, אז משייכים למנהל קיים כלשהו במקום ל-NULL קבוע כמו קודם, כך
+      // שלפחות יש ייחוס אמיתי (בדומה לאישורים מהפאנל)
+      const adminRow = await pool.query(`SELECT id FROM users WHERE role='admin' ORDER BY id LIMIT 1`).catch(() => null);
+      const result   = await autoApproveImport(importId, adminRow?.rows[0]?.id ?? null);
       if (result.ok) {
         await bot.editMessageText(
           `✅ *אושר!* טורניר #${result.tournamentId} נוצר`,

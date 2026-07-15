@@ -125,7 +125,7 @@ async function ensureWhatsAppTable() {
         created_at TIMESTAMP DEFAULT NOW()
       )
     `);
-  } catch {}
+  } catch (err) { console.error('[Agent] ensureWhatsAppTable failed:', err.message); }
 }
 ensureWhatsAppTable();
 
@@ -142,7 +142,7 @@ async function ensureAgentSources() {
         VALUES ('whatsapp', $1, $2, true)
         ON CONFLICT DO NOTHING
       `, [src.name, src.identifier]);
-    } catch {}
+    } catch (err) { console.error(`[Agent] ensureAgentSources failed for "${src.name}":`, err.message); }
   }
 }
 ensureAgentSources();

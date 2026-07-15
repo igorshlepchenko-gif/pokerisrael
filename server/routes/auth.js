@@ -20,7 +20,19 @@ router.get('/google', (req, res, next) => {
 
 router.get('/google/callback',
   (req, res, next) => {
-    passport.authenticate('google', { session: false, failureRedirect: `${process.env.CLIENT_URL || 'http://localhost:5173'}/login?error=google` })(req, res, next);
+    if (!googleEnabled()) {
+      return res.status(503).json({ message: 'כניסה עם Google אינה מוגדרת עדיין' });
+    }
+    // callback ידני במקום failureRedirect — כך ש-info.message (הסיבה האמיתית שpassport.js
+    // מעביר ל-done(), למשל "החשבון מושבת") מגיע בפועל למשתמש, ולא נבלע בהפניה גנרית
+    passport.authenticate('google', { session: false }, (err, user, info) => {
+      if (err || !user) {
+        const reason = info?.message || 'ההתחברות עם Google נכשלה';
+        return res.redirect(`${process.env.CLIENT_URL || 'http://localhost:5173'}/login?error=${encodeURIComponent(reason)}`);
+      }
+      req.user = user;
+      next();
+    })(req, res, next);
   },
   (req, res) => {
     // generateToken/setAuthCookie משותפים עם authController.js כדי שכל טוקן —

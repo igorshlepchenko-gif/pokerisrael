@@ -22,8 +22,12 @@ export default function Login() {
   // במקום שהמשתמש פשוט "יימצא" במסך התחברות בלי הסבר
   useEffect(() => {
     const sessionMessage = searchParams.get('sessionMessage');
+    const errorMessage = searchParams.get('error');
     if (sessionMessage) {
       setError(sessionMessage);
+      setSearchParams({}, { replace: true });
+    } else if (errorMessage) {
+      setError(errorMessage);
       setSearchParams({}, { replace: true });
     }
   }, []);
@@ -78,7 +82,7 @@ export default function Login() {
               <input type="email" value={form.email}
                 onChange={e => setForm(p => ({ ...p, email: englishOnly(e.target.value) }))}
                 onKeyDown={e => { if (/[^\x20-\x7E]/.test(e.key)) e.preventDefault(); }}
-                className="input-field" placeholder="email@example.com" required dir="ltr" />
+                className="input-field" placeholder="email@example.com" required dir="ltr" autoComplete="email" />
             </div>
             <div>
               <label className="block text-sm font-semibold text-slate-300 mb-1">סיסמה</label>
@@ -86,8 +90,9 @@ export default function Login() {
                 <input type={showPass ? 'text' : 'password'} value={form.password}
                   onChange={e => setForm(p => ({ ...p, password: englishOnly(e.target.value) }))}
                   onKeyDown={e => { if (/[^\x20-\x7E]/.test(e.key)) e.preventDefault(); }}
-                  className="input-field pl-10" placeholder="הסיסמה שלך" required dir="ltr" />
+                  className="input-field pl-10" placeholder="הסיסמה שלך" required dir="ltr" autoComplete="current-password" />
                 <button type="button" onClick={() => setShowPass(p => !p)}
+                  aria-label={showPass ? 'הסתר סיסמה' : 'הצג סיסמה'}
                   className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200">
                   {showPass ? '🙈' : '👁️'}
                 </button>

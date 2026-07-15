@@ -10,6 +10,9 @@ client/build/
 # Environment variables (sensitive!)
 server/.env
 
+# WhatsApp forwarder session credentials (sensitive — allows hijacking the linked device)
+whatsapp-forwarder/.auth/
+
 # Logs
 server/server.log
 server/server.err

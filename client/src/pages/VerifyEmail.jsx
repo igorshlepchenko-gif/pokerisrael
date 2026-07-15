@@ -1,12 +1,9 @@
 import { useEffect, useState } from 'react';
-import { useSearchParams, useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useSearchParams, Link } from 'react-router-dom';
 import api from '../utils/api';
 
 export default function VerifyEmail() {
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
-  const { login: setUser } = useAuth();
 
   const [status, setStatus] = useState('loading'); // loading | success | error | expired
   const [message, setMessage] = useState('');
@@ -28,7 +25,7 @@ export default function VerifyEmail() {
     try {
       const res = await api.get(`/auth/verify/${token}`);
       // כניסה אוטומטית
-      localStorage.setItem('token', res.data.token);
+      localStorage.setItem('pli_token', res.data.token);
       setStatus('success');
       setMessage(res.data.message);
       // ניווט אחרי 2 שניות
@@ -55,7 +52,7 @@ export default function VerifyEmail() {
       await api.post('/auth/resend-verification', { email });
       setResendMsg('מייל אימות נשלח מחדש ✅');
     } catch {
-      setResendMsg('שגיאה — נסה שוב');
+      setResendMsg('שגיאה בשליחה — נסה שוב');
     } finally {
       setResendLoading(false);
     }

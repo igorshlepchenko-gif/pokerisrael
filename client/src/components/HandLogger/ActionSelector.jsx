@@ -12,28 +12,6 @@ const ACTIONS = [
 // לאחר הסרת 3bet/4bet מה-UI — הסוג נקבע דינמית לפי כמות הרייזים שכבר היו
 const NEEDS_AMOUNT = ['bet', 'three-bet', 'four-bet'];
 
-function getSizePresets(unit, street) {
-  if (unit === 'BB') {
-    if (street === 'preflop') return ['2', '2.5', '3', '4', '6', '10'];
-    return ['25%', '33%', '50%', '66%', '75%', '100%'];
-  }
-  return ['10', '20', '30', '50', '100', '200'];
-}
-
-function formatPreset(val, unit, blindBb) {
-  if (!val || val === 'שיפ') return { main: 'שיפ', bb: null };
-  if (val.endsWith('%')) return { main: val, bb: null };
-  const num = parseFloat(val);
-  if (isNaN(num)) return { main: val, bb: null };
-  if (unit === 'BB') {
-    const chips = blindBb ? Math.round(num * blindBb).toLocaleString('he-IL') : val;
-    return { main: chips, bb: `${num}BB` };
-  } else {
-    const bbs = blindBb && blindBb > 0 ? Number((num / blindBb).toFixed(1)).toString() : null;
-    return { main: `₪${num}`, bb: bbs ? `${bbs}BB` : null };
-  }
-}
-
 function bbHint(amount, blindBb) {
   if (!amount || !blindBb || blindBb <= 0) return null;
   const num = parseFloat(amount);

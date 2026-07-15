@@ -39,7 +39,12 @@ export default function Home() {
       .catch(() => {});
   }, []);
 
-  useEffect(() => { fetchTournaments(); }, [tournamentType, city, day, sort, selectedVenues, gtdMin]);
+  // דיבאונס גם לחיפוש (שכעת מיושם אוטומטית כמו שאר הפילטרים, לא רק ב-Enter/לחיצה)
+  // וגם ל-GTD מינימום, שקודם ירה בקשה על כל הקשת מקש בשדה המספר
+  useEffect(() => {
+    const timer = setTimeout(() => fetchTournaments(), 400);
+    return () => clearTimeout(timer);
+  }, [tournamentType, city, day, sort, selectedVenues, gtdMin, search]);
 
   const fetchTournaments = async () => {
     setLoading(true);

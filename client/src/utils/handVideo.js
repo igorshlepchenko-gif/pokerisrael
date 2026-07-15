@@ -637,10 +637,27 @@ function drawScene(ctx,{
 // ════════════════════════════════════════════════════
 // STATE COMPUTATION
 // ════════════════════════════════════════════════════
-function buildEvents(hand_data,hero_stack,opponents,sb,bb,ante){
+// בליינד משוייך רק לשחקן שבאמת יושב ב-SB/BB ולא הימר בפרה-פלופ (ההימור שלו כבר
+// כולל את הבליינד) — לא (sb+bb) שטוח שסופר את שניהם תמיד גם כששני אלה לא רלוונטיים
+function computeInitialPot(hand_data,hero_position,opponents,sb,bb,ante){
+  const preflopActions=hand_data?.streets?.preflop?.actions||[];
+  const betActors=new Set(
+    preflopActions.filter(a=>['bet','raise','three-bet','four-bet'].includes(a.action)&&a.amount).map(a=>String(a.actor))
+  );
+  const actors=[{id:'hero',position:hero_position},...opponents.map(o=>({id:o.id,position:o.position}))];
+  let blindTotal=0;
+  actors.forEach(a=>{
+    if(betActors.has(String(a.id))) return;
+    if(a.position==='BB') blindTotal+=(bb||0);
+    else if(a.position==='SB') blindTotal+=(sb||0);
+  });
+  return blindTotal+(ante||0)*actors.length;
+}
+
+function buildEvents(hand_data,hero_stack,opponents,sb,bb,ante,hero_position){
   const stacks={hero:hero_stack};
   opponents.forEach(o=>stacks[o.id]=o.stack||0);
-  let pot=(sb||0)+(bb||0)+(ante||0)*(opponents.length+1);
+  let pot=computeInitialPot(hand_data,hero_position,opponents,sb,bb,ante);
   const events=[];
   const streets=hand_data?.streets||{};
   ['preflop','flop','turn','river'].forEach(street=>{
@@ -680,15 +697,31 @@ export function buildFrames(state){
 
   const opponents=hand_data?.opponents||[];
   const isCash=game_type==='cash'||game_type==='cash_online';
-  const finalPot=Math.abs(hero_profit||0)||((sb||0)+(bb||0));
-  const winnerPos=result==='won'?hero_position:(result==='lost'&&opponents[0]?.position?opponents[0].position:null);
+
+  const{events,finalStacks}=buildEvents(hand_data,hero_stack,opponents,sb,bb,ante,hero_position);
+  // קופה אמיתית לפי סכימת הפעולות בפועל — לא ניחוש מ-hero_profit (שהוא נטו,
+  // ולכן מבטא פחות מדי במיוחד בקופה מחולקת, שבה חלקו של הירו יכול להיות קטן מהקופה)
+  const finalPot=events.length?events[events.length-1].potAfter:((sb||0)+(bb||0));
+  // מזהה היריב שבאמת ניצח, לא תמיד opponents[0]: אם בדיוק יריב אחד לא קיפל
+  // עד השואודאון, הוא המנצח החד-משמעי; אחרת (2+ יריבים בשואודאון) אין די מידע
+  // שמור כדי לדעת מי מהם ניצח בפועל, ומשתמשים ב-opponents[0] כברירת מחדל ידועה
+  const winnerOpponent=(() => {
+    if(result!=='lost') return null;
+    const folded=new Set();
+    ['preflop','flop','turn','river'].forEach(street=>{
+      (hand_data?.streets?.[street]?.actions||[]).forEach(a=>{
+        if(a.action==='fold') folded.add(String(a.actor));
+      });
+    });
+    const remaining=opponents.filter(o=>!folded.has(String(o.id)));
+    return remaining.length===1?remaining[0]:(opponents[0]||null);
+  })();
+  const winnerPos=result==='won'?hero_position:(result==='lost'?winnerOpponent?.position||null:null);
 
   const allPlayers=[
     {label:'Hero',position:hero_position,stack:hero_stack,isHero:true,id:'hero'},
     ...opponents.map(o=>({...o,isHero:false})),
   ];
-
-  const{events,finalStacks}=buildEvents(hand_data,hero_stack,opponents,sb,bb,ante);
   const initialPot=(sb||0)+(bb||0)+(ante||0)*(opponents.length+1);
   const initialStacks={hero:hero_stack};
   opponents.forEach(o=>initialStacks[o.id]=o.stack||0);
@@ -876,14 +909,14 @@ export function buildFrames(state){
   frames.push({duration:60,draw:(ctx,t)=>{
     const moveT=Math.min(1,t*2);
     const animStacks={...preResultStacks};
-    const winKey=result==='won'?'hero':opponents[0]?.id;
+    const winKey=result==='won'?'hero':winnerOpponent?.id;
     if(winKey!=null) animStacks[winKey]=lerp(preResultStacks[winKey]||0,(preResultStacks[winKey]||0)+finalPot,easeInOut(moveT));
 
     drawBG(ctx); drawTable(ctx);
     drawTopHUD(ctx,isCash,cash_stakes,sb,bb,ante,tournament_stage);
     allPlayers.forEach(p=>{
       const stk=Math.round(animStacks[p.isHero?'hero':p.id]??p.stack??0);
-      const isWin=(result==='won'&&p.isHero)||(result==='lost'&&!p.isHero&&p===allPlayers[1]);
+      const isWin=(result==='won'&&p.isHero)||(result==='lost'&&!p.isHero&&winnerOpponent&&String(p.id)===String(winnerOpponent.id));
       drawPlayerBox(ctx,p.position,p.label||'Hero',stk,p.isHero,p.position==='BTN',isWin&&t>.5);
       if(p.isHero) drawHoleCards(ctx,p.position,hero_cards,true);
       else drawHoleCards(ctx,p.position,null,false);

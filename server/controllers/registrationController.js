@@ -82,8 +82,27 @@ exports.getRegistrations = async (req, res) => {
 
 exports.exportRegistrations = async (req, res) => {
   try {
+    // אותה בניית WHERE כמו ב-getRegistrations — כדי שהייצוא יכבד את הסינון/חיפוש
+    // הפעיל בפאנל הניהול, ולא תמיד יוציא את כל טבלת ההרשמות
+    const { tournament_id, search } = req.query;
+    const params = [];
+    const where = [];
+    let idx = 1;
+
+    if (tournament_id) {
+      where.push(`tournament_id = $${idx++}`);
+      params.push(parseInt(tournament_id));
+    }
+    if (search) {
+      where.push(`(registrant_name ILIKE $${idx} OR tournament_name ILIKE $${idx} OR venue_name ILIKE $${idx})`);
+      params.push(`%${search}%`);
+      idx++;
+    }
+    const whereClause = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
+
     const result = await pool.query(
-      'SELECT * FROM registration_logs ORDER BY created_at DESC'
+      `SELECT * FROM registration_logs ${whereClause} ORDER BY created_at DESC`,
+      params
     );
 
     const workbook = new ExcelJS.Workbook();

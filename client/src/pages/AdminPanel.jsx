@@ -124,6 +124,7 @@ export default function AdminPanel() {
   const [editVenueSuccess, setEditVenueSuccess] = useState('');
   const [changeLogs, setChangeLogs] = useState([]);
   const [changeLogsTotal, setChangeLogsTotal] = useState(0);
+  const [clOffset, setClOffset] = useState(0);
   const [clEntityType, setClEntityType] = useState('');
   const [clAction, setClAction] = useState('');
   const [clDateFrom, setClDateFrom] = useState('');
@@ -132,7 +133,9 @@ export default function AdminPanel() {
   const [clSearchInput, setClSearchInput] = useState('');
   const [registrations, setRegistrations] = useState([]);
   const [regSearch, setRegSearch] = useState('');
+  const [regSearchInput, setRegSearchInput] = useState('');
   const [regTotal, setRegTotal] = useState(0);
+  const [regOffset, setRegOffset] = useState(0);
   const [loading, setLoading] = useState(true);
   const [rejectModal, setRejectModal] = useState(null);
   const [rejectReason, setRejectReason] = useState('');
@@ -155,7 +158,6 @@ export default function AdminPanel() {
   const [agentRunning,     setAgentRunning]     = useState(false);
   const [newSource,        setNewSource]        = useState({ platform: 'whatsapp', name: '', identifier: '' });
   const [waStatus,         setWaStatus]         = useState(null);
-  const [waPolling,        setWaPolling]        = useState(false);
   const [pendingImports,   setPendingImports]   = useState([]);
   const [pendingVenues,    setPendingVenues]    = useState({});   // { [importId]: venueId }
   const [pendingDates,     setPendingDates]     = useState({});   // { [importId]: { date, start_time } }
@@ -191,7 +193,7 @@ export default function AdminPanel() {
     return () => { alive = false; if (iv) clearInterval(iv); };
   }, [tab, waStatus?.status]);
 
-  const fetchData = async () => {
+  const fetchData = async (opts = {}) => {
     setLoading(true);
     try {
       if (tab === 'pending') {
@@ -204,6 +206,9 @@ export default function AdminPanel() {
         const res = await api.get('/admin/tournaments');
         setAllTournaments(res.data);
       } else if (tab === 'changelog') {
+        // offset=0 (טאב חדש/סינון חדש) מחליף את הרשימה; offset>0 ("טען עוד") מוסיף
+        // בסופה — כך שאפשר להגיע גם לרשומות שמעבר ל-200 הראשונות
+        const offset = opts.offset ?? 0;
         const res = await api.get('/admin/change-logs', {
           params: {
             entity_type: clEntityType || undefined,
@@ -212,16 +217,20 @@ export default function AdminPanel() {
             date_to:     clDateTo     || undefined,
             search:      clSearch     || undefined,
             limit: 200,
+            offset,
           },
         });
-        setChangeLogs(res.data.logs);
+        setChangeLogs(prev => offset === 0 ? res.data.logs : [...prev, ...res.data.logs]);
         setChangeLogsTotal(res.data.total);
+        setClOffset(offset);
       } else if (tab === 'registrations') {
+        const offset = opts.offset ?? 0;
         const res = await api.get('/registrations', {
-          params: { search: regSearch || undefined, limit: 200 },
+          params: { search: regSearch || undefined, limit: 200, offset },
         });
-        setRegistrations(res.data.registrations);
+        setRegistrations(prev => offset === 0 ? res.data.registrations : [...prev, ...res.data.registrations]);
         setRegTotal(res.data.total);
+        setRegOffset(offset);
       } else if (tab === 'imports') {
         const [hist, src, pend, venues] = await Promise.all([
           api.get('/imports?status=approved'),
@@ -245,8 +254,12 @@ export default function AdminPanel() {
     try {
       const label = boostLabel[id] || 'מקודם';
       const res = await api.patch(`/admin/tournaments/${id}/boost`, { label });
+      // ממיין מחדש בדיוק כמו הסדר מהשרת (is_boosted DESC, start_time ASC) — אחרת
+      // הרשימה החיה נשארת בסדר הישן עד רענון מלא של הטאב
       setAllTournaments(prev =>
-        prev.map(t => t.id === id ? { ...t, is_boosted: res.data.is_boosted, boost_label: res.data.boost_label } : t)
+        prev
+          .map(t => t.id === id ? { ...t, is_boosted: res.data.is_boosted, boost_label: res.data.boost_label } : t)
+          .sort((a, b) => (b.is_boosted - a.is_boosted) || (new Date(a.start_time) - new Date(b.start_time)))
       );
     } catch (e) {
       alert(e?.response?.data?.message || 'שגיאה בעדכון קידום הטורניר');
@@ -395,7 +408,9 @@ export default function AdminPanel() {
                           </div>
                           <div className="flex gap-2">
                             <button onClick={() => approveVenue(v.id)} className="btn-primary text-sm">✅ אשר</button>
-                            <button onClick={() => rejectVenue(v.id)} className="bg-red-900/30 hover:bg-red-900/60 text-red-400 text-sm font-semibold py-2 px-4 rounded-xl transition-all">❌ דחה</button>
+                            <button
+                              onClick={() => { if (confirm(`לדחות ולמחוק את בקשת המועדון "${v.name}"?`)) rejectVenue(v.id); }}
+                              className="bg-red-900/30 hover:bg-red-900/60 text-red-400 text-sm font-semibold py-2 px-4 rounded-xl transition-all">❌ דחה</button>
                           </div>
                         </div>
                       </div>
@@ -619,19 +634,30 @@ export default function AdminPanel() {
               <div className="flex items-center gap-3 mb-5 flex-wrap">
                 <input
                   type="text"
-                  value={regSearch}
-                  onChange={e => setRegSearch(e.target.value)}
+                  value={regSearchInput}
+                  onChange={e => setRegSearchInput(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && setRegSearch(regSearchInput)}
                   placeholder="חיפוש לפי שם, טורניר או מועדון..."
                   className="input-field flex-1 min-w-48 py-2 text-sm"
                 />
-                <a
-                  href={`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/registrations/export`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={async (e) => {
-                    e.preventDefault();
+                <button onClick={() => setRegSearch(regSearchInput)} className="btn-primary px-5 text-sm shrink-0">
+                  🔍 חפש
+                </button>
+                {regSearch && (
+                  <button onClick={() => { setRegSearch(''); setRegSearchInput(''); }} className="btn-ghost text-sm px-3 shrink-0">
+                    ✕
+                  </button>
+                )}
+                {/* לא <a href> אמיתי — הייצוא תמיד רץ דרך JS כדי לצרף Authorization וגם
+                    את סינון החיפוש הפעיל; קישור אמיתי היה מאפשר middle-click לניווט גולמי
+                    בלי הדר האימות, ומייצא תמיד את כל הטבלה בלי קשר לסינון */}
+                <button
+                  onClick={async () => {
                     try {
-                      const res = await api.get('/registrations/export', { responseType: 'blob' });
+                      const res = await api.get('/registrations/export', {
+                        params: { search: regSearch || undefined },
+                        responseType: 'blob',
+                      });
                       const url = URL.createObjectURL(res.data);
                       const a = document.createElement('a');
                       a.href = url;
@@ -651,7 +677,7 @@ export default function AdminPanel() {
                   className="flex items-center gap-2 bg-green-900/30 hover:bg-green-900/60 text-green-400 font-semibold py-2 px-4 rounded-xl transition-all text-sm shrink-0 border border-green-700/30"
                 >
                   📊 ייצוא לאקסל
-                </a>
+                </button>
                 <span className="text-xs text-slate-500 shrink-0">{regTotal} הרשמות סה"כ</span>
               </div>
 
@@ -699,6 +725,13 @@ export default function AdminPanel() {
                       ))}
                     </tbody>
                   </table>
+                  {registrations.length < regTotal && (
+                    <div className="p-3 text-center border-t border-slate-700">
+                      <button onClick={() => fetchData({ offset: regOffset + 200 })} className="btn-ghost text-sm px-5">
+                        טען עוד ({registrations.length} מתוך {regTotal})
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -791,12 +824,19 @@ export default function AdminPanel() {
                   {changeLogs.map(log => (
                     <ChangeLogRow key={log.id} log={log} />
                   ))}
+                  {changeLogs.length < changeLogsTotal && (
+                    <div className="p-3 text-center">
+                      <button onClick={() => fetchData({ offset: clOffset + 200 })} className="btn-ghost text-sm px-5">
+                        טען עוד ({changeLogs.length} מתוך {changeLogsTotal})
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
           )}
 
-          {/* Users */}
+          {/* Hand Logger access */}
           {tab === 'hand-logger' && (
             <div className="space-y-4">
               {/* Header */}
@@ -846,6 +886,9 @@ export default function AdminPanel() {
 
                       {/* Toggle button */}
                       <button
+                        role="switch"
+                        aria-checked={hasAccess}
+                        aria-label={`גישה לרישום ידיים עבור ${u.name}`}
                         onClick={async () => {
                           try {
                             const res = await api.patch(`/admin/users/${u.id}/hand-logger-access`);
@@ -975,6 +1018,9 @@ export default function AdminPanel() {
                   start_time: timeOverride,
                 });
                 setPendingImports(p => p.filter(i => i.id !== imp.id));
+                // כמו בזרימת ההדבקה הידנית — מרענן את רשימת הייבואים האחרונים כדי
+                // שהטורניר החדש יופיע שם מיד, לא רק אחרי מעבר טאב/רענון מלא
+                api.get('/imports?status=approved').then(r2 => setImportHistory(r2.data)).catch(() => {});
                 alert(`✅ טורניר נוצר! #${r.data.tournament_id}`);
               } catch(e) {
                 alert('שגיאה: ' + (e?.response?.data?.message || e.message));

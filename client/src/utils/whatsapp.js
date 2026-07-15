@@ -14,9 +14,7 @@ export function buildWhatsAppLink(whatsappNumber, tournament, registrantName = '
 
   let whenStr = '';
   if (is_recurring && day_of_week !== null && day_of_week !== undefined) {
-    whenStr = isCash
-      ? `המתקיים כל יום ${DAYS_HE[day_of_week]} בשעה ${time}`
-      : `המתקיים כל יום ${DAYS_HE[day_of_week]} בשעה ${time}`;
+    whenStr = `המתקיים כל יום ${DAYS_HE[day_of_week]} בשעה ${time}`;
   } else if (start_time) {
     whenStr = `ביום ${formatDate(start_time)} בשעה ${time}`;
   }

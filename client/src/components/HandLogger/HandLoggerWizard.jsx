@@ -33,8 +33,8 @@ const STAGES = [
   { key: 'heads_up',    label: 'ראש בראש',    icon: '🤜' },
 ];
 
-const STEPS_TOURNAMENT = ['סוג', 'הגדרות', 'שחקנים', 'עמדה', 'קלפים', 'בקופה פרה-פלופ', 'פלופ', 'טרן', 'ריבר', 'קלפי יריב', 'תוצאה', 'סיכום'];
-const STEPS_CASH        = ['סוג', 'הגדרות', 'שחקנים', 'עמדה', 'קלפים', 'בקופה פרה-פלופ', 'פלופ', 'טרן', 'ריבר', 'קלפי יריב', 'תוצאה', 'סיכום'];
+// זהה כרגע עבור טורניר וקאש — היה קיים בעבר כשני מערכים זהים בטעות (STEPS_TOURNAMENT/STEPS_CASH)
+const STEPS = ['סוג', 'הגדרות', 'שחקנים', 'עמדה', 'קלפים', 'בקופה פרה-פלופ', 'פלופ', 'טרן', 'ריבר', 'קלפי יריב', 'תוצאה', 'סיכום'];
 
 function initHandData() {
   return {
@@ -206,17 +206,23 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
 
   const applyAutoResult = (auto) => {
     const finalPot = calculatePot('river');
+    // heroProfit הוא רווח/הפסד נטו — לא חלק הירו הגולמי מהקופה, שכולל גם את הכסף
+    // שהירו עצמו הכניס אליה. בלי החיסור: זכייה מוצגת כקופה כולה, והפסד כמינוס
+    // הקופה כולה במקום מינוס מה שהירו באמת שם.
+    const heroContribution = playerContribution('hero', 'river');
     if (result !== auto.result) setResult(auto.result);
     if (auto.result === 'won') {
-      if (heroProfit !== String(finalPot)) setHeroProfit(String(finalPot));
+      const net = String(finalPot - heroContribution);
+      if (heroProfit !== net) setHeroProfit(net);
       if (Object.keys(splitDist).length) setSplitDist({});
     } else if (auto.result === 'lost') {
-      if (heroProfit !== String(-finalPot)) setHeroProfit(String(-finalPot));
+      const net = String(-heroContribution);
+      if (heroProfit !== net) setHeroProfit(net);
       if (Object.keys(splitDist).length) setSplitDist({});
     } else if (auto.result === 'split') {
       const dist = splitAmong(finalPot, auto.winners, getShowdownPlayers());
       if (JSON.stringify(dist) !== JSON.stringify(splitDist)) setSplitDist(dist);
-      const heroAmt = String(dist['hero'] ?? 0);
+      const heroAmt = String((dist['hero'] ?? 0) - heroContribution);
       if (heroProfit !== heroAmt) setHeroProfit(heroAmt);
     }
     if (auto.reason !== autoReason) setAutoReason(auto.reason);
@@ -244,7 +250,7 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
     if (pos === 'SB') return sb || 0;
     return 0;
   };
-  const steps = gameType === 'cash' ? STEPS_CASH : STEPS_TOURNAMENT;
+  const steps = STEPS;
   const usedCards = heroCards;
   const allBoardCards = [
     ...handData.streets.flop.board,
@@ -926,6 +932,8 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
     // 10: Result
     if (step === 10) {
       const finalPot = calculatePot('river');
+      // רווח/הפסד נטו של הירו = חלקו הגולמי מהקופה פחות מה שהוא עצמו שם בה
+      const heroContribution = playerContribution('hero', 'river');
       const { bb } = getBlindSbBb();
       const potBbs = bb ? Number((finalPot / bb).toFixed(1)) : null;
       const potLabel = isTournament
@@ -951,7 +959,9 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
         const num = parseInt(val) || 0;
         const next = { ...splitDist, [actor]: num };
         setSplitDist(next);
-        if (actor === 'hero') setHeroProfit(String(num));
+        // splitDist עצמו נשאר גולמי (נדרש לוולידציית "הסכום = כל הקופה" ולפס
+        // האחוזים) — רק heroProfit הופך לנטו
+        if (actor === 'hero') setHeroProfit(String(num - heroContribution));
       };
 
       const totalSplit = Object.values(splitDist).reduce((s, v) => s + (parseInt(v) || 0), 0);
@@ -990,12 +1000,12 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
                 onClick={() => {
                   setAutoDecided(false);
                   setResult(r.key);
-                  if (r.key === 'won')  { setHeroProfit(String(finalPot));  setSplitDist({}); }
-                  if (r.key === 'lost') { setHeroProfit(String(-finalPot)); setSplitDist({}); }
+                  if (r.key === 'won')  { setHeroProfit(String(finalPot - heroContribution));  setSplitDist({}); }
+                  if (r.key === 'lost') { setHeroProfit(String(-heroContribution)); setSplitDist({}); }
                   if (r.key === 'split') {
                     const dist = initEqualSplit(finalPot, sdPlayers);
                     setSplitDist(dist);
-                    setHeroProfit(String(dist['hero'] ?? 0));
+                    setHeroProfit(String((dist['hero'] ?? 0) - heroContribution));
                   }
                 }}
                 className={`flex-1 max-w-[110px] flex flex-col items-center gap-2 p-3 rounded-2xl border-2 transition-all hover:scale-105
@@ -1016,7 +1026,7 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
                 onClick={() => {
                   const dist = initEqualSplit(finalPot, sdPlayers);
                   setSplitDist(dist);
-                  setHeroProfit(String(dist['hero'] ?? 0));
+                  setHeroProfit(String((dist['hero'] ?? 0) - heroContribution));
                 }}
                 className="text-xs text-amber-400/80 hover:text-amber-300 font-bold border border-amber-500/30 rounded-lg px-2 py-1 hover:border-amber-400/50 transition-all">
                 ⚖️ חלוקה שווה
@@ -1162,9 +1172,11 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
 
   return (
     <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4"
-      style={{ background: 'rgba(0,0,0,0.85)' }}>
+      style={{ background: 'rgba(0,0,0,0.85)' }}
+      onClick={onClose}>
       <div className="always-dark w-full sm:max-w-lg max-h-[92vh] sm:max-h-[88vh] flex flex-col rounded-t-3xl sm:rounded-2xl overflow-hidden shadow-2xl"
-        style={{ background: '#0d1526', border: '1px solid rgba(29,78,216,0.25)' }}>
+        style={{ background: '#0d1526', border: '1px solid rgba(29,78,216,0.25)' }}
+        onClick={e => e.stopPropagation()}>
 
         {/* Header */}
         <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b flex-shrink-0"

@@ -17,9 +17,11 @@ exports.getPending = async (req, res) => {
 
 exports.approveVenue = async (req, res) => {
   try {
-    await pool.query('UPDATE venues SET is_approved = true WHERE id = $1', [req.params.id]);
+    const result = await pool.query('UPDATE venues SET is_approved = true WHERE id = $1 RETURNING id', [req.params.id]);
+    if (!result.rows[0]) return res.status(404).json({ message: 'מועדון לא נמצא' });
     res.json({ message: 'המקום אושר בהצלחה' });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ message: 'שגיאת שרת' });
   }
 };
@@ -49,15 +51,18 @@ exports.rejectVenue = async (req, res) => {
     await pool.query('DELETE FROM venues WHERE id = $1', [req.params.id]);
     res.json({ message: 'המקום נדחה ונמחק' });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ message: 'שגיאת שרת' });
   }
 };
 
 exports.approveTournament = async (req, res) => {
   try {
-    await pool.query("UPDATE tournaments SET status = 'approved', updated_at = NOW() WHERE id = $1", [req.params.id]);
+    const result = await pool.query("UPDATE tournaments SET status = 'approved', updated_at = NOW() WHERE id = $1 RETURNING id", [req.params.id]);
+    if (!result.rows[0]) return res.status(404).json({ message: 'טורניר לא נמצא' });
     res.json({ message: 'הטורניר אושר בהצלחה' });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ message: 'שגיאת שרת' });
   }
 };
@@ -65,12 +70,14 @@ exports.approveTournament = async (req, res) => {
 exports.rejectTournament = async (req, res) => {
   const { reason } = req.body;
   try {
-    await pool.query(
-      "UPDATE tournaments SET status = 'rejected', rejection_reason = $1, updated_at = NOW() WHERE id = $2",
+    const result = await pool.query(
+      "UPDATE tournaments SET status = 'rejected', rejection_reason = $1, updated_at = NOW() WHERE id = $2 RETURNING id",
       [reason || '', req.params.id]
     );
+    if (!result.rows[0]) return res.status(404).json({ message: 'טורניר לא נמצא' });
     res.json({ message: 'הטורניר נדחה' });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ message: 'שגיאת שרת' });
   }
 };
@@ -137,6 +144,7 @@ exports.getAllUsers = async (req, res) => {
     );
     res.json(result.rows);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ message: 'שגיאת שרת' });
   }
 };
@@ -156,20 +164,24 @@ exports.toggleUser = async (req, res) => {
       'UPDATE users SET is_active = NOT is_active WHERE id = $1 RETURNING is_active',
       [req.params.id]
     );
+    if (!result.rows[0]) return res.status(404).json({ message: 'משתמש לא נמצא' });
     res.json({ is_active: result.rows[0].is_active });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ message: 'שגיאת שרת' });
   }
 };
 
 exports.unlockUser = async (req, res) => {
   try {
-    await pool.query(
-      'UPDATE users SET is_locked = false, failed_login_attempts = 0, locked_at = NULL WHERE id = $1',
+    const result = await pool.query(
+      'UPDATE users SET is_locked = false, failed_login_attempts = 0, locked_at = NULL WHERE id = $1 RETURNING id',
       [req.params.id]
     );
+    if (!result.rows[0]) return res.status(404).json({ message: 'משתמש לא נמצא' });
     res.json({ message: 'החשבון שוחרר בהצלחה' });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ message: 'שגיאת שרת' });
   }
 };

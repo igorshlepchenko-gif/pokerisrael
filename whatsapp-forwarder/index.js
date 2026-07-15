@@ -46,7 +46,9 @@ function normName(s) {
   return (s || '').replace(/[\u{1F000}-\u{1FFFF}]/gu, '').replace(/\s+/g, ' ').trim().toLowerCase();
 }
 
-function postJSON(targetUrl, data) {
+// מנסה שוב על שגיאת רשת חולפת (עד 2 פעמים, 3ש בין ניסיונות) — בלי זה, תקלת
+// רשת רגעית מפילה הודעה לצמיתות (אין תור מקומי ששומר אותה לניסיון מאוחר יותר)
+function postJSON(targetUrl, data, retriesLeft = 2) {
   return new Promise((resolve) => {
     const payload = JSON.stringify(data);
     const url = new URL(targetUrl);
@@ -62,7 +64,13 @@ function postJSON(targetUrl, data) {
         'X-Agent-Secret': AGENT_SECRET,
       },
     }, (res) => { res.resume(); resolve(res.statusCode); });
-    req.on('error', () => resolve(0));
+    req.on('error', () => {
+      if (retriesLeft > 0) {
+        setTimeout(() => resolve(postJSON(targetUrl, data, retriesLeft - 1)), 3000);
+      } else {
+        resolve(0);
+      }
+    });
     req.write(payload);
     req.end();
   });
@@ -123,7 +131,10 @@ async function start() {
         process.exit(1);
       }
       console.log('⚠️  מחבר מחדש...');
-      setTimeout(start, 5000);
+      // בלי catch כאן: אם start() נכשל בניסיון החיבור-מחדש, זו הייתה הבטחה
+      // שנדחית ואף אחד לא מטפל בה — unhandled rejection חשוף, בניגוד לקריאה
+      // הראשונית ל-start() למטה שכן תפוסה
+      setTimeout(() => { start().catch(e => console.error('❌ חיבור מחדש נכשל:', e.message)); }, 5000);
     }
   });
 
