@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
+import HandVideoCanvas from '../components/HandLogger/HandVideoCanvas';
 
 const SUIT_SYMBOLS = { s: '♠', h: '♥', d: '♦', c: '♣' };
 const SUIT_COLORS  = { s: '#e2e8f0', h: '#f87171', d: '#f87171', c: '#e2e8f0' };
@@ -93,6 +94,9 @@ function HandCard({ hand, onDelete }) {
           <div className="flex gap-3 mt-2 text-xs text-slate-600">
             {hand.players_count && <span>{hand.players_count} שחקנים</span>}
             {hand.hero_stack && <span>ערימה: {hand.hero_stack}{hand.game_type === 'tournament' ? 'BB' : '₪'}</span>}
+          </div>
+          <div className="mt-3" onClick={e => e.stopPropagation()}>
+            <HandVideoCanvas handState={hand} narrative={hand.narrative} />
           </div>
         </div>
       )}

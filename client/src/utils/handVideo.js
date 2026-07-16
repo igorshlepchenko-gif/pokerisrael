@@ -668,7 +668,13 @@ function buildEvents(hand_data,hero_stack,opponents,sb,bb,ante,hero_position){
     if(street==='river'&&streets.river?.board?.length)
       events.push({type:'card',street:'river',cardIdx:4,card:streets.river.board[0],pot,stacks:{...stacks}});
     (streets[street]?.actions||[]).forEach(a=>{
-      const amount=parseFloat(a.amount)||0;
+      // גודל יחסי ("75%") מתייחס לגובה הקופה הנוכחי — parseFloat גולמי היה קורא
+      // "75%" כ-75 צ'יפים, מציג סכומים/אנימציית צ'יפים שגויים לגמרי בכל יד עם
+      // הימור באחוזים (פיצ'ר מרכזי באשף)
+      const rawAmt=a.amount;
+      const amount=(typeof rawAmt==='string'&&rawAmt.trim().endsWith('%'))
+        ? Math.round(pot*(parseFloat(rawAmt)||0)/100)
+        : (parseFloat(rawAmt)||0);
       const potBefore=pot; const stacksBefore={...stacks};
       const actorKey=a.actor==='hero'?'hero':a.actor;
       const isChip=['call','raise','three-bet','four-bet','allin','limp','bet'].includes(a.action);
@@ -1007,14 +1013,31 @@ export function buildFrames(state){
 const RENDER_SCALE = 2; // 2× pixel density → 1520×960, sharp HD output
 
 export async function recordVideo(state,onProgress){
-  const{frames,W,H}=buildFrames(state);
+  // WebCodecs מדווח את עצמו כזמין (typeof VideoEncoder!=='undefined') גם
+  // כשההגדרה בפועל (קודק/רזולוציה/דרייבר GPU) לא נתמכת במכשיר הספציפי —
+  // configure/encode יכולים אז לזרוק או לדווח שגיאה ב-callback באמצע ההקלטה.
+  // בלי ה-try/catch כאן, המשתמש נתקע עם "שגיאה בייצור הסרטון" בלי חלופה,
+  // במקום ליפול בחזרה אוטומטית ל-MediaRecorder (recordVideoLegacy) שעובד
+  // בכל דפדפן מודרני
+  if(typeof VideoEncoder!=='undefined'){
+    try{
+      return await recordVideoWebCodecs(state,onProgress);
+    }catch(e){
+      console.error('WebCodecs recording failed, falling back to MediaRecorder:',e);
+    }
+  }
+  return recordVideoLegacy(state,onProgress);
+}
 
-  // Check for WebCodecs support
-  if(typeof VideoEncoder==='undefined'){
-    return recordVideoLegacy(state,onProgress);
+async function recordVideoWebCodecs(state,onProgress){
+  const{frames,W,H}=buildFrames(state);
+  const RW=W*RENDER_SCALE, RH=H*RENDER_SCALE;
+
+  if(typeof VideoEncoder.isConfigSupported==='function'){
+    const support=await VideoEncoder.isConfigSupported({codec:'vp8',width:RW,height:RH,bitrate:4_000_000,framerate:30});
+    if(!support?.supported) throw new Error('VP8 WebCodecs config not supported on this device');
   }
 
-  const RW=W*RENDER_SCALE, RH=H*RENDER_SCALE;
   const canvas=document.createElement('canvas');
   canvas.width=RW; canvas.height=RH;
   const ctx=canvas.getContext('2d');
