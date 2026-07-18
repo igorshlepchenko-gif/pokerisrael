@@ -123,7 +123,7 @@ exports.getAllTournaments = async (req, res) => {
       SELECT t.id, t.name, t.status, t.start_time, t.cost, t.is_boosted, t.boost_label,
              v.name AS venue_name
       FROM tournaments t JOIN venues v ON t.venue_id = v.id
-      WHERE t.status = 'approved'
+      WHERE t.status = 'approved' AND t.is_active = true
       ORDER BY t.is_boosted DESC, t.start_time ASC
     `);
     res.json(result.rows);

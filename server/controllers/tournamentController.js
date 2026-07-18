@@ -96,7 +96,7 @@ exports.getAll = async (req, res) => {
       if (tournament_type) { filterParts.push(`t.tournament_type = $${idx++}`); params.push(tournament_type); }
 
       query = `${baseSelect}
-        WHERE t.status = 'approved' AND v.is_approved = true AND ${notPastClause}
+        WHERE t.status = 'approved' AND t.is_active = true AND v.is_approved = true AND ${notPastClause}
         AND (t.is_boosted = true OR (${filterParts.join(' AND ')}))
         ${sortClause}`;
     } else {
@@ -105,7 +105,7 @@ exports.getAll = async (req, res) => {
       if (tournament_type) { extraParts.push(`t.tournament_type = $${idx++}`); params.push(tournament_type); }
       const extraWhere = extraParts.length ? `AND ${extraParts.join(' AND ')}` : '';
       query = `${baseSelect}
-        WHERE t.status = 'approved' AND v.is_approved = true AND ${notPastClause} ${extraWhere}
+        WHERE t.status = 'approved' AND t.is_active = true AND v.is_approved = true AND ${notPastClause} ${extraWhere}
         ${sortClause}`;
     }
 
@@ -676,6 +676,36 @@ exports.clearSkips = async (req, res) => {
     if (!check.rows[0]) return res.status(403).json({ message: 'אין הרשאה' });
     await pool.query(`UPDATE tournaments SET skipped_dates = '[]'::jsonb WHERE id = $1`, [id]);
     res.json({ message: 'הדילוגים אופסו', skipped_dates: [] });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'שגיאת שרת' });
+  }
+};
+
+// הפעלה/כיבוי טורניר בצד הבעלים — למשל השבתת סדרה שבועית זמנית בלי למחוק
+// אותה ואת ההיסטוריה שלה. טורניר לא פעיל מוסתר מהרשימה הציבורית (getAll)
+// אך ממשיך להופיע בלוח הבקרה של הבעלים לצורך הפעלה מחדש בעתיד
+exports.toggleActive = async (req, res) => {
+  const { id } = req.params;
+  try {
+    // בדיקת בעלות — כמו updateTournament: המקום המארח או המארגן (רישום כפול), או אדמין
+    const ownerCheck = await pool.query(
+      `SELECT t.id FROM tournaments t
+       LEFT JOIN venues v   ON t.venue_id = v.id
+       LEFT JOIN venues org ON t.organizer_venue_id = org.id
+       WHERE t.id = $1 AND ($2 = true OR v.owner_id = $3 OR org.owner_id = $3)`,
+      [id, req.user.role === 'admin', req.user.id]
+    );
+    if (!ownerCheck.rows[0]) {
+      return res.status(403).json({ message: 'אין לך הרשאה לערוך טורניר זה' });
+    }
+
+    const result = await pool.query(
+      `UPDATE tournaments SET is_active = NOT is_active, updated_at = NOW()
+       WHERE id = $1 RETURNING id, is_active`,
+      [id]
+    );
+    res.json(result.rows[0]);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'שגיאת שרת' });

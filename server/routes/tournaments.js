@@ -44,6 +44,7 @@ router.put('/:id', authenticate, requireRole('venue_owner', 'admin'), [
 
 router.post('/:id/skip-next', authenticate, requireRole('venue_owner', 'admin'), ctrl.skipNextOccurrence);
 router.post('/:id/clear-skips', authenticate, requireRole('venue_owner', 'admin'), ctrl.clearSkips);
+router.post('/:id/toggle-active', authenticate, requireRole('venue_owner', 'admin'), ctrl.toggleActive);
 
 const waValidation = body('whatsapp_number')
   .trim().notEmpty().withMessage('מספר וואצאפ הוא שדה חובה')

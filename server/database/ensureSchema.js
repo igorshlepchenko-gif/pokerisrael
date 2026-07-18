@@ -104,6 +104,8 @@ async function ensureSchema() {
       `ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS city VARCHAR(100)`,
       // מונה גרסת טוקן — מאפשר ביטול מיידי של כל הטוקנים הקיימים בלחיצת logout
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0`,
+      // הפעלה/כיבוי טורניר בצד הבעלים — למשל השבתת סדרה שבועית זמנית בלי למחוק אותה
+      `ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT true`,
     ];
     for (const sql of MIGRATIONS) {
       try { await pool.query(sql); } catch (e) { console.error('migration failed:', e.message); }

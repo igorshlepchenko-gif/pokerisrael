@@ -516,6 +516,17 @@ export default function Dashboard() {
     }
   };
 
+  const handleToggleActive = async (t) => {
+    if (t.is_active && t.is_recurring
+        && !confirm(`להשבית את "${t.name}"?\nהאירוע (וכל המופעים השבועיים הבאים שלו) יוסתר מהרשימה הציבורית עד שתפעיל אותו מחדש.`)) return;
+    try {
+      const res = await api.post(`/tournaments/${t.id}/toggle-active`);
+      setTournaments(prev => prev.map(x => x.id === t.id ? { ...x, is_active: res.data.is_active } : x));
+    } catch (err) {
+      alert(err.response?.data?.message || 'שגיאה בעדכון הסטטוס');
+    }
+  };
+
   const handleVenueSubmit = async (e) => {
     e.preventDefault();
     setVenueError('');
@@ -637,11 +648,14 @@ export default function Dashboard() {
           ) : tournaments.map(t => {
             const past = isPast(t);
             return (
-              <div key={t.id} className={`card p-4 flex flex-wrap gap-4 items-start ${past ? 'opacity-60' : ''}`}>
+              <div key={t.id} className={`card p-4 flex flex-wrap gap-4 items-start ${(past || !t.is_active) ? 'opacity-60' : ''}`}>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="font-bold text-slate-100">{t.name}</h3>
                     <span className={`badge-status ${STATUS_COLORS[t.status]}`}>{STATUS_LABELS[t.status]}</span>
+                    {!t.is_active && (
+                      <span className="text-[10px] bg-slate-700/80 text-amber-400 px-1.5 py-0.5 rounded-full border border-amber-600/40">⏸️ לא פעיל</span>
+                    )}
                     {past && (
                       <span className="text-[10px] bg-slate-700/80 text-slate-400 px-1.5 py-0.5 rounded-full border border-slate-600">🕐 עבר</span>
                     )}
@@ -681,6 +695,17 @@ export default function Dashboard() {
                       ⏭️ דלג על המופע הבא
                     </button>
                   )}
+                  <button
+                    onClick={() => handleToggleActive(t)}
+                    title={t.is_active ? 'הסתר מהרשימה הציבורית בלי למחוק' : 'הצג שוב ברשימה הציבורית'}
+                    className={`flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all hover:scale-105 active:scale-95 ${
+                      t.is_active
+                        ? 'border-slate-600 text-slate-400 hover:border-red-500 hover:text-red-400'
+                        : 'border-emerald-600/50 text-emerald-400 hover:border-emerald-500 hover:text-emerald-300'
+                    }`}
+                  >
+                    {t.is_active ? '⏸️ השבת' : '▶️ הפעל מחדש'}
+                  </button>
                 </div>
               </div>
             );
