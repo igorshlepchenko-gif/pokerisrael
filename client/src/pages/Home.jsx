@@ -119,7 +119,7 @@ export default function Home() {
           {/* Stats */}
           <div className="flex justify-center gap-4 sm:gap-8 mb-10 flex-wrap">
             {[
-              { icon: '🏆', value: stats.tournaments, label: 'טורנירים במערכת' },
+              { icon: '🏆', value: stats.tournaments, label: 'טורנירים זמינים להרשמה' },
               { icon: '📍', value: stats.venues,      label: 'מועדונים פעילים' },
               { icon: '👥', value: stats.users,       label: 'משתמשים' },
             ].map(s => (

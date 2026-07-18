@@ -86,7 +86,10 @@ app.get('/api/stats', async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT
-        (SELECT COUNT(*) FROM tournaments)                     AS tournaments,
+        (SELECT COUNT(*) FROM tournaments t
+           JOIN venues v ON t.venue_id = v.id
+           WHERE t.status = 'approved' AND t.is_active = true AND v.is_approved = true
+           AND (t.is_recurring = true OR COALESCE(t.estimated_end_time, t.start_time) > NOW())) AS tournaments,
         (SELECT COUNT(*) FROM venues WHERE is_approved = true) AS venues,
         (SELECT COUNT(*) FROM users)                           AS users
     `);
