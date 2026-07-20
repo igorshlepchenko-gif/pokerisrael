@@ -117,6 +117,7 @@ export default function AdminPanel() {
   const [tab, setTab] = useState('pending');
   const [pending, setPending] = useState({ venues: [], tournaments: [] });
   const [users, setUsers] = useState([]);
+  const [hlSearch, setHlSearch] = useState('');
   const [allTournaments, setAllTournaments] = useState([]);
   const [allVenues, setAllVenues] = useState([]);
   const [editingVenue, setEditingVenue] = useState(null);
@@ -859,54 +860,90 @@ export default function AdminPanel() {
                 </div>
               </div>
 
-              {/* Users list */}
-              <div className="space-y-2">
-                {users.filter(u => u.role !== 'admin').map(u => {
-                  const hasAccess = !!u.hand_logger_access;
-                  return (
-                    <div key={u.id}
-                      className={`rounded-2xl border p-4 flex items-center justify-between gap-4 transition-all
-                        ${hasAccess
-                          ? 'border-blue-500/30 bg-blue-500/5'
-                          : 'border-slate-700/60 bg-slate-800/40'}`}>
-                      <div dir="rtl">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-bold text-slate-100">{u.name}</span>
-                          <span className="text-xs text-slate-500 bg-slate-700 px-2 py-0.5 rounded-full">
-                            {u.role === 'venue_owner' ? '🏠 מועדון' : '🃏 שחקן'}
-                          </span>
-                          {hasAccess && (
-                            <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                              ✅ גישה פעילה
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-sm text-slate-500 mt-0.5">{u.email}</p>
-                      </div>
+              {/* Search */}
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={hlSearch}
+                  onChange={e => setHlSearch(e.target.value)}
+                  placeholder="חיפוש לפי שם או מייל..."
+                  className="input-field flex-1 text-sm py-2"
+                  dir="rtl"
+                />
+                {hlSearch && (
+                  <button onClick={() => setHlSearch('')} className="btn-ghost text-sm px-3 shrink-0">
+                    ✕
+                  </button>
+                )}
+              </div>
 
-                      {/* Toggle button */}
-                      <button
-                        role="switch"
-                        aria-checked={hasAccess}
-                        aria-label={`גישה לרישום ידיים עבור ${u.name}`}
-                        onClick={async () => {
-                          try {
-                            const res = await api.patch(`/admin/users/${u.id}/hand-logger-access`);
-                            setUsers(prev => prev.map(p => p.id === u.id
-                              ? { ...p, hand_logger_access: res.data.hand_logger_access }
-                              : p
-                            ));
-                          } catch { alert('שגיאה בעדכון'); }
-                        }}
-                        className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors flex-shrink-0
-                          ${hasAccess ? 'bg-blue-600' : 'bg-slate-600'}`}>
-                        <span className={`inline-block h-6 w-6 rounded-full bg-white shadow-lg transform transition-transform
-                          ${hasAccess ? 'translate-x-7' : 'translate-x-1'}`} />
-                      </button>
+              {/* Users list */}
+              {(() => {
+                const q = hlSearch.trim().toLowerCase();
+                const filtered = users
+                  .filter(u => u.role !== 'admin')
+                  .filter(u => !q || u.name?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q));
+
+                if (filtered.length === 0) {
+                  return (
+                    <div className="card p-16 text-center">
+                      <div className="text-5xl mb-3">🔍</div>
+                      <p className="text-slate-400 font-semibold">לא נמצאו משתמשים</p>
+                      <p className="text-slate-600 text-sm mt-1">נסה חיפוש אחר</p>
                     </div>
                   );
-                })}
-              </div>
+                }
+
+                return (
+                  <div className="space-y-2">
+                    {filtered.map(u => {
+                      const hasAccess = !!u.hand_logger_access;
+                      return (
+                        <div key={u.id}
+                          className={`rounded-2xl border p-4 flex items-center justify-between gap-4 transition-all
+                            ${hasAccess
+                              ? 'border-blue-500/30 bg-blue-500/5'
+                              : 'border-slate-700/60 bg-slate-800/40'}`}>
+                          <div dir="rtl">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-bold text-slate-100">{u.name}</span>
+                              <span className="text-xs text-slate-500 bg-slate-700 px-2 py-0.5 rounded-full">
+                                {u.role === 'venue_owner' ? '🏠 מועדון' : '🃏 שחקן'}
+                              </span>
+                              {hasAccess && (
+                                <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                                  ✅ גישה פעילה
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm text-slate-500 mt-0.5">{u.email}</p>
+                          </div>
+
+                          {/* Toggle button */}
+                          <button
+                            role="switch"
+                            aria-checked={hasAccess}
+                            aria-label={`גישה לרישום ידיים עבור ${u.name}`}
+                            onClick={async () => {
+                              try {
+                                const res = await api.patch(`/admin/users/${u.id}/hand-logger-access`);
+                                setUsers(prev => prev.map(p => p.id === u.id
+                                  ? { ...p, hand_logger_access: res.data.hand_logger_access }
+                                  : p
+                                ));
+                              } catch { alert('שגיאה בעדכון'); }
+                            }}
+                            className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors flex-shrink-0
+                              ${hasAccess ? 'bg-blue-600' : 'bg-slate-600'}`}>
+                            <span className={`inline-block h-6 w-6 rounded-full bg-white shadow-lg transform transition-transform
+                              ${hasAccess ? 'translate-x-7' : 'translate-x-1'}`} />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
 
               {/* Admin note */}
               <p className="text-xs text-slate-600 text-center" dir="rtl">
