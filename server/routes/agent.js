@@ -18,6 +18,13 @@ router.post('/whatsapp/forwarder-heartbeat', requireAgentSecret, (req, res) => {
   res.json({ ok: true });
 });
 
+// GET /api/agent/whatsapp/forwarder-health — shared-secret auth, for external uptime monitors
+// (no admin session available to a scheduled/headless check, unlike /whatsapp/status below)
+router.get('/whatsapp/forwarder-health', requireAgentSecret, (req, res) => {
+  const ageSeconds = forwarderLastSeen ? Math.round((Date.now() - forwarderLastSeen) / 1000) : null;
+  res.json({ alive: ageSeconds !== null && ageSeconds < 90, lastSeen: forwarderLastSeen, ageSeconds });
+});
+
 // ── WhatsApp connection management (admin only) ───────────────────────────────
 
 // GET /api/agent/whatsapp/status — connection state + QR code
