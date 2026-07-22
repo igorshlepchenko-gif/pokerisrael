@@ -105,7 +105,7 @@ export default function Rules() {
       <div className="border-b border-blue-500/20 bg-gradient-to-b from-slate-900 to-slate-950">
         <div className="max-w-4xl mx-auto px-4 py-10 text-center">
           <div className="text-4xl mb-3">🃏</div>
-          <h1 className="text-3xl sm:text-4xl font-black text-white mb-2">חוקי המשחק + TDA</h1>
+          <h1 className="text-3xl sm:text-4xl font-black text-white mb-2">חוקי המשחק / TDA</h1>
           <p className="text-slate-400 text-sm">Texas Hold'em — הכלים שתצטרך לשולחן</p>
         </div>
 

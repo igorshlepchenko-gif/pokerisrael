@@ -17,7 +17,7 @@ export default function Navbar() {
 
   const navLinks = [
     { to: '/', label: 'בית', show: true },
-    { to: '/rules', label: '📖 חוקי המשחק', show: true },
+    { to: '/rules', label: '📖 חוקי המשחק / חוקי TDA', show: true },
     { to: '/podcasts', label: '🎙️ פודקאסטים', show: true },
     { to: '/hands', label: '🃏 הידיים שלי', show: !!user },
     { to: '/dashboard', label: 'ניהול', show: user && (user.role === 'venue_owner' || user.role === 'admin') },
