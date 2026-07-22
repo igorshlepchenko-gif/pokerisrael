@@ -1082,6 +1082,15 @@ async function recordVideoWebCodecs(state,onProgress){
   return new Blob([muxer.target.buffer],{type:'video/webm'});
 }
 
+// Safari (iOS + macOS) doesn't support 'video/webm' in MediaRecorder at all — the
+// constructor throws synchronously, which used to surface as a cryptic inline error
+// with no fallback. Try formats in preference order and use whichever the browser
+// actually supports instead of assuming webm everywhere.
+const LEGACY_MIME_CANDIDATES=['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm','video/mp4;codecs=h264','video/mp4'];
+function pickSupportedMimeType(){
+  return LEGACY_MIME_CANDIDATES.find(mt=>typeof MediaRecorder!=='undefined'&&MediaRecorder.isTypeSupported?.(mt));
+}
+
 // Fallback for browsers without WebCodecs
 async function recordVideoLegacy(state,onProgress){
   const{frames,W,H}=buildFrames(state);
@@ -1093,7 +1102,10 @@ async function recordVideoLegacy(state,onProgress){
   const FPS=30, MS=Math.round(1000/FPS);
   const chunks=[];
   const stream=canvas.captureStream(FPS);
-  const rec=new MediaRecorder(stream,{mimeType:'video/webm',videoBitsPerSecond:1_500_000});
+  const mimeType=pickSupportedMimeType();
+  if(!mimeType) throw new Error('No supported video recording format on this browser');
+  const blobType=mimeType.split(';')[0];
+  const rec=new MediaRecorder(stream,{mimeType,videoBitsPerSecond:1_500_000});
   rec.ondataavailable=e=>{if(e.data.size>0)chunks.push(e.data);};
   const total=frames.reduce((s,f)=>s+f.duration,0);
   let seg=0,fin=0,drawn=0;
@@ -1111,5 +1123,5 @@ async function recordVideoLegacy(state,onProgress){
     tick();
   });
   await new Promise(r=>{rec.onstop=r;});
-  return new Blob(chunks,{type:'video/webm'});
+  return new Blob(chunks,{type:blobType});
 }

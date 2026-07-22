@@ -25,15 +25,17 @@ export default function HandVideoCanvas({ handState, narrative }) {
 
   const download = () => {
     if (!blobRef.current) return;
+    const ext = blobRef.current.type.includes('mp4') ? 'mp4' : 'webm';
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blobRef.current);
-    a.download = `poker-hand-${Date.now()}.webm`;
+    a.download = `poker-hand-${Date.now()}.${ext}`;
     a.click();
   };
 
   const shareViaWebShare = async () => {
     if (!blobRef.current) return;
-    const file = new File([blobRef.current], 'poker-hand.webm', { type: 'video/webm' });
+    const ext = blobRef.current.type.includes('mp4') ? 'mp4' : 'webm';
+    const file = new File([blobRef.current], `poker-hand.${ext}`, { type: blobRef.current.type });
     if (navigator.canShare?.({ files: [file] })) {
       try { await navigator.share({ files: [file], title: 'יד פוקר', text: narrative }); }
       catch { /* user cancelled */ }

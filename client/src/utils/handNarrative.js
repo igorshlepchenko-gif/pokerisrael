@@ -23,10 +23,6 @@ function fmtAmount(raw, isCash, bbSize, street) {
   if (isCash) {
     return `$${num % 1 === 0 ? num : num.toFixed(2)}`;
   }
-  // Tournament: preflop amounts are stored as BB multiples (e.g. "3" = 3BB = 2400 chips)
-  if (street === 'preflop' && bbSize && num <= 200) {
-    return String(Math.round(num * bbSize));
-  }
   return String(Math.round(num));
 }
 
@@ -75,7 +71,7 @@ function isAggressive(action) {
 // תורם יחיד לקופה: סכום פעולותיו + הבליינד שלו אם לא הימר בפרה-פלופ — בדיוק
 // אותה לוגיקה כמו playerContribution בוויזארד (HandLoggerWizard.jsx), כדי
 // שהקופה בסיכום/בנרטיב תמיד תואמת למה שהוצג לאורך היד עצמה
-function actorContribution(actorId, position, streets, sbSize, bbSize, isCash) {
+function actorContribution(actorId, position, streets, sbSize, bbSize) {
   let total = 0;
   ['preflop', 'flop', 'turn', 'river'].forEach(street => {
     const actions = (streets[street]?.actions || []).filter(a => String(a.actor) === String(actorId));
@@ -87,8 +83,7 @@ function actorContribution(actorId, position, streets, sbSize, bbSize, isCash) {
       if (!raw || raw.endsWith('%')) return; // גודל יחסי, לא סכום צ'יפים מוחלט
       const num = parseFloat(raw);
       if (isNaN(num)) return;
-      // פרה-פלופ בטורניר: סכומים נשמרים כמכפלת BB (למשל "3" = 3BB), לא צ'יפים גולמיים
-      streetTotal += (!isCash && street === 'preflop' && bbSize && num <= 200) ? num * bbSize : num;
+      streetTotal += num;
     });
     if (street === 'preflop' && !hasBet) {
       if (position === 'BB') streetTotal += (bbSize || 0);
@@ -101,10 +96,10 @@ function actorContribution(actorId, position, streets, sbSize, bbSize, isCash) {
 
 // קופה אמיתית מסך תרומות כל השחקנים (לא ניחוש מ-hero_profit, שהוא רווח/הפסד
 // נטו של הירו — נכון רק חד-על-חד, ומטעה בקופה עם 3+ שחקנים או בחלוקה)
-function computeTotalPot(streets, sbSize, bbSize, ante, isCash, heroPosition, opponents) {
+function computeTotalPot(streets, sbSize, bbSize, ante, heroPosition, opponents) {
   const actors = [{ id: 'hero', position: heroPosition }, ...opponents.map(o => ({ id: o.id, position: o.position }))];
   let pot = (ante || 0) * actors.length;
-  actors.forEach(a => { pot += actorContribution(a.id, a.position, streets, sbSize, bbSize, isCash); });
+  actors.forEach(a => { pot += actorContribution(a.id, a.position, streets, sbSize, bbSize); });
   return Math.round(pot);
 }
 
@@ -257,7 +252,7 @@ export function generateNarrative(state) {
   }
 
   // ── Showdown ───────────────────────────────────────────────
-  const totalPot = computeTotalPot(streets, sbSize, bbSize, ante, isCash, hero_position, opponents);
+  const totalPot = computeTotalPot(streets, sbSize, bbSize, ante, hero_position, opponents);
   const totalPotFmt = totalPot > 0 ? `${isCash ? '$' : ''}${totalPot}` : 'the pot';
   const atShowdown = showdown?.reached || (result && allBoard.length > 0);
   if (atShowdown) {
