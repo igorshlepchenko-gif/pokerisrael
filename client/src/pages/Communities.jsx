@@ -84,7 +84,8 @@ function CommunityAvatar({ community, Icon, color }) {
 function CommunityCard({ community }) {
   const meta = TYPE_META[community.type];
   if (!meta) return null;
-  const { Icon, color, cta } = meta;
+  const { Icon, color } = meta;
+  const cta = community.cta || meta.cta;
 
   return (
     <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 flex flex-col gap-3"
