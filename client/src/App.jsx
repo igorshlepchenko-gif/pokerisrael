@@ -14,6 +14,7 @@ import Accessibility from './pages/Accessibility';
 import HandHistoryPage from './pages/HandHistoryPage';
 import Rules from './pages/Rules';
 import Podcasts from './pages/Podcasts';
+import Communities from './pages/Communities';
 import CookieConsent from './components/CookieConsent';
 import AccessibilityWidget from './components/AccessibilityWidget';
 
@@ -38,6 +39,7 @@ function AppRoutes() {
           <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/rules" element={<Rules />} />
           <Route path="/podcasts" element={<Podcasts />} />
+          <Route path="/communities" element={<Communities />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/accessibility" element={<Accessibility />} />
           <Route path="/dashboard" element={
