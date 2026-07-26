@@ -528,10 +528,11 @@ async function parseScheduleImage(imageBase64, mimeType = 'image/jpeg', captionT
   const groq = getGroq();
   if (!groq) throw new Error('GROQ_API_KEY not configured');
 
+  // meta-llama/llama-4-scout-17b-16e-instruct (deprecated 2026-07-17) and the llama-3.2-*-vision-preview
+  // pair (decommissioned earlier) all stopped working — qwen/qwen3.6-27b is Groq's current vision model
+  // per console.groq.com/docs/vision. No verified second vision model exists to fall back to right now.
   const VISION_MODELS = [
-    'meta-llama/llama-4-scout-17b-16e-instruct',
-    'llama-3.2-90b-vision-preview',
-    'llama-3.2-11b-vision-preview',
+    'qwen/qwen3.6-27b',
   ];
 
   // If caption text is provided (e.g. full Hebrew schedule), use it to get exact times
@@ -567,7 +568,14 @@ async function parseScheduleImage(imageBase64, mimeType = 'image/jpeg', captionT
 
     // A truncated/malformed response shouldn't kill the whole image — fall through to the next model.
     try {
-      const clean = raw.replace(/```json\n?|\n?```/g, '').trim();
+      // qwen/qwen3.6-27b (and other thinking-mode models) prefix the real answer with a
+      // <think>...</think> reasoning block — sometimes containing its own draft ```json fences
+      // before the final one, so this must strip the whole block, not just the outer fences.
+      // Fence regex intentionally does NOT also consume adjacent newlines in the same pattern —
+      // trying to match "```json\n?" as one alternative let a separate "\n?```" alternative win at
+      // an earlier position when the model left multiple blank lines before the fence, stranding
+      // the literal word "json" in front of the JSON (hit for real testing this exact model).
+      const clean = raw.replace(/<think>[\s\S]*?<\/think>/gi, '').replace(/```(?:json)?/gi, '').trim();
       const obj   = JSON.parse(clean);
       console.log(`[Agent] Vision model ${model} parsed ${obj.tournaments?.length || 0} tournaments`);
       return obj.tournaments || [];
