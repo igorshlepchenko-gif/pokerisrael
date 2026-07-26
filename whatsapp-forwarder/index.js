@@ -38,9 +38,10 @@ try {
   process.exit(1);
 }
 
-// QR code display in terminal
-let qrcode;
+// QR code display in terminal + saved as a scannable PNG (easier than reading ASCII art off a screen)
+let qrcode, qrImage;
 try { qrcode = require('qrcode-terminal'); } catch {}
+try { qrImage = require('qrcode'); } catch {}
 
 function normName(s) {
   return (s || '').replace(/[\u{1F000}-\u{1FFFF}]/gu, '').replace(/\s+/g, ' ').trim().toLowerCase();
@@ -108,6 +109,12 @@ async function start() {
       console.log('\n📱 סרוק את קוד ה-QR עם הוואטסאפ שלך:\n');
       if (qrcode) qrcode.generate(qr, { small: true });
       else console.log('QR:', qr.substring(0, 60) + '...');
+      if (qrImage) {
+        const qrPngPath = path.join(__dirname, 'qr.png');
+        qrImage.toFile(qrPngPath, qr, { width: 500 }, (err) => {
+          if (!err) console.log(`   💾 QR נשמר גם כתמונה: ${qrPngPath}`);
+        });
+      }
     }
     if (connection === 'open') {
       const pushname = sock.user?.name || '';

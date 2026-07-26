@@ -12,6 +12,7 @@ server/.env
 
 # WhatsApp forwarder session credentials (sensitive — allows hijacking the linked device)
 whatsapp-forwarder/.auth/
+whatsapp-forwarder/qr.png
 
 # Logs
 server/server.log
