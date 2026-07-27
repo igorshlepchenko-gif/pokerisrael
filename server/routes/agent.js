@@ -227,6 +227,23 @@ router.post('/jokerclub-sync', requireAgentSecret, async (req, res) => {
   }
 });
 
+// POST /api/agent/doubleup-sync — called by local doubleup-scraper script (headless
+// browser scrape of the Doubleup Monday.com schedule form, which has no public API and
+// blocks datacenter IPs via Cloudflare) with parsed tournaments
+router.post('/doubleup-sync', requireAgentSecret, async (req, res) => {
+  try {
+    const { tournaments } = req.body;
+    if (!Array.isArray(tournaments)) return res.status(400).json({ error: 'tournaments array required' });
+
+    const { syncDoubleup } = require('../services/doubleupSync');
+    const result = await syncDoubleup(tournaments);
+    res.json(result);
+  } catch (e) {
+    console.error('[Agent] doubleup-sync error:', e?.message);
+    res.status(500).json({ error: e?.message });
+  }
+});
+
 // POST /api/agent/whatsapp-webhook — shared-secret auth (X-Agent-Secret header).
 // NOTE: if this is ever pointed at a real Twilio/CallMeBot webhook (no evidence one is
 // configured today — the live path is the whatsapp-forwarder script below), that provider

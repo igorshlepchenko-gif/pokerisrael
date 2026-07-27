@@ -1,0 +1,13 @@
+{
+  "name": "doubleup-scraper",
+  "version": "1.0.0",
+  "description": "Headless-browser scrape of the Doubleup Monday.com schedule form → pokerisrael.org sync, once daily at 22:00",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "node-cron": "^4.2.1",
+    "puppeteer": "24.38.0"
+  }
+}
