@@ -106,7 +106,7 @@ export default function VenueMultiSelect({ venues, selected, onChange }) {
 
                     {/* לוגו */}
                     {venue.logo_url
-                      ? <img src={venue.logo_url} alt={venue.name} className="w-7 h-7 rounded-full object-cover shrink-0 ring-1 ring-slate-600" />
+                      ? <img src={venue.logo_url} alt={venue.name} className="w-7 h-7 rounded-full object-contain bg-slate-800 shrink-0 ring-1 ring-slate-600" />
                       : <span className="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center text-sm shrink-0">🏠</span>
                     }
 

@@ -1107,7 +1107,7 @@ export default function Dashboard() {
               <div className="flex items-start gap-3">
                 {/* Logo */}
                 {v.logo_url ? (
-                  <img src={v.logo_url} alt="לוגו" className="w-14 h-14 rounded-xl object-cover shrink-0 border border-slate-700" />
+                  <img src={v.logo_url} alt="לוגו" className="w-14 h-14 rounded-xl object-contain bg-slate-800 shrink-0 border border-slate-700" />
                 ) : (
                   <div className="w-14 h-14 rounded-xl bg-slate-700 flex items-center justify-center text-2xl shrink-0">🏠</div>
                 )}

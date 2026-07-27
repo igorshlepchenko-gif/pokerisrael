@@ -69,7 +69,7 @@ function CommunityAvatar({ community, Icon, color }) {
         src={community.logo}
         alt={community.name}
         onError={() => setImgError(true)}
-        className="w-11 h-11 rounded-xl object-cover border border-slate-700 shrink-0"
+        className="w-11 h-11 rounded-xl object-contain bg-slate-800 border border-slate-700 shrink-0"
       />
     );
   }
