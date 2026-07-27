@@ -224,9 +224,13 @@ async function syncFeed(feed) {
   return result;
 }
 
-// סנכרון כל הפידים הפעילים
+// סנכרון כל הפידים הפעילים — רק source_key='feed' (הפורמט הגנרי של runnerrunner).
+// jokerclub/letspoker חולקות את אותה טבלת feed_sources לצורך מעקב last_synced/last_result
+// בלבד, אבל יש להן פרסר משלהן (jokerClubSync/letsPokerSync) עם קרון נפרד — אילו נכללו כאן
+// syncFeed() היה מנסה לפרש HTML/עמוד SSR שלהן כ-JSON של runnerrunner, נכשל, וכותב שגיאת
+// שווא לתוך last_result שלהן על אף שהסנכרון האמיתי שלהן תקין לגמרי
 async function syncAllFeeds() {
-  const feeds = await pool.query('SELECT * FROM feed_sources WHERE active = true');
+  const feeds = await pool.query("SELECT * FROM feed_sources WHERE active = true AND source_key = 'feed'");
   for (const feed of feeds.rows) {
     try {
       const r = await syncFeed(feed);
