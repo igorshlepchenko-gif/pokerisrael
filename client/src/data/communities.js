@@ -4,13 +4,13 @@
 // (אם logo ריק/חסר, מוצג אייקון הפלטפורמה כברירת מחדל)
 // cta (אופציונלי): טקסט כפתור מותאם אישית (למשל ערוץ שידור שדורש "עקבו" ולא "הצטרפות לקבוצה"). בלי זה, מוצג טקסט ברירת המחדל של הפלטפורמה.
 export const COMMUNITIES = [
-  { id: 'wa-medabrim-poker', name: 'מדברים פוקר', type: 'whatsapp', logo: '', url: 'https://chat.whatsapp.com/BiCSddd7rTiHipg6KDaJsO' },
+  { id: 'wa-medabrim-poker', name: 'מדברים פוקר', type: 'whatsapp', logo: '/communities/medabrim-poker.png', url: 'https://chat.whatsapp.com/BiCSddd7rTiHipg6KDaJsO' },
   { id: 'wa-top-playoff', name: 'עולם הפלייאוף העליון', type: 'whatsapp', cta: 'בקשת הצטרפות', description: 'הקהילה סגורה לחברים שלמדו בפלייאוף', logo: '/communities/top-playoff.jpeg', url: 'https://api.whatsapp.com/send?phone=972545498581&text=שלום,+אני+רוצה+להתחבר+לעולם+הפלייאוף+העליון' },
   { id: 'wa-royal-flush-business', name: 'Royal Flush Business - קהילת העצמאים', type: 'whatsapp', logo: '', url: 'https://chat.whatsapp.com/KNl0cjfrtQDDMeIFKQSBLd' },
-  { id: 'wa-kidrurim-dream-with-me', name: 'Kidrurim - Dream With Me!', type: 'whatsapp', logo: '', url: 'https://chat.whatsapp.com/LF4rfcplQtIEoWUukT5PDO?s=cl&p=i&mlu=4' },
+  { id: 'wa-kidrurim-dream-with-me', name: 'Kidrurim - Dream With Me!', type: 'whatsapp', logo: '/communities/kidrurim.png', url: 'https://chat.whatsapp.com/LF4rfcplQtIEoWUukT5PDO?s=cl&p=i&mlu=4' },
   { id: 'wa-alon-eldar-channel', name: 'הערוץ של אלון אלדר', type: 'whatsapp', cta: 'עקבו אחרי הערוץ', logo: '', url: 'https://whatsapp.com/channel/0029VbAn27jJf05UsbUO451E' },
   { id: 'tg-elkanuts', name: 'אלקנאטס', type: 'telegram', logo: '', url: 'https://t.me/elkanuts' },
   { id: 'fb-pokernet', name: 'פוקרנט - קהילת הפוקר של ישראל', type: 'facebook', logo: '', url: 'https://www.facebook.com/groups/968496560156456' },
   { id: 'fb-poker-israel-ads', name: 'פוקר ישראל בפייסבוק - פרסום משחקי קאש בשקיפות מלאה', type: 'facebook', logo: '/communities/poker-israel-facebook.png', url: 'https://www.facebook.com/groups/173732592641570/?ref=share&mibextid=NSMWBT' },
-  { id: 'yt-poker7-israel', name: 'חדשות פוקר 7', type: 'youtube', logo: '', url: 'https://www.youtube.com/@Poker7.Israel' },
+  { id: 'yt-poker7-israel', name: 'חדשות פוקר 7', type: 'youtube', logo: '/communities/poker7-israel.png', url: 'https://www.youtube.com/@Poker7.Israel' },
 ];
