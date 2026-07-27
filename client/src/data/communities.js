@@ -11,5 +11,6 @@ export const COMMUNITIES = [
   { id: 'wa-alon-eldar-channel', name: 'הערוץ של אלון אלדר', type: 'whatsapp', cta: 'עקבו אחרי הערוץ', logo: '', url: 'https://whatsapp.com/channel/0029VbAn27jJf05UsbUO451E' },
   { id: 'tg-elkanuts', name: 'אלקנאטס', type: 'telegram', logo: '', url: 'https://t.me/elkanuts' },
   { id: 'fb-pokernet', name: 'פוקרנט - קהילת הפוקר של ישראל', type: 'facebook', logo: '', url: 'https://www.facebook.com/groups/968496560156456' },
+  { id: 'fb-poker-israel-ads', name: 'פוקר ישראל בפייסבוק - פרסום משחקי קאש בשקיפות מלאה', type: 'facebook', logo: '/communities/poker-israel-facebook.png', url: 'https://www.facebook.com/groups/173732592641570/?ref=share&mibextid=NSMWBT' },
   { id: 'yt-poker7-israel', name: 'חדשות פוקר 7', type: 'youtube', logo: '', url: 'https://www.youtube.com/@Poker7.Israel' },
 ];

@@ -90,9 +90,9 @@ function CommunityCard({ community }) {
   return (
     <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 flex flex-col gap-3"
       style={{ borderTop: `3px solid ${color}` }}>
-      <div className="flex items-center gap-3">
+      <div className="flex items-start gap-3">
         <CommunityAvatar community={community} Icon={Icon} color={color} />
-        <h3 className="text-base font-black text-white truncate">{community.name}</h3>
+        <h3 className="text-base font-black text-white min-w-0">{community.name}</h3>
       </div>
 
       {community.description && (
