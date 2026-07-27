@@ -7,9 +7,14 @@ const { assertSafeUrl, SAFE_AXIOS } = require('../utils/safeUrl');
 
 const DAY_NAME_MAP = { sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6 };
 
-// מזהה יציב לטורניר בפיד (אין id מובנה) — hash משדות יציבים
+// מזהה יציב לטורניר בפיד (אין id מובנה) — hash משדות יציבים.
+// לא כולל name בכוונה: הפיד עצמו מנסח מחדש את אותו אירוע חוזר בניסוחים שונים בין
+// ריצות (למשל "טורניר באר שבע - באונטי" מול "באר שבע - באונטי" לאותו תאריך/שעה/מארח
+// בדיוק) — כשname היה חלק מהמפתח, כל ניסוח חדש יצר שורה כפולה במקום לעדכן את הקיימת,
+// וה-guard נגד מחיקה חשודה (למטה) חסם כל ניקוי כי רוב השורות "נראו" כאילו ירדו מהפיד
+// בכל ריצה. date+start_time+host נשארו יציבים בכל המקרים שנצפו בפועל.
 function makeExternalId(t) {
-  const key = [t.name, t.date, t.start_time, t.host?.name].join('|');
+  const key = [t.date, t.start_time, t.host?.name].join('|');
   return crypto.createHash('sha256').update(key).digest('hex').slice(0, 32);
 }
 
