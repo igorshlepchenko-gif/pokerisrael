@@ -12,6 +12,13 @@ Set-Location $PSScriptRoot
 $envLine = Get-Content "$PSScriptRoot\..\server\.env" | Where-Object { $_ -match '^AGENT_SECRET=' }
 $env:AGENT_SECRET = ($envLine -replace '^AGENT_SECRET=', '') -replace '^"|"$', ''
 
+# Restrict to SUITS + HOUSE only, per explicit user request 2026-07-26 — was previously
+# unfiltered (listening to every group the account is in), which is what let an unrelated
+# club's casual chat land in the manual-review queue. Substrings, not full names, to sidestep
+# the emoji/symbol characters in the real group names ("SUITS - The Mind's Playground ♣️",
+# "האוס אירועים House ♦️") — matching is substring-based (see GROUP_FILTER in index.js).
+$env:GROUPS = "suits,house"
+
 $logFile = Join-Path $PSScriptRoot 'forwarder.log'
 Start-Transcript -Path $logFile -Append | Out-Null
 
