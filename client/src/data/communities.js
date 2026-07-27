@@ -5,6 +5,7 @@
 // cta (אופציונלי): טקסט כפתור מותאם אישית (למשל ערוץ שידור שדורש "עקבו" ולא "הצטרפות לקבוצה"). בלי זה, מוצג טקסט ברירת המחדל של הפלטפורמה.
 export const COMMUNITIES = [
   { id: 'wa-medabrim-poker', name: 'מדברים פוקר', type: 'whatsapp', logo: '', url: 'https://chat.whatsapp.com/BiCSddd7rTiHipg6KDaJsO' },
+  { id: 'wa-top-playoff', name: 'עולם הפלייאוף העליון', type: 'whatsapp', cta: 'בקשת הצטרפות', description: 'הקהילה סגורה לחברים שלמדו בפלייאוף', logo: '/communities/top-playoff.jpeg', url: 'https://api.whatsapp.com/send?phone=972545498581&text=שלום,+אני+רוצה+להתחבר+לעולם+הפלייאוף+העליון' },
   { id: 'wa-royal-flush-business', name: 'Royal Flush Business - קהילת העצמאים', type: 'whatsapp', logo: '', url: 'https://chat.whatsapp.com/KNl0cjfrtQDDMeIFKQSBLd' },
   { id: 'wa-kidrurim-dream-with-me', name: 'Kidrurim - Dream With Me!', type: 'whatsapp', logo: '', url: 'https://chat.whatsapp.com/LF4rfcplQtIEoWUukT5PDO?s=cl&p=i&mlu=4' },
   { id: 'wa-alon-eldar-channel', name: 'הערוץ של אלון אלדר', type: 'whatsapp', cta: 'עקבו אחרי הערוץ', logo: '', url: 'https://whatsapp.com/channel/0029VbAn27jJf05UsbUO451E' },
