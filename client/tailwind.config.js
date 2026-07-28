@@ -6,6 +6,7 @@ export default {
     extend: {
       fontFamily: {
         sans: ['Heebo', 'sans-serif'],
+        mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
       },
       colors: {
         poker: {

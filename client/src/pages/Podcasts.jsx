@@ -65,7 +65,7 @@ function PodcastCard({ podcast }) {
   const activeLinks = LINKS.filter(l => podcast[l.key]);
 
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900/60 overflow-hidden">
+    <div className="rounded-2xl border border-slate-800 bg-slate-900/60 overflow-hidden transition-all duration-300 hover:border-slate-600 hover:shadow-2xl hover:shadow-poker-green/10">
       {/* Header */}
       <div className="flex items-center justify-between gap-3 p-5 border-b border-slate-800"
         style={{ borderTop: `3px solid ${podcast.color}` }}>
@@ -115,11 +115,37 @@ export default function Podcasts() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-200" dir="rtl">
       {/* Header */}
-      <div className="border-b border-blue-500/20 bg-gradient-to-b from-slate-900 to-slate-950">
-        <div className="max-w-4xl mx-auto px-4 py-10 text-center">
-          <div className="text-4xl mb-3">🎙️</div>
-          <h1 className="text-3xl sm:text-4xl font-black text-white mb-2">פודקאסטים</h1>
-          <p className="text-slate-400 text-sm">האזינו לפודקאסטים המובילים על פוקר בישראל — ישירות כאן, בלי לצאת מהאתר</p>
+      <div className="max-w-4xl mx-auto px-4 pt-10 pb-2">
+        <div className="always-dark relative overflow-hidden rounded-3xl border border-blue-500/20 bg-hero-gradient">
+          {/* Ambient glow orbs */}
+          <div className="absolute inset-0 pointer-events-none select-none overflow-hidden">
+            <div className="absolute -top-10 left-10 w-48 h-48 rounded-full opacity-[0.15]"
+              style={{ background: 'radial-gradient(circle, #22d3ee, transparent)' }} />
+            <div className="absolute -bottom-10 right-10 w-40 h-40 rounded-full opacity-[0.12]"
+              style={{ background: 'radial-gradient(circle, #1d4ed8, transparent)' }} />
+          </div>
+
+          <div className="relative px-6 py-10 text-center">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl flex items-center justify-center text-3xl bg-poker-cyan/10 border border-poker-cyan/25">
+              🎙️
+            </div>
+            <h1 className="text-3xl sm:text-4xl font-black mb-2">
+              <span style={{
+                background: 'linear-gradient(135deg, #60a5fa, #22d3ee)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+              }}>
+                פודקאסטים
+              </span>
+            </h1>
+            <p className="text-slate-400 text-sm">האזינו לפודקאסטים המובילים על פוקר בישראל — ישירות כאן, בלי לצאת מהאתר</p>
+            {PODCASTS.length > 0 && (
+              <p className="mt-4 text-xs text-slate-500">
+                <span className="font-mono tabular-nums font-bold text-poker-green-light">{PODCASTS.length}</span> פודקאסטים זמינים להאזנה
+              </p>
+            )}
+          </div>
         </div>
       </div>
 

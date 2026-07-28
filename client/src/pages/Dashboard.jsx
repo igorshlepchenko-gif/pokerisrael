@@ -84,7 +84,7 @@ function VideoManager({ venue }) {
                   <div className="h-2 bg-slate-700 rounded-full mb-2 overflow-hidden">
                     <div className="h-full bg-poker-gold transition-all duration-300 rounded-full" style={{ width: `${progress}%` }} />
                   </div>
-                  <p className="text-sm text-amber-400">מעלה... {progress}%</p>
+                  <p className="text-sm text-amber-400">מעלה... <span className="font-mono tabular-nums">{progress}%</span></p>
                 </div>
               ) : (
                 <>
@@ -107,7 +107,7 @@ function VideoManager({ venue }) {
                   <video src={v.video_url} className="w-20 h-12 rounded object-cover bg-black" controls />
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-semibold text-slate-200 truncate">{v.title || 'ללא שם'}</p>
-                    <p className="text-[10px] text-slate-500">{new Date(v.created_at).toLocaleDateString('he-IL')}</p>
+                    <p className="text-[10px] text-slate-500 font-mono tabular-nums">{new Date(v.created_at).toLocaleDateString('he-IL')}</p>
                   </div>
                   <button onClick={() => deleteVideo(v.id)}
                     className="text-red-400 hover:text-red-300 text-xs p-1 shrink-0">🗑️</button>
@@ -207,7 +207,7 @@ function BulkUploader({ venues, onSuccess }) {
               {file ? (
                 <div className="flex items-center justify-center gap-2 text-poker-green-light font-semibold text-sm">
                   📄 {file.name}
-                  <span className="text-slate-500 text-xs">({(file.size / 1024).toFixed(0)} KB)</span>
+                  <span className="text-slate-500 text-xs font-mono tabular-nums">({(file.size / 1024).toFixed(0)} KB)</span>
                 </div>
               ) : (
                 <>
@@ -660,18 +660,18 @@ export default function Dashboard() {
                       <span className="text-[10px] bg-slate-700/80 text-slate-400 px-1.5 py-0.5 rounded-full border border-slate-600">🕐 עבר</span>
                     )}
                     {t.re_entry && (
-                      <span className="text-[10px] bg-emerald-900/30 text-emerald-400 px-1.5 py-0.5 rounded-full">🔄 {t.re_entry}</span>
+                      <span className="text-[10px] bg-emerald-900/30 text-emerald-400 px-1.5 py-0.5 rounded-full">🔄 <span className="font-mono tabular-nums">{t.re_entry}</span></span>
                     )}
                   </div>
                   <p className="text-sm text-slate-400 mt-1">
-                    {t.venue_name} · {formatDate(eventDisplayDate(t))} · {formatTime(eventDisplayDate(t))}
+                    {t.venue_name} · {formatDate(eventDisplayDate(t))} · <span className="font-mono tabular-nums">{formatTime(eventDisplayDate(t))}</span>
                     {t.is_recurring && t.day_of_week !== null && (
                       <span className="text-poker-gold"> · כל יום {DAYS_HE[t.day_of_week]}</span>
                     )}
                   </p>
-                  <p className="text-sm text-poker-gold font-semibold">{formatCost(t.cost)}</p>
+                  <p className="text-sm text-poker-gold font-semibold font-mono tabular-nums">{formatCost(t.cost)}</p>
                   {t.is_recurring && Array.isArray(t.skipped_dates) && t.skipped_dates.length > 0 && (
-                    <p className="text-xs text-amber-400 mt-1">⏭️ {t.skipped_dates.length} מופעים מדולגים ·
+                    <p className="text-xs text-amber-400 mt-1">⏭️ <span className="font-mono tabular-nums">{t.skipped_dates.length}</span> מופעים מדולגים ·
                       <button onClick={() => handleClearSkips(t.id)} className="underline hover:text-amber-300 mr-1">בטל דילוגים</button>
                     </p>
                   )}
@@ -919,7 +919,7 @@ export default function Dashboard() {
                           <div key={f.id} className="text-xs space-y-1 border-t border-emerald-500/10 pt-2 first:border-0 first:pt-0">
                             <p className="text-slate-300 break-all" dir="ltr">{f.url}</p>
                             <p className="text-slate-500">
-                              {f.last_synced ? `סונכרן לאחרונה: ${new Date(f.last_synced).toLocaleString('he-IL')}` : 'טרם סונכרן'}
+                              {f.last_synced ? <>סונכרן לאחרונה: <span className="font-mono tabular-nums">{new Date(f.last_synced).toLocaleString('he-IL')}</span></> : 'טרם סונכרן'}
                               {f.last_result ? ` · ${f.last_result}` : ''}
                             </p>
                             <div className="flex gap-2">
@@ -970,7 +970,7 @@ export default function Dashboard() {
                 {aiImportResult && (
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <p className="text-green-400 font-bold">✅ נמצאו {aiImportResult.length} טורנירים</p>
+                      <p className="text-green-400 font-bold">✅ נמצאו <span className="font-mono tabular-nums">{aiImportResult.length}</span> טורנירים</p>
                       <button onClick={() => { setAiImportResult(null); setAiImportFile(null); setAiImportPreview(null); }}
                         className="text-xs text-slate-500 hover:text-slate-300">↩ {aiImportMode === 'url' ? 'קישור אחר' : 'תמונה אחרת'}</button>
                     </div>
@@ -997,10 +997,10 @@ export default function Dashboard() {
                             <input type="checkbox" checked={edit.selected !== false}
                               onChange={e => setAiImportEdits(p => ({ ...p, [i]: { ...p[i], selected: e.target.checked } }))}
                               className="w-4 h-4 rounded accent-blue-500" />
-                            <span className="text-xs font-bold text-blue-400">{Math.round((t.confidence||0)*100)}% ביטחון</span>
+                            <span className="text-xs font-bold text-blue-400"><span className="font-mono tabular-nums">{Math.round((t.confidence||0)*100)}%</span> ביטחון</span>
                             {t.host_name && <span className="text-[11px] text-slate-500">🏠 מקור: {t.host_name}</span>}
                             {Array.isArray(t.stages) && t.stages.length > 0 && (
-                              <span className="text-[11px] text-emerald-400/80">🎚️ {t.stages.filter(s => s.type !== 'break').length} שלבים</span>
+                              <span className="text-[11px] text-emerald-400/80">🎚️ <span className="font-mono tabular-nums">{t.stages.filter(s => s.type !== 'break').length}</span> שלבים</span>
                             )}
                           </div>
                           <div className="grid grid-cols-2 gap-2">
@@ -1035,7 +1035,7 @@ export default function Dashboard() {
                       ? <p className="text-green-400 font-bold text-center py-2">{aiImportDone}</p>
                       : <button onClick={handleAiConfirm} disabled={aiImportSaving}
                           className="btn-primary w-full text-base py-3">
-                          {aiImportSaving ? '⏳ יוצר טורנירים...' : `✅ צור ${Object.values(aiImportEdits).filter(t=>t.selected!==false).length} טורנירים`}
+                          {aiImportSaving ? '⏳ יוצר טורנירים...' : <>✅ צור <span className="font-mono tabular-nums">{Object.values(aiImportEdits).filter(t=>t.selected!==false).length}</span> טורנירים</>}
                         </button>
                     }
                   </div>
@@ -1127,13 +1127,13 @@ export default function Dashboard() {
                   </div>
                   {v.venue_type === 'online' ? (
                     <>
-                      <p className="text-sm text-slate-400">💻 מועדון אונליין · מספר: <span className="text-slate-200 font-semibold">{v.club_number}</span></p>
-                      {v.agent_number && <p className="text-sm text-slate-400">🪪 סוכן: {v.agent_number}</p>}
+                      <p className="text-sm text-slate-400">💻 מועדון אונליין · מספר: <span className="text-slate-200 font-semibold font-mono tabular-nums">{v.club_number}</span></p>
+                      {v.agent_number && <p className="text-sm text-slate-400">🪪 סוכן: <span className="font-mono tabular-nums">{v.agent_number}</span></p>}
                     </>
                   ) : (
                     <p className="text-sm text-slate-400">📍 {v.address}, {v.city}</p>
                   )}
-                  <p className="text-sm text-slate-400">📱 {v.whatsapp_number}</p>
+                  <p className="text-sm text-slate-400">📱 <span className="font-mono tabular-nums">{v.whatsapp_number}</span></p>
 
                   {/* AI Import + Brand buttons — only for approved venues */}
                   {v.is_approved && (

@@ -56,18 +56,18 @@ function ChangeLogRow({ log }) {
         <div className="flex items-center gap-3 flex-wrap min-w-0">
           <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-slate-700 text-slate-300 shrink-0">{typeLabel}</span>
           <span className="font-semibold text-slate-100 truncate">{log.entity_name}</span>
-          <span className="text-xs text-slate-500">#{log.entity_id}</span>
+          <span className="text-xs text-slate-500 font-mono tabular-nums">#{log.entity_id}</span>
           <span className="text-xs bg-blue-900/30 text-blue-400 px-2 py-0.5 rounded-full shrink-0">{actionLabel}</span>
           {diffs.length > 0 && (
             <span className="text-xs bg-amber-900/30 text-amber-400 px-2 py-0.5 rounded-full shrink-0">
-              {diffs.length} שינויים
+              <span className="font-mono tabular-nums">{diffs.length}</span> שינויים
             </span>
           )}
         </div>
         <div className="flex items-center gap-3 shrink-0">
           <div className="text-left">
             <p className="text-xs text-slate-400">{log.changed_by_name}</p>
-            <p className="text-xs text-slate-500">{dateStr}</p>
+            <p className="text-xs text-slate-500 font-mono tabular-nums">{dateStr}</p>
           </div>
           <span className="text-slate-500 text-sm">{open ? '▲' : '▼'}</span>
         </div>
@@ -356,7 +356,7 @@ export default function AdminPanel() {
       <div className="flex items-center gap-3 mb-6">
         <h1 className="text-2xl font-black text-white">⚙️ פנל ניהול</h1>
         {totalPending > 0 && (
-          <span className="bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
+          <span className="bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center font-mono tabular-nums">
             {totalPending}
           </span>
         )}
@@ -399,12 +399,12 @@ export default function AdminPanel() {
                           <div>
                             <h3 className="font-bold text-slate-100">{v.name}</h3>
                             {v.venue_type === 'online' ? (
-                              <p className="text-sm text-slate-400">💻 מועדון אונליין · מספר: <span className="text-slate-200 font-semibold">{v.club_number}</span>{v.agent_number ? ` · סוכן: ${v.agent_number}` : ''}</p>
+                              <p className="text-sm text-slate-400">💻 מועדון אונליין · מספר: <span className="text-slate-200 font-semibold font-mono tabular-nums">{v.club_number}</span>{v.agent_number ? <> · סוכן: <span className="font-mono tabular-nums">{v.agent_number}</span></> : ''}</p>
                             ) : (
                               <p className="text-sm text-slate-400">📍 {v.address}, {v.city}</p>
                             )}
                             <p className="text-sm text-slate-400">📱 {v.whatsapp_number}</p>
-                            <p className="text-xs text-slate-500 mt-1">בעלים: {v.owner_name} · {v.owner_email} · {v.owner_phone}</p>
+                            <p className="text-xs text-slate-500 mt-1">בעלים: {v.owner_name} · {v.owner_email} · <span className="font-mono tabular-nums">{v.owner_phone}</span></p>
                             {v.description && <p className="text-sm text-slate-400 mt-1">{v.description}</p>}
                           </div>
                           <div className="flex gap-2">
@@ -430,8 +430,8 @@ export default function AdminPanel() {
                         <div className="flex items-start justify-between flex-wrap gap-3">
                           <div>
                             <h3 className="font-bold text-slate-100">{t.name}</h3>
-                            <p className="text-sm text-slate-400">{t.venue_name} · {formatDate(t.start_time)} {formatTime(t.start_time)}</p>
-                            <p className="text-sm text-poker-gold">{formatCost(t.cost)}</p>
+                            <p className="text-sm text-slate-400">{t.venue_name} · <span className="font-mono tabular-nums">{formatDate(t.start_time)} {formatTime(t.start_time)}</span></p>
+                            <p className="text-sm text-poker-gold font-mono tabular-nums">{formatCost(t.cost)}</p>
                             <p className="text-xs text-slate-500 mt-1">הוזן ע"י: {t.owner_name}</p>
                             {t.description && <p className="text-sm text-slate-400 mt-1 line-clamp-2">{t.description}</p>}
                           </div>
@@ -510,16 +510,16 @@ export default function AdminPanel() {
                         </span>
                       </div>
                       {v.venue_type === 'online' ? (
-                        <p className="text-base text-slate-300">💻 מועדון אונליין · מספר: <span className="font-bold">{v.club_number}</span>{v.agent_number ? ` · סוכן: ${v.agent_number}` : ''}</p>
+                        <p className="text-base text-slate-300">💻 מועדון אונליין · מספר: <span className="font-bold font-mono tabular-nums">{v.club_number}</span>{v.agent_number ? <> · סוכן: <span className="font-mono tabular-nums">{v.agent_number}</span></> : ''}</p>
                       ) : (
                         <p className="text-base text-slate-300">📍 {v.address}, {v.city}</p>
                       )}
-                      <p className="text-base text-slate-300">📱 {v.whatsapp_number}</p>
+                      <p className="text-base text-slate-300 font-mono tabular-nums">📱 {v.whatsapp_number}</p>
                       <p className="text-sm text-slate-500 pt-1">
                         👤 בעלים: <span className="text-slate-400">{v.owner_name}</span>
                         <span className="mx-2">·</span>
                         <span className="text-slate-400">{v.owner_email}</span>
-                        {v.owner_phone && <><span className="mx-2">·</span><span className="text-slate-400">{v.owner_phone}</span></>}
+                        {v.owner_phone && <><span className="mx-2">·</span><span className="text-slate-400 font-mono tabular-nums">{v.owner_phone}</span></>}
                       </p>
                       {v.description && (
                         <p className="text-sm text-slate-400 bg-slate-800/50 rounded-lg px-3 py-2 mt-1">{v.description}</p>
@@ -579,7 +579,7 @@ export default function AdminPanel() {
                           <span className="text-[10px] bg-slate-700/80 text-slate-400 px-1.5 py-0.5 rounded-full border border-slate-600">🕐 עבר</span>
                         )}
                       </div>
-                      <p className="text-sm text-slate-400">{t.venue_name} · {formatDate(t.start_time)} {formatTime(t.start_time)} · {formatCost(t.cost)}</p>
+                      <p className="text-sm text-slate-400">{t.venue_name} · <span className="font-mono tabular-nums">{formatDate(t.start_time)} {formatTime(t.start_time)} · {formatCost(t.cost)}</span></p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0 flex-wrap">
                       {/* Edit toggle */}
@@ -679,7 +679,7 @@ export default function AdminPanel() {
                 >
                   📊 ייצוא לאקסל
                 </button>
-                <span className="text-xs text-slate-500 shrink-0">{regTotal} הרשמות סה"כ</span>
+                <span className="text-xs text-slate-500 shrink-0"><span className="font-mono tabular-nums">{regTotal}</span> הרשמות סה"כ</span>
               </div>
 
               {registrations.length === 0 ? (
@@ -705,17 +705,17 @@ export default function AdminPanel() {
                       {registrations.map((r, i) => (
                         <tr key={r.id}
                           className={`border-t border-slate-700/50 hover:bg-slate-700/20 transition-colors ${i % 2 === 0 ? '' : 'bg-slate-800/30'}`}>
-                          <td className="py-3 px-4 text-slate-400 text-xs whitespace-nowrap">
+                          <td className="py-3 px-4 text-slate-400 text-xs whitespace-nowrap font-mono tabular-nums">
                             {new Date(r.created_at).toLocaleString('he-IL', {
                               day: '2-digit', month: '2-digit', year: '2-digit',
                               hour: '2-digit', minute: '2-digit',
                             })}
                           </td>
                           <td className="py-3 px-4 font-semibold text-slate-100">{r.registrant_name}</td>
-                          <td className="py-3 px-4 text-slate-400 dir-ltr text-left">{r.registrant_phone || '—'}</td>
+                          <td className="py-3 px-4 text-slate-400 dir-ltr text-left font-mono tabular-nums">{r.registrant_phone || '—'}</td>
                           <td className="py-3 px-4 text-slate-300">{r.tournament_name}</td>
                           <td className="py-3 px-4 text-poker-green-light">{r.venue_name}</td>
-                          <td className="py-3 px-4 text-slate-400 text-xs whitespace-nowrap">
+                          <td className="py-3 px-4 text-slate-400 text-xs whitespace-nowrap font-mono tabular-nums">
                             {r.tournament_date
                               ? new Date(r.tournament_date).toLocaleString('he-IL', {
                                   day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
@@ -729,7 +729,7 @@ export default function AdminPanel() {
                   {registrations.length < regTotal && (
                     <div className="p-3 text-center border-t border-slate-700">
                       <button onClick={() => fetchData({ offset: regOffset + 200 })} className="btn-ghost text-sm px-5">
-                        טען עוד ({registrations.length} מתוך {regTotal})
+                        טען עוד (<span className="font-mono tabular-nums">{registrations.length}</span> מתוך <span className="font-mono tabular-nums">{regTotal}</span>)
                       </button>
                     </div>
                   )}
@@ -807,7 +807,7 @@ export default function AdminPanel() {
               </div>
 
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs text-slate-500">{changeLogsTotal} רשומות סה״כ · מוצגות {changeLogs.length}</span>
+                <span className="text-xs text-slate-500"><span className="font-mono tabular-nums">{changeLogsTotal}</span> רשומות סה״כ · מוצגות <span className="font-mono tabular-nums">{changeLogs.length}</span></span>
                 {(clEntityType || clAction || clDateFrom || clDateTo || clSearch) && (
                   <button onClick={() => { setClEntityType(''); setClAction(''); setClDateFrom(''); setClDateTo(''); setClSearch(''); setClSearchInput(''); }}
                     className="text-xs text-amber-400 hover:text-amber-300">↺ אפס הכל</button>
@@ -828,7 +828,7 @@ export default function AdminPanel() {
                   {changeLogs.length < changeLogsTotal && (
                     <div className="p-3 text-center">
                       <button onClick={() => fetchData({ offset: clOffset + 200 })} className="btn-ghost text-sm px-5">
-                        טען עוד ({changeLogs.length} מתוך {changeLogsTotal})
+                        טען עוד (<span className="font-mono tabular-nums">{changeLogs.length}</span> מתוך <span className="font-mono tabular-nums">{changeLogsTotal}</span>)
                       </button>
                     </div>
                   )}
@@ -852,10 +852,10 @@ export default function AdminPanel() {
                 </div>
                 <div className="flex items-center gap-2 mt-3 flex-wrap" dir="rtl">
                   <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                    ✅ {users.filter(u => u.hand_logger_access).length} משתמשים עם גישה
+                    ✅ <span className="font-mono tabular-nums">{users.filter(u => u.hand_logger_access).length}</span> משתמשים עם גישה
                   </span>
                   <span className="px-3 py-1 rounded-full text-xs font-bold bg-slate-700 text-slate-400">
-                    {users.filter(u => !u.hand_logger_access && u.role !== 'admin').length} ללא גישה
+                    <span className="font-mono tabular-nums">{users.filter(u => !u.hand_logger_access && u.role !== 'admin').length}</span> ללא גישה
                   </span>
                 </div>
               </div>
@@ -1092,7 +1092,7 @@ export default function AdminPanel() {
                   <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-5 space-y-3">
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-amber-400 font-bold bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
-                        {pendingImports.length} ממתינים
+                        <span className="font-mono tabular-nums">{pendingImports.length}</span> ממתינים
                       </span>
                       <h3 className="text-base font-black text-white">⏳ ממתינים לאישורך</h3>
                     </div>
@@ -1113,13 +1113,13 @@ export default function AdminPanel() {
                                 <span className="text-sm font-bold text-white">
                                   {d.name || '(שם לא זוהה)'}
                                 </span>
-                                {d.date && <span className="text-xs text-slate-400">📅 {d.date}{d.start_time ? ` ${d.start_time}` : ''}</span>}
-                                {d.cost && <span className="text-xs text-slate-400">💰 ₪{d.cost}</span>}
-                                {d.gtd  && <span className="text-xs text-slate-400">🏆 GTD ₪{d.gtd}</span>}
+                                {d.date && <span className="text-xs text-slate-400 font-mono tabular-nums">📅 {d.date}{d.start_time ? ` ${d.start_time}` : ''}</span>}
+                                {d.cost && <span className="text-xs text-slate-400 font-mono tabular-nums">💰 ₪{d.cost}</span>}
+                                {d.gtd  && <span className="text-xs text-slate-400 font-mono tabular-nums">🏆 GTD ₪{d.gtd}</span>}
                               </div>
                               <div className="flex items-center gap-2">
                                 <span className="text-xs">{srcIcon}</span>
-                                <span className={`text-xs px-2 py-0.5 rounded-full border font-bold ${confColor}`}>
+                                <span className={`text-xs px-2 py-0.5 rounded-full border font-bold font-mono tabular-nums ${confColor}`}>
                                   {conf}%
                                 </span>
                               </div>
@@ -1223,7 +1223,7 @@ export default function AdminPanel() {
                     className="w-full px-4 py-3 rounded-2xl bg-slate-900 border border-slate-700 text-slate-200 text-sm text-right resize-none focus:border-blue-500 focus:outline-none leading-relaxed"
                   />
                   <div className="flex justify-between items-center mt-2">
-                    <span className="text-xs text-slate-600">{importText.length} / 8000 תווים</span>
+                    <span className="text-xs text-slate-600"><span className="font-mono tabular-nums">{importText.length} / 8000</span> תווים</span>
                     <button
                       onClick={handleParse}
                       disabled={importParsing || importText.trim().length < 15}
@@ -1250,7 +1250,7 @@ export default function AdminPanel() {
                   <div className="rounded-xl bg-emerald-900/20 border border-emerald-500/30 px-4 py-4 text-center">
                     <div className="text-2xl mb-1">✅</div>
                     <p className="text-emerald-300 font-black text-lg">הטורניר נוצר בהצלחה!</p>
-                    <p className="text-slate-400 text-sm mt-1">מזהה: #{importDone.tournament_id}</p>
+                    <p className="text-slate-400 text-sm mt-1">מזהה: <span className="font-mono tabular-nums">#{importDone.tournament_id}</span></p>
                     <button onClick={() => setImportDone(null)}
                       className="mt-3 px-4 py-1.5 rounded-lg border border-emerald-500/30 text-emerald-400 text-sm hover:bg-emerald-500/10 transition-all">
                       ייבוא נוסף
@@ -1267,7 +1267,7 @@ export default function AdminPanel() {
                         ${(importResult.parsed.confidence || 0) >= 0.8
                           ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
                           : 'bg-amber-500/20 text-amber-300 border-amber-500/30'}`}>
-                        {Math.round((importResult.parsed.confidence || 0) * 100)}% ביטחון
+                        <span className="font-mono tabular-nums">{Math.round((importResult.parsed.confidence || 0) * 100)}%</span> ביטחון
                       </span>
                       <h3 className="text-sm font-black text-white">✏️ עריכה לפני אישור</h3>
                     </div>
@@ -1377,7 +1377,7 @@ export default function AdminPanel() {
                               <span className="text-xs text-slate-500">Forwarder מקומי פעיל</span>
                             </div>
                             {fwd.info?.pushname && (
-                              <div className="text-xs text-slate-400">{fwd.info.pushname} · {fwd.info.number}</div>
+                              <div className="text-xs text-slate-400">{fwd.info.pushname} · <span className="font-mono tabular-nums">{fwd.info.number}</span></div>
                             )}
                             <p className="text-xs text-slate-500 mt-1">
                               הוואטסאפ מחובר דרך המחשב שלך. כשהסקריפט <code className="bg-slate-800 px-1 rounded">whatsapp-forwarder/index.js</code> פועל — ההודעות מגיעות לשרת אוטומטית.
@@ -1403,7 +1403,7 @@ export default function AdminPanel() {
                               <div>
                                 <span className={`text-sm font-bold ${ui.color}`}>{ui.icon} WhatsApp: {ui.label}</span>
                                 {waStatus?.info?.pushname && (
-                                  <div className="text-xs text-slate-500">{waStatus.info.pushname} · {waStatus.info.number}</div>
+                                  <div className="text-xs text-slate-500">{waStatus.info.pushname} · <span className="font-mono tabular-nums">{waStatus.info.number}</span></div>
                                 )}
                               </div>
                             </div>
@@ -1473,8 +1473,8 @@ export default function AdminPanel() {
                           </div>
                           <div className="text-right">
                             <div className="text-sm font-bold text-slate-200">{s.name}</div>
-                            <div className="text-xs text-slate-500 font-mono">{s.platform} · {s.identifier}</div>
-                            {s.last_checked && <div className="text-xs text-slate-600">נסרק: {new Date(s.last_checked).toLocaleString('he-IL')}</div>}
+                            <div className="text-xs text-slate-500 font-mono tabular-nums">{s.platform} · {s.identifier}</div>
+                            {s.last_checked && <div className="text-xs text-slate-600">נסרק: <span className="font-mono tabular-nums">{new Date(s.last_checked).toLocaleString('he-IL')}</span></div>}
                           </div>
                           <span className="text-lg">{s.platform === 'telegram' ? '💬' : s.platform === 'website' ? '🌐' : '📱'}</span>
                         </div>
@@ -1501,7 +1501,7 @@ export default function AdminPanel() {
                     <div className="space-y-2">
                       {importHistory.slice(0, 8).map(imp => (
                         <div key={imp.id} className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-slate-800/40 border border-slate-700/60 text-sm">
-                          <div className="text-slate-500 text-xs">
+                          <div className="text-slate-500 text-xs font-mono tabular-nums">
                             {new Date(imp.created_at).toLocaleDateString('he-IL')}
                           </div>
                           <div className="flex-1 text-slate-300 text-right truncate">
@@ -1525,7 +1525,7 @@ export default function AdminPanel() {
                 <div className="bg-red-900/20 border border-red-700/40 rounded-xl px-4 py-3 flex items-center gap-2 mb-4">
                   <span className="text-red-400 text-lg">🔒</span>
                   <span className="text-red-300 text-sm font-semibold">
-                    {lockedCount} {lockedCount === 1 ? 'חשבון ננעל' : 'חשבונות ננעלו'} עקב ניסיונות התחברות כושלים מרובים
+                    <span className="font-mono tabular-nums">{lockedCount}</span> {lockedCount === 1 ? 'חשבון ננעל' : 'חשבונות ננעלו'} עקב ניסיונות התחברות כושלים מרובים
                   </span>
                 </div>
               )}
@@ -1547,15 +1547,15 @@ export default function AdminPanel() {
                         <span className="badge-status text-red-400 bg-red-900/20">מושבת</span>
                       )}
                     </div>
-                    <p className="text-sm text-slate-400">{u.email} · {u.phone}</p>
+                    <p className="text-sm text-slate-400">{u.email} · <span className="font-mono tabular-nums">{u.phone}</span></p>
                     {u.is_locked && u.locked_at && (
                       <p className="text-xs text-red-400/70 mt-0.5">
-                        ננעל ב־{new Date(u.locked_at).toLocaleString('he-IL')} · {u.failed_login_attempts} ניסיונות כושלים
+                        ננעל ב־<span className="font-mono tabular-nums">{new Date(u.locked_at).toLocaleString('he-IL')}</span> · <span className="font-mono tabular-nums">{u.failed_login_attempts}</span> ניסיונות כושלים
                       </p>
                     )}
                     {!u.is_locked && u.failed_login_attempts > 0 && (
                       <p className="text-xs text-amber-400/70 mt-0.5">
-                        ⚠️ {u.failed_login_attempts} ניסיונות כושלים
+                        ⚠️ <span className="font-mono tabular-nums">{u.failed_login_attempts}</span> ניסיונות כושלים
                       </p>
                     )}
                   </div>

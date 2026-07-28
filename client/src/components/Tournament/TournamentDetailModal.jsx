@@ -141,7 +141,7 @@ export default function TournamentDetailModal({ tournament: t, onClose, brands =
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-slate-900/60 rounded-xl p-3 text-center">
               <div className="text-[11px] text-slate-500 mb-1">📅 {t.is_recurring ? 'המופע הבא' : 'התחלה'}</div>
-              <div className="font-black text-poker-green-light text-2xl leading-none">{formatTime(eventDisplayDate(t))}</div>
+              <div className="font-black text-poker-green-light text-2xl leading-none font-mono tabular-nums">{formatTime(eventDisplayDate(t))}</div>
               <div className="text-xs text-slate-400 mt-1">{formatDate(eventDisplayDate(t))}</div>
               {t.is_recurring && t.day_of_week !== null && (
                 <div className="text-[11px] text-poker-gold mt-1 font-semibold">כל יום {DAYS_HE[t.day_of_week]}</div>
@@ -149,7 +149,7 @@ export default function TournamentDetailModal({ tournament: t, onClose, brands =
             </div>
             <div className="bg-slate-900/60 rounded-xl p-3 text-center">
               <div className="text-[11px] text-slate-500 mb-1">🏁 סיום משוער</div>
-              <div className="font-black text-slate-300 text-2xl leading-none">
+              <div className="font-black text-slate-300 text-2xl leading-none font-mono tabular-nums">
                 {t.estimated_end_time ? formatTime(t.estimated_end_time) : '—'}
               </div>
             </div>
@@ -158,16 +158,16 @@ export default function TournamentDetailModal({ tournament: t, onClose, brands =
           {/* Cost + stack + level badges */}
           <div className="flex flex-wrap gap-2">
             <span className="bg-slate-700/80 text-poker-gold font-black text-base px-4 py-2 rounded-xl border border-slate-600">
-              💰 {t.game_type ? 'כניסה מינ׳: ' : ''}{formatCost(t.cost)}
+              💰 {t.game_type ? 'כניסה מינ׳: ' : ''}<span className="font-mono tabular-nums">{formatCost(t.cost)}</span>
             </span>
             {t.rake != null && t.rake !== '' && (
               <span className="bg-slate-700/80 text-slate-200 px-3 py-2 rounded-xl font-bold text-sm border border-slate-600">
-                RAKE: {t.rake_type === 'percent' ? `${t.rake}%` : `₪${Number(t.rake).toLocaleString('he-IL')}`}
+                RAKE: <span className="font-mono tabular-nums">{t.rake_type === 'percent' ? `${t.rake}%` : `₪${Number(t.rake).toLocaleString('he-IL')}`}</span>
               </span>
             )}
             {t.gtd > 0 && (
               <span className="bg-amber-500/15 text-amber-300 border border-amber-500/40 px-3 py-2 rounded-xl font-black text-sm">
-                💰 GTD: ₪{Number(t.gtd).toLocaleString('he-IL')}
+                💰 GTD: <span className="font-mono tabular-nums">₪{Number(t.gtd).toLocaleString('he-IL')}</span>
               </span>
             )}
             {t.platform && (
@@ -182,17 +182,17 @@ export default function TournamentDetailModal({ tournament: t, onClose, brands =
             )}
             {t.cash_sb != null && t.cash_bb != null && (
               <span className="bg-emerald-500/15 text-emerald-300 border border-emerald-500/40 px-3 py-2 rounded-xl font-bold text-sm">
-                🎯 בליינדים: {Number(t.cash_sb).toLocaleString('he-IL')}/{Number(t.cash_bb).toLocaleString('he-IL')}
+                🎯 בליינדים: <span className="font-mono tabular-nums">{Number(t.cash_sb).toLocaleString('he-IL')}/{Number(t.cash_bb).toLocaleString('he-IL')}</span>
               </span>
             )}
             {t.starting_stack && (
               <span className="bg-slate-700/80 text-poker-gold px-3 py-2 rounded-xl font-bold text-sm border border-slate-600">
-                🎯 ערימה: {t.starting_stack.toLocaleString()}
+                🎯 ערימה: <span className="font-mono tabular-nums">{t.starting_stack.toLocaleString()}</span>
               </span>
             )}
             {getStageDurations(stages, t.level_duration) && (
               <span className="bg-cyan-500/15 text-cyan-300 border border-cyan-500/40 px-3 py-2 rounded-xl font-bold text-sm tracking-wide">
-                ⏱ {getStageDurations(stages, t.level_duration)} דק׳ לשלב
+                ⏱ <span className="font-mono tabular-nums">{getStageDurations(stages, t.level_duration)}</span> דק׳ לשלב
               </span>
             )}
             {t.re_entry && (
@@ -228,17 +228,17 @@ export default function TournamentDetailModal({ tournament: t, onClose, brands =
                 <div className="flex flex-wrap gap-4 text-sm">
                   <span className="text-slate-400">
                     בליינדים:{' '}
-                    <span className="text-poker-gold font-bold">
+                    <span className="text-poker-gold font-bold font-mono tabular-nums">
                       {stage.small_blind?.toLocaleString()}/{stage.big_blind?.toLocaleString()}
                     </span>
                     {stage.ante > 0 && (
-                      <span className="text-slate-500 mr-1">  אנטה: <span className="text-slate-300">{stage.ante?.toLocaleString()}</span></span>
+                      <span className="text-slate-500 mr-1">  אנטה: <span className="text-slate-300 font-mono tabular-nums">{stage.ante?.toLocaleString()}</span></span>
                     )}
                   </span>
                   {estTime && (
                     <span className="text-slate-400">
                       ⏰ שעה משוערת:{' '}
-                      <span className="text-poker-green-light font-bold">{estTime}</span>
+                      <span className="text-poker-green-light font-bold font-mono tabular-nums">{estTime}</span>
                     </span>
                   )}
                 </div>
@@ -282,21 +282,21 @@ export default function TournamentDetailModal({ tournament: t, onClose, brands =
                             <td className="py-2 px-2 text-center text-amber-400">☕</td>
                             <td colSpan={3} className="py-2 px-2 text-center text-amber-400/80 font-semibold">הפסקה</td>
                             {hasDuration && (
-                              <td className="py-2 px-2 text-center text-amber-400/70">{row.duration} דק׳</td>
+                              <td className="py-2 px-2 text-center text-amber-400/70 font-mono tabular-nums">{row.duration} דק׳</td>
                             )}
                           </tr>
                         ) : (
                           <tr key={i} className={i % 2 === 0 ? 'bg-slate-800/40' : 'bg-slate-900/30'}>
                             <td className="py-2 px-2 text-center">
-                              <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-700 text-poker-green-light font-black text-[11px]">
+                              <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-700 text-poker-green-light font-black text-[11px] font-mono tabular-nums">
                                 {lvl}
                               </span>
                             </td>
-                            <td className="py-2 px-2 text-center text-poker-gold font-bold">{row.small_blind?.toLocaleString()}</td>
-                            <td className="py-2 px-2 text-center text-poker-gold font-bold">{row.big_blind?.toLocaleString()}</td>
-                            <td className="py-2 px-2 text-center text-slate-400">{row.ante > 0 ? row.ante?.toLocaleString() : '—'}</td>
+                            <td className="py-2 px-2 text-center text-poker-gold font-bold font-mono tabular-nums">{row.small_blind?.toLocaleString()}</td>
+                            <td className="py-2 px-2 text-center text-poker-gold font-bold font-mono tabular-nums">{row.big_blind?.toLocaleString()}</td>
+                            <td className="py-2 px-2 text-center text-slate-400 font-mono tabular-nums">{row.ante > 0 ? row.ante?.toLocaleString() : '—'}</td>
                             {hasDuration && (
-                              <td className="py-2 px-2 text-center text-slate-300">{row.duration ? `${row.duration}′` : '—'}</td>
+                              <td className="py-2 px-2 text-center text-slate-300 font-mono tabular-nums">{row.duration ? `${row.duration}′` : '—'}</td>
                             )}
                           </tr>
                         );

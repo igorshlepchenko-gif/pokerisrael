@@ -544,7 +544,7 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
 
     return (
       <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/20" dir="rtl">
-        <span className="text-amber-300 font-black text-sm">{label}</span>
+        <span className="text-amber-300 font-black text-sm font-mono tabular-nums">{label}</span>
         <span className="text-amber-400/70 text-xs font-bold">💰 גובה הקופה</span>
       </div>
     );
@@ -579,7 +579,7 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
                 const raw = a.amount;
                 const num = parseFloat(raw);
                 if (raw.toString().endsWith('%') || isNaN(num)) {
-                  return <span className="text-slate-300 font-mono mr-1"> {raw}</span>;
+                  return <span className="text-slate-300 font-mono tabular-nums mr-1"> {raw}</span>;
                 }
                 let displayNum = num;
                 if (a.action === 'call') {
@@ -590,13 +590,13 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
                 const bbs = bb && bb > 0 ? Number((displayNum / bb).toFixed(1)) : null;
                 if (unit === 'BB') {
                   return (
-                    <span className="text-slate-300 font-mono mr-1">
+                    <span className="text-slate-300 font-mono tabular-nums mr-1">
                       {' '}{displayNum.toLocaleString('he-IL')}{bbs ? ` (${bbs}BB)` : ''}
                     </span>
                   );
                 } else {
                   return (
-                    <span className="text-slate-300 font-mono mr-1">
+                    <span className="text-slate-300 font-mono tabular-nums mr-1">
                       {' '}₪{displayNum.toLocaleString('he-IL')}{bbs ? ` (${bbs}BB)` : ''}
                     </span>
                   );
@@ -971,7 +971,7 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
       <div className="space-y-4">
         {/* Pot display */}
         <div className="flex items-center justify-between px-4 py-3 rounded-2xl bg-amber-500/10 border border-amber-500/30" dir="rtl">
-          <span className="text-amber-300 font-black text-lg">{potLabel}</span>
+          <span className="text-amber-300 font-black text-lg font-mono tabular-nums">{potLabel}</span>
           <span className="text-amber-400/70 text-sm font-bold">💰 קופה סופית</span>
         </div>
 
@@ -1064,7 +1064,7 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
               return (
                 <div key={p.actor} className="flex items-center gap-2 justify-between">
                   <div className="flex items-center gap-1.5" dir="ltr">
-                    <span className="text-[10px] font-mono text-slate-500 w-8 text-right">{pct}%</span>
+                    <span className="text-[10px] font-mono tabular-nums text-slate-500 w-8 text-right">{pct}%</span>
                     <input
                       type="number" min="0" max={finalPot}
                       value={splitDist[p.actor] ?? ''}
@@ -1074,7 +1074,7 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
                   </div>
                   <div className="flex items-center gap-2">
                     {bbs !== null && (
-                      <span className="text-[10px] font-mono text-slate-500">{bbs}BB</span>
+                      <span className="text-[10px] font-mono tabular-nums text-slate-500">{bbs}BB</span>
                     )}
                     <span className="text-sm font-bold" style={{ color }}>{p.label}</span>
                     <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
@@ -1174,13 +1174,11 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
     <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4"
       style={{ background: 'rgba(0,0,0,0.85)' }}
       onClick={onClose}>
-      <div className="always-dark w-full sm:max-w-lg max-h-[92vh] sm:max-h-[88vh] flex flex-col rounded-t-3xl sm:rounded-2xl overflow-hidden shadow-2xl"
-        style={{ background: '#0d1526', border: '1px solid rgba(29,78,216,0.25)' }}
+      <div className="always-dark w-full sm:max-w-lg max-h-[92vh] sm:max-h-[88vh] flex flex-col rounded-t-3xl sm:rounded-2xl overflow-hidden shadow-2xl bg-poker-felt border border-poker-green/25"
         onClick={e => e.stopPropagation()}>
 
         {/* Header */}
-        <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b flex-shrink-0"
-          style={{ borderColor: 'rgba(29,78,216,0.15)' }}>
+        <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-poker-green/15 flex-shrink-0">
           <button onClick={onClose}
             className="w-8 h-8 flex items-center justify-center rounded-full text-slate-400 hover:text-white hover:bg-slate-700 transition-all text-lg">
             ✕
@@ -1202,8 +1200,7 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
 
         {/* Footer nav */}
         {step < 12 && (
-          <div className="px-5 py-4 border-t flex gap-3 flex-shrink-0"
-            style={{ borderColor: 'rgba(29,78,216,0.15)' }}>
+          <div className="px-5 py-4 border-t border-poker-green/15 flex gap-3 flex-shrink-0">
             {step > 0 && (
               <button onClick={goBack}
                 className="px-4 py-2.5 rounded-xl border border-slate-600 text-slate-400 text-sm font-bold hover:border-slate-500 hover:text-slate-200 transition-all">

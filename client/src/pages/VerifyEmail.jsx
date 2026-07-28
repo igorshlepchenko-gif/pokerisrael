@@ -66,7 +66,7 @@ export default function VerifyEmail() {
           {/* Loading */}
           {status === 'loading' && (
             <>
-              <div className="text-5xl mb-4 animate-pulse">🔐</div>
+              <div className="w-20 h-20 mx-auto mb-4 rounded-full flex items-center justify-center text-4xl bg-poker-green/10 border border-poker-green/30 animate-pulse">🔐</div>
               <h2 className="text-xl font-black text-white mb-2">מאמת את הקישור...</h2>
               <p className="text-slate-400 text-sm">אנא המתן</p>
             </>
@@ -75,12 +75,12 @@ export default function VerifyEmail() {
           {/* Success */}
           {status === 'success' && (
             <>
-              <div className="text-6xl mb-4">✅</div>
+              <div className="w-20 h-20 mx-auto mb-4 rounded-full flex items-center justify-center text-4xl bg-emerald-500/10 border border-emerald-500/30">✅</div>
               <h2 className="text-2xl font-black text-white mb-3">המייל אומת בהצלחה!</h2>
               <p className="text-slate-400 mb-4">{message}</p>
               <p className="text-slate-500 text-sm">מועבר אוטומטית...</p>
               <div className="mt-2 h-1 bg-slate-700 rounded-full overflow-hidden">
-                <div className="h-full bg-poker-green rounded-full animate-[grow_2.5s_linear_forwards]" style={{width:'100%',animation:'width 2.5s linear'}}/>
+                <div className="h-full bg-poker-green rounded-full" style={{ width: '100%' }} />
               </div>
             </>
           )}
@@ -88,7 +88,7 @@ export default function VerifyEmail() {
           {/* Expired */}
           {status === 'expired' && (
             <>
-              <div className="text-6xl mb-4">⏰</div>
+              <div className="w-20 h-20 mx-auto mb-4 rounded-full flex items-center justify-center text-4xl bg-amber-500/10 border border-amber-500/30">⏰</div>
               <h2 className="text-xl font-black text-white mb-3">הקישור פג תוקף</h2>
               <p className="text-slate-400 mb-5">{message}</p>
               <div className="space-y-3">
@@ -119,7 +119,7 @@ export default function VerifyEmail() {
           {/* Error */}
           {status === 'error' && (
             <>
-              <div className="text-6xl mb-4">❌</div>
+              <div className="w-20 h-20 mx-auto mb-4 rounded-full flex items-center justify-center text-4xl bg-red-500/10 border border-red-500/30">❌</div>
               <h2 className="text-xl font-black text-white mb-3">אימות נכשל</h2>
               <p className="text-slate-400 mb-5">{message}</p>
               <p className="text-slate-500 text-sm">ייתכן שהחשבון כבר מאומת — נסה להתחבר.</p>

@@ -15,8 +15,10 @@ import HandHistoryPage from './pages/HandHistoryPage';
 import Rules from './pages/Rules';
 import Podcasts from './pages/Podcasts';
 import Communities from './pages/Communities';
+import Lessons from './pages/Lessons';
 import CookieConsent from './components/CookieConsent';
 import AccessibilityWidget from './components/AccessibilityWidget';
+import IsraeliBackground from './components/IsraeliBackground';
 
 function ProtectedRoute({ children, roles }) {
   const { user, loading } = useAuth();
@@ -28,10 +30,11 @@ function ProtectedRoute({ children, roles }) {
 
 function AppRoutes() {
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col relative">
+      <IsraeliBackground />
       <a href="#main-content" className="skip-link">דלג לתוכן הראשי</a>
       <Navbar />
-      <main id="main-content" className="flex-1">
+      <main id="main-content" className="flex-1 relative z-10">
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
@@ -40,6 +43,7 @@ function AppRoutes() {
           <Route path="/rules" element={<Rules />} />
           <Route path="/podcasts" element={<Podcasts />} />
           <Route path="/communities" element={<Communities />} />
+          <Route path="/lessons" element={<Lessons />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/accessibility" element={<Accessibility />} />
           <Route path="/dashboard" element={

@@ -102,10 +102,10 @@ export default function Rules() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-200" dir="rtl">
       {/* Header */}
-      <div className="border-b border-blue-500/20 bg-gradient-to-b from-slate-900 to-slate-950">
+      <div className="always-dark border-b-2 border-blue-500/20 bg-gradient-to-b from-slate-900 to-slate-950">
         <div className="max-w-4xl mx-auto px-4 py-10 text-center">
           <div className="text-4xl mb-3">🃏</div>
-          <h1 className="text-3xl sm:text-4xl font-black text-white mb-2">חוקי המשחק / TDA</h1>
+          <h1 className="text-3xl sm:text-4xl font-black text-white mb-2 tracking-tight">חוקי המשחק <span className="font-mono text-poker-green-light">/ TDA</span></h1>
           <p className="text-slate-400 text-sm">Texas Hold'em — הכלים שתצטרך לשולחן</p>
         </div>
 
@@ -143,14 +143,14 @@ export default function Rules() {
                   <div key={h.name}
                     className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl border border-slate-800 bg-slate-900/60 hover:border-blue-500/20 transition-all">
                     <div className="flex items-center gap-3 min-w-0">
-                      <span className="text-slate-600 text-xs font-mono w-4 text-center">{i + 1}</span>
+                      <span className="text-slate-600 text-xs font-mono tabular-nums w-4 text-center">{i + 1}</span>
                       <span className="text-lg">{h.emoji}</span>
                       <div className="min-w-0">
                         <div className="font-bold text-white text-sm">{h.name}</div>
                         <div className="text-xs text-slate-400">{h.desc}</div>
                       </div>
                     </div>
-                    <code className="text-xs text-emerald-400/80 font-mono shrink-0 hidden sm:block">{h.example}</code>
+                    <code className="text-xs text-emerald-400/80 font-mono tabular-nums shrink-0 hidden sm:block">{h.example}</code>
                   </div>
                 ))}
               </div>
@@ -244,7 +244,7 @@ export default function Rules() {
                           <div key={rule.id}
                             className="rounded-xl border border-slate-800 bg-slate-900/60 hover:border-slate-700 transition-all overflow-hidden">
                             <div className="flex items-start gap-3 p-4">
-                              <span className="shrink-0 mt-0.5 px-2 py-0.5 rounded-md bg-blue-600/15 text-blue-400 text-xs font-black font-mono border border-blue-500/20">
+                              <span className="shrink-0 mt-0.5 px-2 py-0.5 rounded-md bg-blue-600/15 text-blue-400 text-xs font-black font-mono tabular-nums border border-blue-500/20">
                                 {rule.id}
                               </span>
                               <div className="min-w-0 flex-1">

@@ -2,8 +2,10 @@ export default function Privacy() {
   const updated = '03/06/2026';
   return (
     <div className="max-w-3xl mx-auto px-4 py-10 text-slate-300 leading-relaxed" dir="rtl">
-      <h1 className="text-3xl font-black text-white mb-2">מדיניות פרטיות</h1>
-      <p className="text-sm text-slate-500 mb-8">עודכן לאחרונה: {updated}</p>
+      <header className="mb-8 pb-6 border-b border-slate-800">
+        <h1 className="text-3xl sm:text-4xl font-black text-white mb-2">מדיניות פרטיות</h1>
+        <p className="text-sm text-slate-500">עודכן לאחרונה: <span className="font-mono tabular-nums">{updated}</span></p>
+      </header>
 
       <Section title="1. כללי">
         אתר <strong>פוקר ישראל</strong> (PokerIsrael.org) ("האתר", "אנחנו") מכבד את פרטיותך.
@@ -49,7 +51,7 @@ export default function Privacy() {
 
       <Section title="7. זכויותיך">
         באפשרותך לעיין במידע שלך, לעדכן אותו או לבקש את מחיקתו. לפניות בנושא פרטיות,
-        צור קשר בכתובת: <a href="mailto:info@pokerisrael.org" className="text-blue-400 hover:underline">info@pokerisrael.org</a>.
+        צור קשר בכתובת: <a href="mailto:info@pokerisrael.org" className="text-poker-green-light hover:underline">info@pokerisrael.org</a>.
       </Section>
 
       <Section title="8. שינויים במדיניות">
@@ -58,7 +60,7 @@ export default function Privacy() {
 
       <Section title="9. יצירת קשר">
         בכל שאלה בנוגע למדיניות הפרטיות ניתן לפנות אלינו:
-        <a href="mailto:info@pokerisrael.org" className="text-blue-400 hover:underline"> info@pokerisrael.org</a>
+        <a href="mailto:info@pokerisrael.org" className="text-poker-green-light hover:underline"> info@pokerisrael.org</a>
       </Section>
     </div>
   );

@@ -88,7 +88,7 @@ function CommunityCard({ community }) {
   const cta = community.cta || meta.cta;
 
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 flex flex-col gap-3"
+    <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 flex flex-col gap-3 transition-all duration-300 hover:border-slate-600 hover:shadow-2xl hover:shadow-poker-green/10"
       style={{ borderTop: `3px solid ${color}` }}>
       <div className="flex items-start gap-3">
         <CommunityAvatar community={community} Icon={Icon} color={color} />
@@ -119,6 +119,7 @@ function CommunitySection({ type }) {
       <h2 className="flex items-center gap-2 text-lg font-black text-white">
         <meta.Icon className="w-5 h-5" style={{ color: meta.color }} />
         {meta.title}
+        <span className="font-mono tabular-nums text-xs font-normal text-slate-500">({items.length})</span>
       </h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {items.map(c => <CommunityCard key={c.id} community={c} />)}
@@ -131,11 +132,32 @@ export default function Communities() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-200" dir="rtl">
       {/* Header */}
-      <div className="border-b border-blue-500/20 bg-gradient-to-b from-slate-900 to-slate-950">
-        <div className="max-w-4xl mx-auto px-4 py-10 text-center">
-          <div className="text-4xl mb-3">👥</div>
-          <h1 className="text-3xl sm:text-4xl font-black text-white mb-2">קהילות</h1>
-          <p className="text-slate-400 text-sm">הצטרפו לקהילות הפוקר הכי פעילות בישראל — וואטסאפ, טלגרם, פייסבוק ויוטיוב</p>
+      <div className="max-w-4xl mx-auto px-4 pt-10 pb-2">
+        <div className="always-dark relative overflow-hidden rounded-3xl border border-blue-500/20 bg-hero-gradient">
+          {/* Ambient glow orbs */}
+          <div className="absolute inset-0 pointer-events-none select-none overflow-hidden">
+            <div className="absolute -top-10 right-10 w-48 h-48 rounded-full opacity-[0.15]"
+              style={{ background: 'radial-gradient(circle, #1d4ed8, transparent)' }} />
+            <div className="absolute -bottom-10 left-10 w-40 h-40 rounded-full opacity-[0.12]"
+              style={{ background: 'radial-gradient(circle, #22d3ee, transparent)' }} />
+          </div>
+
+          <div className="relative px-6 py-10 text-center">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl flex items-center justify-center text-3xl bg-poker-green/10 border border-poker-green/25">
+              👥
+            </div>
+            <h1 className="text-3xl sm:text-4xl font-black mb-2">
+              <span style={{
+                background: 'linear-gradient(135deg, #60a5fa, #22d3ee)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+              }}>
+                קהילות
+              </span>
+            </h1>
+            <p className="text-slate-400 text-sm">הצטרפו לקהילות הפוקר הכי פעילות בישראל — וואטסאפ, טלגרם, פייסבוק ויוטיוב</p>
+          </div>
         </div>
       </div>
 

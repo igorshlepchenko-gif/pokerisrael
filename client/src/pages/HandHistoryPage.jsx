@@ -54,7 +54,7 @@ function HandCard({ hand, onDelete }) {
             <span className="text-xs text-slate-500">·</span>
             <span className="text-xs text-slate-400 font-bold">{hand.hero_position}</span>
             {hand.hero_profit !== null && hand.hero_profit !== undefined && (
-              <span className={`text-xs font-bold ${hand.result === 'won' ? 'text-emerald-400' : hand.result === 'lost' ? 'text-red-400' : 'text-amber-400'}`}>
+              <span className={`text-xs font-mono font-bold tabular-nums ${hand.result === 'won' ? 'text-emerald-400' : hand.result === 'lost' ? 'text-red-400' : 'text-amber-400'}`}>
                 {hand.result === 'won' ? '+' : ''}{hand.hero_profit}
                 {isTournament ? 'BB' : '₪'}
               </span>
@@ -62,14 +62,14 @@ function HandCard({ hand, onDelete }) {
           </div>
           <div className="flex items-center gap-2 mt-1 flex-wrap">
             <span className="text-xs text-slate-500">{typeLabel}</span>
-            {contextLine && <span className="text-xs text-slate-600">· {contextLine}</span>}
+            {contextLine && <span className="text-xs text-slate-600 font-mono tabular-nums">· {contextLine}</span>}
           </div>
           {hand.narrative && !expanded && (
             <p className="text-xs text-slate-500 mt-1.5 line-clamp-2 leading-relaxed">{hand.narrative}</p>
           )}
         </div>
         <div className="flex flex-col items-end gap-1 flex-shrink-0">
-          <span className="text-[11px] text-slate-600">
+          <span className="text-[11px] text-slate-600 font-mono tabular-nums">
             {new Date(hand.created_at).toLocaleDateString('he-IL')}
           </span>
           <button onClick={e => { e.stopPropagation(); handleDelete(); }} disabled={deleting}
@@ -80,7 +80,7 @@ function HandCard({ hand, onDelete }) {
       </div>
 
       {expanded && (
-        <div className="mt-3 pt-3 border-t" style={{ borderColor: 'rgba(29,78,216,0.1)' }}>
+        <div className="mt-3 pt-3 border-t border-poker-green/10">
           {hand.narrative && (
             <p className="text-sm text-slate-300 leading-relaxed mb-3 bg-slate-900/40 rounded-xl p-3 font-mono text-right">
               {hand.narrative}
@@ -92,8 +92,8 @@ function HandCard({ hand, onDelete }) {
             </div>
           )}
           <div className="flex gap-3 mt-2 text-xs text-slate-600">
-            {hand.players_count && <span>{hand.players_count} שחקנים</span>}
-            {hand.hero_stack && <span>ערימה: {hand.hero_stack}{hand.game_type === 'tournament' ? 'BB' : '₪'}</span>}
+            {hand.players_count && <span className="font-mono tabular-nums">{hand.players_count} שחקנים</span>}
+            {hand.hero_stack && <span className="font-mono tabular-nums">ערימה: {hand.hero_stack}{hand.game_type === 'tournament' ? 'BB' : '₪'}</span>}
           </div>
           <div className="mt-3" onClick={e => e.stopPropagation()}>
             <HandVideoCanvas handState={hand} narrative={hand.narrative} />
@@ -162,8 +162,7 @@ export default function HandHistoryPage() {
             <h2 className="text-lg font-bold text-slate-300 mb-2">עדיין אין ידיים מתועדות</h2>
             <p className="text-slate-500 text-sm mb-6">רשום את הידיים שלך מהעמוד הראשי</p>
             <button onClick={() => navigate('/')}
-              className="px-5 py-2.5 rounded-xl text-sm font-bold text-white"
-              style={{ background: 'linear-gradient(135deg, #1d4ed8, #2563eb)' }}>
+              className="px-5 py-2.5 rounded-xl text-sm font-bold text-white bg-gradient-to-br from-poker-green to-blue-600">
               → עמוד ראשי
             </button>
           </div>
@@ -180,7 +179,7 @@ export default function HandHistoryPage() {
               className="px-4 py-2 rounded-xl border border-slate-600 text-slate-400 text-sm disabled:opacity-40 hover:border-slate-500 transition-all">
               ← הקודמים
             </button>
-            <span className="px-4 py-2 text-slate-500 text-sm">
+            <span className="px-4 py-2 text-slate-500 text-sm font-mono tabular-nums">
               {offset + 1}–{Math.min(offset + LIMIT, total)} מתוך {total}
             </span>
             <button onClick={() => fetchHands(offset + LIMIT)} disabled={offset + LIMIT >= total}

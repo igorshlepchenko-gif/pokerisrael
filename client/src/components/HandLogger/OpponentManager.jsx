@@ -71,7 +71,7 @@ export default function OpponentManager({ opponents, onChange, heroPosition, uni
                 value={opp.stack}
                 onChange={e => updateOpponent(opp.id, 'stack', parseInt(e.target.value) || 0)}
                 onFocus={e => { if (!opp.stackTouched) e.target.select(); }}
-                className={`w-full px-2 py-1.5 rounded-lg bg-slate-900 border text-sm text-right focus:border-blue-500 focus:outline-none transition-colors
+                className={`w-full px-2 py-1.5 rounded-lg bg-slate-900 border text-sm text-right font-mono tabular-nums focus:border-blue-500 focus:outline-none transition-colors
                   ${opp.stackTouched
                     ? 'border-slate-600 text-slate-200'
                     : 'border-slate-700 text-slate-500'}`}

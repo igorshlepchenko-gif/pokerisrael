@@ -4,8 +4,12 @@ import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
 import RegistrationModal from './RegistrationModal';
 
-const SUIT_COLORS = ['text-red-400', 'text-slate-300', 'text-red-400', 'text-slate-300'];
-const SUITS = ['♥', '♠', '♦', '♣'];
+/* סוג הטורניר קובע את סימן הקלף — לא אקראי, כדי שהעיצוב יעביר מידע אמיתי */
+const TYPE_SUITS = {
+  live:   { suit: '♠', color: 'text-slate-300' },
+  online: { suit: '♦', color: 'text-blue-400' },
+  cash:   { suit: '♣', color: 'text-emerald-400' },
+};
 
 function WaIcon({ small }) {
   return (
@@ -15,12 +19,8 @@ function WaIcon({ small }) {
   );
 }
 
-function randomSuit(id) {
-  return { suit: SUITS[id % 4], color: SUIT_COLORS[id % 4] };
-}
-
-export default function TournamentCard({ t, index, onClick, brands = [] }) {
-  const { suit, color } = randomSuit(index);
+export default function TournamentCard({ t, onClick, brands = [] }) {
+  const { suit, color } = TYPE_SUITS[t.tournament_type] ?? TYPE_SUITS.live;
   const { user } = useAuth();
   const [showRegModal, setShowRegModal] = useState(false);
 

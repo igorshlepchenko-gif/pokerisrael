@@ -9,6 +9,8 @@ export default function TournamentListRow({ t, index, onClick }) {
   const levelDur = getStageDurations(stages, t.level_duration);
   const lateRegClosed = isLateRegClosed(t);
   const registerLabel = t.tournament_type === 'cash' || t.tournament_type === 'online_cash' ? 'הצטרפות למשחק' : 'הרשמה לטורניר';
+  // formatCost() נופל ל"חינם" (עברית) כשאין עלות אמיתית — mono רק כשהערך המוצג הוא באמת מספר
+  const costMono = t.cost ? 'font-mono tabular-nums' : '';
 
   // רישום כפול — הרשמה דרך המארגן (Runner Runner וכו') — כמו ב-TournamentCard וב-Modal
   const hasOrganizer = !!(t.organizer_name && (t.organizer_whatsapp || t.organizer_registration_url));
@@ -49,11 +51,11 @@ export default function TournamentListRow({ t, index, onClick }) {
             <div className="text-xs text-slate-400">📍 {t.venue_address}, {t.venue_city}</div>
           </div>
           <div className="text-left shrink-0">
-            <div className="text-lg font-black text-poker-gold">{formatCost(t.cost)}</div>
+            <div className={`text-lg font-black text-poker-gold ${costMono}`}>{formatCost(t.cost)}</div>
           </div>
         </div>
         <div className="flex items-center gap-4 text-xs text-slate-400">
-          <span>🕐 {formatTime(eventDisplayDate(t))}</span>
+          <span>🕐 <span className="font-mono tabular-nums">{formatTime(eventDisplayDate(t))}</span></span>
           <span>{formatDate(eventDisplayDate(t))}</span>
           {t.is_recurring && t.day_of_week !== null && (
             <span className="text-poker-gold">כל {DAYS_HE[t.day_of_week]}</span>
@@ -61,7 +63,7 @@ export default function TournamentListRow({ t, index, onClick }) {
         </div>
         {t.starting_stack && (
           <span className="text-xs bg-slate-700 text-poker-gold px-2 py-0.5 rounded-full">
-            ערימה: {t.starting_stack.toLocaleString()}
+            ערימה: <span className="font-mono tabular-nums">{t.starting_stack.toLocaleString()}</span>
           </span>
         )}
         {lateRegClosed ? (
@@ -131,28 +133,28 @@ export default function TournamentListRow({ t, index, onClick }) {
                 </span>
               )}
               {t.cash_sb != null && t.cash_bb != null && (
-                <span className="text-[10px] bg-emerald-500/15 text-emerald-300 border border-emerald-500/40 px-1.5 py-0.5 rounded-full font-bold">
+                <span className="text-[10px] bg-emerald-500/15 text-emerald-300 border border-emerald-500/40 px-1.5 py-0.5 rounded-full font-bold font-mono tabular-nums">
                   🎯 {Number(t.cash_sb).toLocaleString('he-IL')}/{Number(t.cash_bb).toLocaleString('he-IL')}
                 </span>
               )}
               {t.starting_stack && (
-                <span className="text-[10px] bg-slate-700/80 text-poker-gold px-1.5 py-0.5 rounded-full">
+                <span className="text-[10px] bg-slate-700/80 text-poker-gold px-1.5 py-0.5 rounded-full font-mono tabular-nums">
                   🎯 {t.starting_stack.toLocaleString()}
                 </span>
               )}
               {levelDur && (
                 <span className="text-[10px] bg-cyan-500/15 text-cyan-300 border border-cyan-500/40 px-1.5 py-0.5 rounded-full font-bold tracking-wide">
-                  ⏱ {levelDur} דק׳
+                  ⏱ <span className="font-mono tabular-nums">{levelDur}</span> דק׳
                 </span>
               )}
               {t.re_entry && (
-                <span className="text-[10px] bg-slate-700/80 text-emerald-400 px-1.5 py-0.5 rounded-full">
+                <span className="text-[10px] bg-slate-700/80 text-emerald-400 px-1.5 py-0.5 rounded-full font-mono tabular-nums">
                   🔄 {t.re_entry}
                 </span>
               )}
               {t.late_reg_level && (
                 <span className="text-[10px] bg-indigo-900/60 text-indigo-300 px-1.5 py-0.5 rounded-full border border-indigo-700/30">
-                  ⏳ Late Reg שלב {t.late_reg_level}
+                  ⏳ Late Reg שלב <span className="font-mono tabular-nums">{t.late_reg_level}</span>
                 </span>
               )}
             </div>
@@ -166,7 +168,7 @@ export default function TournamentListRow({ t, index, onClick }) {
 
         {/* Start time */}
         <div>
-          <div className="font-bold text-poker-green-light">{formatTime(eventDisplayDate(t))}</div>
+          <div className="font-bold text-poker-green-light font-mono tabular-nums">{formatTime(eventDisplayDate(t))}</div>
           <div className="text-xs text-slate-500">{formatDate(eventDisplayDate(t))}</div>
           {t.is_recurring && t.day_of_week !== null && (
             <div className="text-xs text-poker-gold">כל {DAYS_HE[t.day_of_week]}</div>
@@ -176,14 +178,14 @@ export default function TournamentListRow({ t, index, onClick }) {
         {/* Cost + Rake + GTD */}
         <div>
           {t.game_type && <div className="text-[10px] text-slate-500">כניסה מינ׳</div>}
-          <div className="font-black text-poker-gold">{formatCost(t.cost)}</div>
+          <div className={`font-black text-poker-gold ${costMono}`}>{formatCost(t.cost)}</div>
           {t.rake != null && t.rake !== '' && (
-            <div className="text-[11px] text-slate-400 mt-0.5">
+            <div className="text-[11px] text-slate-400 mt-0.5 font-mono tabular-nums">
               RAKE {t.rake_type === 'percent' ? `${t.rake}%` : `₪${Number(t.rake).toLocaleString('he-IL')}`}
             </div>
           )}
           {t.gtd > 0 && (
-            <div className="text-xs text-amber-400 font-bold mt-0.5">
+            <div className="text-xs text-amber-400 font-bold mt-0.5 font-mono tabular-nums">
               💰 ₪{Number(t.gtd).toLocaleString('he-IL')} GTD
             </div>
           )}

@@ -723,14 +723,14 @@ export default function TournamentForm({ venues, tournament = null, onSuccess, o
               <div className="flex-1">
                 <input type="number" min="0" value={form.cash_sb}
                   onChange={e => set('cash_sb', e.target.value)}
-                  className="input-field text-center" placeholder="סמול בליינד" required />
+                  className="input-field text-center font-mono tabular-nums" placeholder="סמול בליינד" required />
                 <p className="text-[11px] text-slate-500 text-center mt-1">סמול בליינד (SB)</p>
               </div>
               <span className="text-slate-500 font-black text-lg pb-5">/</span>
               <div className="flex-1">
                 <input type="number" min="0" value={form.cash_bb}
                   onChange={e => set('cash_bb', e.target.value)}
-                  className="input-field text-center" placeholder="ביג בליינד" required />
+                  className="input-field text-center font-mono tabular-nums" placeholder="ביג בליינד" required />
                 <p className="text-[11px] text-slate-500 text-center mt-1">ביג בליינד (BB)</p>
               </div>
             </div>
@@ -752,7 +752,7 @@ export default function TournamentForm({ venues, tournament = null, onSuccess, o
             {showGameType ? 'כניסה מינימום (₪) *' : 'עלות (₪) *'}
           </label>
           <input type="number" value={form.cost} onChange={e => set('cost', e.target.value)}
-            className="input-field" placeholder="0" min="0" required />
+            className="input-field font-mono tabular-nums" placeholder="0" min="0" required />
         </div>
 
         {/* RAKE — רק ללייב ואונליין (לא לקאש פיזי) */}
@@ -780,7 +780,7 @@ export default function TournamentForm({ venues, tournament = null, onSuccess, o
                   type="number"
                   value={form.rake}
                   onChange={e => set('rake', e.target.value)}
-                  className="input-field pl-10"
+                  className="input-field pl-10 font-mono tabular-nums"
                   placeholder={form.rake_type === 'percent' ? 'למשל: 10' : 'למשל: 30'}
                   min="0"
                   max={form.rake_type === 'percent' ? 100 : undefined}
@@ -833,7 +833,7 @@ export default function TournamentForm({ venues, tournament = null, onSuccess, o
         </label>
         <div className="relative">
           <input type="number" value={form.gtd} onChange={e => set('gtd', e.target.value)}
-            className="input-field pl-12" placeholder="למשל: 15000" min="0" />
+            className="input-field pl-12 font-mono tabular-nums" placeholder="למשל: 15000" min="0" />
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm pointer-events-none">₪</span>
         </div>
       </div>}
@@ -851,7 +851,7 @@ export default function TournamentForm({ venues, tournament = null, onSuccess, o
         <label className="block text-sm font-semibold text-slate-300 mb-1">גובה ערימה התחלתית</label>
         <div className="relative">
           <input type="number" value={form.starting_stack} onChange={e => set('starting_stack', e.target.value)}
-            className="input-field" placeholder="למשל: 20000" min="0" />
+            className="input-field font-mono tabular-nums" placeholder="למשל: 20000" min="0" />
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm pointer-events-none">צ'יפס</span>
         </div>
       </div>}
@@ -890,7 +890,7 @@ export default function TournamentForm({ venues, tournament = null, onSuccess, o
                 type="number"
                 value={form.level_duration}
                 onChange={e => handleLevelDurationChange(e.target.value)}
-                className="input-field pl-14"
+                className="input-field pl-14 font-mono tabular-nums"
                 placeholder="הזן דקות"
                 min="1"
                 max="180"
@@ -1051,7 +1051,7 @@ export default function TournamentForm({ venues, tournament = null, onSuccess, o
                           <div className="flex items-center gap-1">
                             <input type="number" value={row.duration} min="1"
                               onChange={e => updateBlindRow(i, 'duration', e.target.value)}
-                              className="w-full bg-transparent text-center text-slate-300 focus:outline-none focus:bg-slate-700/50 rounded px-1 py-0.5" />
+                              className="w-full bg-transparent text-center text-slate-300 font-mono tabular-nums focus:outline-none focus:bg-slate-700/50 rounded px-1 py-0.5" />
                             <span className="text-slate-500 text-[10px] shrink-0">דק׳</span>
                           </div>
                         </td>
@@ -1074,7 +1074,7 @@ export default function TournamentForm({ venues, tournament = null, onSuccess, o
                         <td className="py-1.5 px-1 text-center">
                           <div className="flex items-center justify-center gap-0.5">
                             <span className="text-slate-600 group-hover/row:text-slate-400 transition-colors text-[10px] leading-none select-none">⠿</span>
-                            <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-700 text-poker-green-light font-black text-[11px] select-none">
+                            <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-700 text-poker-green-light font-black text-[11px] font-mono tabular-nums select-none">
                               {displayLevel}
                             </span>
                           </div>
@@ -1082,23 +1082,23 @@ export default function TournamentForm({ venues, tournament = null, onSuccess, o
                         <td className="py-1 px-1">
                           <input type="number" value={row.small_blind} min="0"
                             onChange={e => updateBlindRow(i, 'small_blind', e.target.value)}
-                            className="w-full bg-transparent text-center text-poker-gold focus:outline-none focus:bg-slate-700/50 rounded px-1 py-0.5" />
+                            className="w-full bg-transparent text-center text-poker-gold font-mono tabular-nums focus:outline-none focus:bg-slate-700/50 rounded px-1 py-0.5" />
                         </td>
                         <td className="py-1 px-1">
                           <input type="number" value={row.big_blind} min="0"
                             onChange={e => updateBlindRow(i, 'big_blind', e.target.value)}
-                            className="w-full bg-transparent text-center text-poker-gold focus:outline-none focus:bg-slate-700/50 rounded px-1 py-0.5" />
+                            className="w-full bg-transparent text-center text-poker-gold font-mono tabular-nums focus:outline-none focus:bg-slate-700/50 rounded px-1 py-0.5" />
                         </td>
                         <td className="py-1 px-1">
                           <input type="number" value={row.ante} min="0"
                             onChange={e => updateBlindRow(i, 'ante', e.target.value)}
-                            className="w-full bg-transparent text-center text-slate-400 focus:outline-none focus:bg-slate-700/50 rounded px-1 py-0.5" />
+                            className="w-full bg-transparent text-center text-slate-400 font-mono tabular-nums focus:outline-none focus:bg-slate-700/50 rounded px-1 py-0.5" />
                         </td>
                         <td className="py-1 px-1">
                           <div className="flex items-center gap-1">
                             <input type="number" value={row.duration ?? ''} min="1"
                               onChange={e => updateBlindRow(i, 'duration', e.target.value)}
-                              className="w-full bg-transparent text-center text-slate-300 focus:outline-none focus:bg-slate-700/50 rounded px-1 py-0.5" />
+                              className="w-full bg-transparent text-center text-slate-300 font-mono tabular-nums focus:outline-none focus:bg-slate-700/50 rounded px-1 py-0.5" />
                             <span className="text-slate-500 text-[10px] shrink-0">דק׳</span>
                           </div>
                         </td>
@@ -1214,18 +1214,18 @@ export default function TournamentForm({ venues, tournament = null, onSuccess, o
               <div className="mt-2 bg-slate-900/60 rounded-xl p-3 border border-slate-700/50 text-sm flex flex-wrap gap-4">
                 <span className="text-slate-400">
                   🃏 בליינדים:{' '}
-                  <span className="text-poker-gold font-bold">
+                  <span className="text-poker-gold font-bold font-mono tabular-nums">
                     {stage.small_blind?.toLocaleString()}/{stage.big_blind?.toLocaleString()}
                   </span>
                   {stage.ante > 0 && (
-                    <span className="text-slate-500 mr-1">  אנטה: <span className="text-slate-300">{stage.ante?.toLocaleString()}</span></span>
+                    <span className="text-slate-500 mr-1">  אנטה: <span className="text-slate-300 font-mono tabular-nums">{stage.ante?.toLocaleString()}</span></span>
                   )}
                 </span>
                 {estTime ? (
                   <span className="text-slate-400">
                     ⏰ שעה משוערת:{' '}
-                    <span className="text-poker-green-light font-bold">{estTime}</span>
-                    <span className="text-slate-500 text-xs mr-1">({totalMins} דק׳ מהתחלה)</span>
+                    <span className="text-poker-green-light font-bold font-mono tabular-nums">{estTime}</span>
+                    <span className="text-slate-500 text-xs mr-1">(<span className="font-mono tabular-nums">{totalMins}</span> דק׳ מהתחלה)</span>
                   </span>
                 ) : (
                   <span className="text-xs text-amber-400">הגדר שעת התחלה לחישוב שעה משוערת</span>

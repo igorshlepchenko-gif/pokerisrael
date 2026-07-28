@@ -263,7 +263,7 @@ export default function ActionSelector({
                 </div>
               )}
               {!isBelowMin && hint && (
-                <div className="text-right text-[11px] text-blue-400/70 font-mono">{hint}</div>
+                <div className="text-right text-[11px] text-blue-400/70 font-mono tabular-nums">{hint}</div>
               )}
             </div>
           ) : (

@@ -6,6 +6,7 @@ import TournamentDetailModal from '../components/Tournament/TournamentDetailModa
 import VenueMultiSelect from '../components/VenueMultiSelect';
 import { DAYS_HE } from '../utils/whatsapp';
 import HandLoggerSection from '../components/HandLogger/HandLoggerSection';
+import TournamentClock from '../components/TournamentClock';
 import { useAuth } from '../context/AuthContext';
 
 export default function Home() {
@@ -98,8 +99,13 @@ export default function Home() {
         </div>
 
         <div className="relative max-w-4xl mx-auto text-center">
+          {/* Tournament clock — sets the scene before the headline */}
+          <div className="pt-4">
+            <TournamentClock />
+          </div>
+
           {/* Main heading */}
-          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black text-white leading-tight mb-6 animate-slide-up pt-4">
+          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black text-white leading-tight mb-6 animate-slide-up">
             כל הפוקר{' '}
             <span style={{
               background: 'linear-gradient(to bottom, #fff 0%, #fff 16%, #0038b8 16%, #0038b8 40%, #fff 40%, #fff 60%, #0038b8 60%, #0038b8 84%, #fff 84%, #fff 100%)',

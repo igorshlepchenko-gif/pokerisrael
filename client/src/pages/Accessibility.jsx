@@ -2,8 +2,10 @@ export default function Accessibility() {
   const updated = '03/06/2026';
   return (
     <div className="max-w-3xl mx-auto px-4 py-10 text-slate-300 leading-relaxed" dir="rtl">
-      <h1 className="text-3xl font-black text-white mb-2">הצהרת נגישות</h1>
-      <p className="text-sm text-slate-500 mb-8">עודכן לאחרונה: {updated}</p>
+      <header className="mb-8 pb-6 border-b border-slate-800">
+        <h1 className="text-3xl sm:text-4xl font-black text-white mb-2">הצהרת נגישות</h1>
+        <p className="text-sm text-slate-500">עודכן לאחרונה: <span className="font-mono tabular-nums">{updated}</span></p>
+      </header>
 
       <Section title="מחויבות לנגישות">
         אתר <strong>פוקר ישראל</strong> רואה חשיבות רבה במתן שירות שוויוני לכלל הגולשים,
@@ -40,7 +42,7 @@ export default function Accessibility() {
       <Section title="פנייה בנושא נגישות">
         נתקלת בבעיית נגישות או שיש לך הצעה לשיפור? נשמח לשמוע.
         ניתן לפנות לרכז הנגישות שלנו בכתובת:
-        <a href="mailto:accessibility@pokerisrael.org" className="text-blue-400 hover:underline"> accessibility@pokerisrael.org</a>.
+        <a href="mailto:accessibility@pokerisrael.org" className="text-poker-green-light hover:underline"> accessibility@pokerisrael.org</a>.
         אנו נעשה כמיטב יכולתנו לטפל בפנייה בהקדם.
       </Section>
     </div>

@@ -60,7 +60,7 @@ export default function HandVideoCanvas({ handState, narrative }) {
 
       {status === 'recording' && (
         <div className="text-center py-4">
-          <div className="text-slate-400 text-sm mb-3">מייצר סרטון... {progress}%</div>
+          <div className="text-slate-400 text-sm mb-3">מייצר סרטון... <span className="font-mono tabular-nums">{progress}%</span></div>
           <div className="w-full bg-slate-700 rounded-full h-2">
             <div className="bg-blue-500 h-2 rounded-full transition-all duration-200"
               style={{ width: `${progress}%` }} />
