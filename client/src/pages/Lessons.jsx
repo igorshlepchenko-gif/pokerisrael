@@ -28,15 +28,23 @@ function LessonCard({ lesson }) {
   const cta = lesson.cta || DEFAULT_CTA;
 
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5 flex flex-col gap-3 transition-all duration-300 hover:border-slate-600 hover:shadow-2xl hover:shadow-poker-green/10"
+    <div className="relative rounded-2xl border border-slate-800 bg-slate-900/60 p-5 flex flex-col gap-3 transition-all duration-300 hover:border-slate-600 hover:shadow-2xl hover:shadow-poker-green/10"
       style={{ borderTop: `3px solid ${ACCENT}` }}>
+      {lesson.badge && (
+        <div className="absolute -top-3 -left-3 z-10 -rotate-6">
+          <span className="inline-block px-3 py-1.5 rounded-lg bg-red-600 text-white text-xs font-black shadow-lg border-2 border-slate-950 whitespace-nowrap">
+            {lesson.badge}
+          </span>
+        </div>
+      )}
+
       <div className="flex items-start gap-3">
         <LessonAvatar lesson={lesson} />
         <h3 className="text-base font-black text-white min-w-0">{lesson.name}</h3>
       </div>
 
       {lesson.description && (
-        <p className="text-sm text-slate-400 flex-1">{lesson.description}</p>
+        <p className="text-sm text-slate-400 flex-1 whitespace-pre-line">{lesson.description}</p>
       )}
 
       <a href={lesson.url} target="_blank" rel="noopener noreferrer"
