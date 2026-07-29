@@ -81,6 +81,28 @@ function CommunityAvatar({ community, Icon, color }) {
   );
 }
 
+function CommunityDescription({ text }) {
+  const [expanded, setExpanded] = useState(false);
+  const isLong = text.length > 140;
+
+  return (
+    <div className="flex-1">
+      <p className={`text-sm text-slate-400 whitespace-pre-line ${!expanded && isLong ? 'line-clamp-3' : ''}`}>
+        {text}
+      </p>
+      {isLong && (
+        <button
+          type="button"
+          onClick={() => setExpanded(v => !v)}
+          className="mt-1 text-xs font-bold text-slate-400 hover:text-blue-400 transition-colors"
+        >
+          {expanded ? 'הצג פחות' : 'קרא עוד'}
+        </button>
+      )}
+    </div>
+  );
+}
+
 function CommunityCard({ community }) {
   const meta = TYPE_META[community.type];
   if (!meta) return null;
@@ -95,9 +117,7 @@ function CommunityCard({ community }) {
         <h3 className="text-base font-black text-white min-w-0">{community.name}</h3>
       </div>
 
-      {community.description && (
-        <p className="text-sm text-slate-400 flex-1">{community.description}</p>
-      )}
+      {community.description && <CommunityDescription text={community.description} />}
 
       <a href={community.url} target="_blank" rel="noopener noreferrer"
         className="mt-1 inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold text-white transition-opacity hover:opacity-90"
