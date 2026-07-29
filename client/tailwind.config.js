@@ -33,6 +33,7 @@ export default {
         'float-y':    'floatY 2.6s ease-in-out infinite',
         'rise':       'riseFade 2.4s ease-in-out infinite',
         'gradient-text': 'gradientText 5s ease infinite',
+        'showcase-progress': 'showcaseProgress 6s linear forwards',
       },
       keyframes: {
         fadeIn:     { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
@@ -43,6 +44,7 @@ export default {
         floatY:     { '0%,100%': { transform: 'translateY(0)' }, '50%': { transform: 'translateY(-7px)' } },
         riseFade:   { '0%': { transform: 'translateY(0)', opacity: '0' }, '20%': { opacity: '1' }, '100%': { transform: 'translateY(-24px)', opacity: '0' } },
         gradientText: { '0%,100%': { backgroundPosition: '0% 50%' }, '50%': { backgroundPosition: '100% 50%' } },
+        showcaseProgress: { '0%': { width: '0%' }, '100%': { width: '100%' } },
       },
     },
   },

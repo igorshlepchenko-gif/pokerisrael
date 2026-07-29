@@ -6,7 +6,7 @@ import TournamentDetailModal from '../components/Tournament/TournamentDetailModa
 import VenueMultiSelect from '../components/VenueMultiSelect';
 import { DAYS_HE } from '../utils/whatsapp';
 import HandLoggerSection from '../components/HandLogger/HandLoggerSection';
-import TournamentClock from '../components/TournamentClock';
+import ServiceShowcase from '../components/ServiceShowcase';
 import { useAuth } from '../context/AuthContext';
 
 export default function Home() {
@@ -98,45 +98,47 @@ export default function Home() {
             style={{ backgroundImage: 'linear-gradient(rgba(96,165,250,1) 1px, transparent 1px), linear-gradient(90deg, rgba(96,165,250,1) 1px, transparent 1px)', backgroundSize: '60px 60px' }} />
         </div>
 
-        <div className="relative max-w-4xl mx-auto text-center">
-          {/* Tournament clock — sets the scene before the headline */}
-          <div className="pt-4">
-            <TournamentClock />
+        <div className="relative max-w-7xl mx-auto flex flex-col lg:flex-row items-center gap-10 lg:gap-8">
+          {/* Service showcase — מסתובב בין השירותים באתר, לוחצים כדי לעבור אליהם */}
+          <div className="w-full lg:w-[380px] shrink-0 lg:order-2">
+            <ServiceShowcase />
           </div>
 
-          {/* Main heading */}
-          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black text-white leading-tight mb-6 animate-slide-up">
-            כל הפוקר{' '}
-            <span style={{
-              background: 'linear-gradient(to bottom, #fff 0%, #fff 16%, #0038b8 16%, #0038b8 40%, #fff 40%, #fff 60%, #0038b8 60%, #0038b8 84%, #fff 84%, #fff 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
-              filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.7))',
-            }}>
-              בישראל
-            </span>
-            <br />
-            <span style={{ background: 'linear-gradient(135deg, #60a5fa, #22d3ee)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-              במקום אחד
-            </span>
-          </h1>
+          <div className="flex-1 text-center lg:order-1">
+            {/* Main heading */}
+            <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black text-white leading-tight mb-6 animate-slide-up">
+              כל הפוקר{' '}
+              <span style={{
+                background: 'linear-gradient(to bottom, #fff 0%, #fff 16%, #0038b8 16%, #0038b8 40%, #fff 40%, #fff 60%, #0038b8 60%, #0038b8 84%, #fff 84%, #fff 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+                filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.7))',
+              }}>
+                בישראל
+              </span>
+              <br />
+              <span style={{ background: 'linear-gradient(135deg, #60a5fa, #22d3ee)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                במקום אחד
+              </span>
+            </h1>
 
-          {/* Stats */}
-          <div className="flex justify-center gap-4 sm:gap-8 mb-10 flex-wrap">
-            {[
-              { icon: '🏆', value: stats.tournaments, label: 'טורנירים זמינים להרשמה' },
-              { icon: '📍', value: stats.venues,      label: 'מועדונים פעילים' },
-              { icon: '👥', value: stats.users,       label: 'משתמשים' },
-            ].map(s => (
-              <div key={s.label} className="stat-card text-center min-w-[110px]">
-                <div className="text-2xl mb-1">{s.icon}</div>
-                <div className="text-2xl font-black text-white">
-                  {s.value === null ? '...' : s.value.toLocaleString('he-IL')}
+            {/* Stats */}
+            <div className="flex justify-center gap-4 sm:gap-8 mb-10 flex-wrap">
+              {[
+                { icon: '🏆', value: stats.tournaments, label: 'טורנירים זמינים להרשמה' },
+                { icon: '📍', value: stats.venues,      label: 'מועדונים פעילים' },
+                { icon: '👥', value: stats.users,       label: 'משתמשים' },
+              ].map(s => (
+                <div key={s.label} className="stat-card text-center min-w-[110px]">
+                  <div className="text-2xl mb-1">{s.icon}</div>
+                  <div className="text-2xl font-black text-white">
+                    {s.value === null ? '...' : s.value.toLocaleString('he-IL')}
+                  </div>
+                  <div className="text-xs text-slate-400 mt-0.5">{s.label}</div>
                 </div>
-                <div className="text-xs text-slate-400 mt-0.5">{s.label}</div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       </div>
