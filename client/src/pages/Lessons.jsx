@@ -8,12 +8,13 @@ function LessonAvatar({ lesson }) {
   const [imgError, setImgError] = useState(false);
 
   if (lesson.logo && !imgError) {
+    const fit = lesson.logoFit === 'cover' ? 'object-cover' : 'object-contain';
     return (
       <img
         src={lesson.logo}
         alt={lesson.name}
         onError={() => setImgError(true)}
-        className="w-11 h-11 rounded-xl object-contain bg-slate-800 border border-slate-700 shrink-0"
+        className={`w-11 h-11 rounded-xl ${fit} bg-slate-800 border border-slate-700 shrink-0`}
       />
     );
   }
