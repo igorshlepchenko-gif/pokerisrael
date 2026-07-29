@@ -278,9 +278,9 @@ exports.login = async (req, res) => {
       return res.status(401).json({ message: msg });
     }
 
-    // הצלחה — איפוס מונה
+    // הצלחה — איפוס מונה + עדכון זמן התחברות אחרון
     await pool.query(
-      'UPDATE users SET failed_login_attempts = 0, is_locked = false, locked_at = NULL WHERE id = $1',
+      'UPDATE users SET failed_login_attempts = 0, is_locked = false, locked_at = NULL, last_login_at = NOW() WHERE id = $1',
       [user.id]
     );
 

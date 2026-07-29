@@ -106,6 +106,8 @@ async function ensureSchema() {
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0`,
       // הפעלה/כיבוי טורניר בצד הבעלים — למשל השבתת סדרה שבועית זמנית בלי למחוק אותה
       `ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT true`,
+      // מעקב התחברות אחרונה — לזיהוי חשבונות שנרשמו ולא חזרו להתחבר
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMP`,
     ];
     for (const sql of MIGRATIONS) {
       try { await pool.query(sql); } catch (e) { console.error('migration failed:', e.message); }
