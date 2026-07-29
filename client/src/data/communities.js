@@ -41,6 +41,17 @@ export const COMMUNITIES = [
   },
   { id: 'wa-kidrurim-dream-with-me', name: 'Kidrurim - Dream With Me!', type: 'whatsapp', logo: '/communities/kidrurim.png', url: 'https://chat.whatsapp.com/LF4rfcplQtIEoWUukT5PDO?s=cl&p=i&mlu=4' },
   { id: 'wa-alon-eldar-channel', name: 'הערוץ של אלון אלדר', type: 'whatsapp', cta: 'עקבו אחרי הערוץ', logo: '', url: 'https://whatsapp.com/channel/0029VbAn27jJf05UsbUO451E' },
+  {
+    id: 'wa-dama-club',
+    name: 'Dama Club',
+    type: 'whatsapp',
+    cta: 'בקשת הצטרפות',
+    logo: '/communities/dama-club.jpeg',
+    description: `DAMA Club היא קהילת נשים ייחודית שנוצרה כדי לתת לנשים מרחב מקצועי, נעים ותומך ללמוד, לתרגל ולהתפתח בעולם הפוקר – מהצעדים הראשונים ועד לרמה מתקדמת. הקהילה מתאימה גם לנשים שעושות את הצעדים הראשונים שלהן בפוקר ורוצות ללמוד בצורה ברורה, חכמה ובטוחה, וגם לנשים שכבר משחקות ורוצות לחדד אסטרטגיות, לתרגל ולהשתפר.
+
+המטרה של DAMA Club היא ליצור מרחב לא שיפוטי, חיובי ומעצים, שבו כל אישה מרגישה בנוח לשאול שאלות, לטעות, להתנסות, לצחוק, ללמוד ולהתקדם בקצב שלה. כאן בונות ביטחון דרך תרגול, תמיכה, מקצועיות והרבה אנרגיה טובה.`,
+    url: `https://wa.me/message/2ZAKOKYIM4MBD1?text=${encodeURIComponent('שלום, אני רוצה להצטרף לקהילת הדאמה')}`,
+  },
   { id: 'tg-elkanuts', name: 'אלקנאטס', type: 'telegram', logo: '', url: 'https://t.me/elkanuts' },
   { id: 'fb-pokernet', name: 'פוקרנט - קהילת הפוקר של ישראל', type: 'facebook', logo: '', url: 'https://www.facebook.com/groups/968496560156456' },
   { id: 'fb-poker-israel-ads', name: 'פוקר ישראל בפייסבוק - פרסום משחקי קאש בשקיפות מלאה', type: 'facebook', logo: '/communities/poker-israel-facebook.png', logoFit: 'cover', url: 'https://www.facebook.com/groups/173732592641570/?ref=share&mibextid=NSMWBT' },
