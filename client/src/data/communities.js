@@ -52,7 +52,7 @@ export const COMMUNITIES = [
 המטרה של DAMA Club היא ליצור מרחב לא שיפוטי, חיובי ומעצים, שבו כל אישה מרגישה בנוח לשאול שאלות, לטעות, להתנסות, לצחוק, ללמוד ולהתקדם בקצב שלה. כאן בונות ביטחון דרך תרגול, תמיכה, מקצועיות והרבה אנרגיה טובה.`,
     url: `https://api.whatsapp.com/send?phone=972508567268&text=${encodeURIComponent('שלום, אני רוצה להצטרף לקהילת הדאמה')}`,
   },
-  { id: 'tg-elkanuts', name: 'אלקנאטס', type: 'telegram', logo: '', url: 'https://t.me/elkanuts' },
+  { id: 'tg-elkanuts', name: 'אלקנאטס', type: 'telegram', logo: '/communities/elkanuts.jpg', description: 'תוכן פוקר ישראלי', url: 'https://t.me/elkanuts' },
   { id: 'fb-pokernet', name: 'פוקרנט - קהילת הפוקר של ישראל', type: 'facebook', logo: '', url: 'https://www.facebook.com/groups/968496560156456' },
   { id: 'fb-poker-israel-ads', name: 'פוקר ישראל בפייסבוק - פרסום משחקי קאש בשקיפות מלאה', type: 'facebook', logo: '/communities/poker-israel-facebook.png', logoFit: 'cover', url: 'https://www.facebook.com/groups/173732592641570/?ref=share&mibextid=NSMWBT' },
   { id: 'yt-poker7-israel', name: 'חדשות פוקר 7', type: 'youtube', logo: '/communities/poker7-israel.png', logoFit: 'cover', url: 'https://www.youtube.com/@Poker7.Israel' },
