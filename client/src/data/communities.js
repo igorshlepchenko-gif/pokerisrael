@@ -23,7 +23,22 @@ export const COMMUNITIES = [
     url: 'https://chat.whatsapp.com/BiCSddd7rTiHipg6KDaJsO',
   },
   { id: 'wa-top-playoff', name: 'עולם הפלייאוף העליון', type: 'whatsapp', cta: 'בקשת הצטרפות', description: 'הקהילה סגורה לחברים שלמדו בפלייאוף', logo: '/communities/top-playoff.jpeg', url: 'https://api.whatsapp.com/send?phone=972545498581&text=שלום,+אני+רוצה+להתחבר+לעולם+הפלייאוף+העליון' },
-  { id: 'wa-royal-flush-business', name: 'Royal Flush Business - קהילת העצמאים', type: 'whatsapp', logo: '', url: 'https://chat.whatsapp.com/KNl0cjfrtQDDMeIFKQSBLd' },
+  {
+    id: 'wa-royal-flush-business',
+    name: 'Royal Flush Business - קהילת העצמאים',
+    type: 'whatsapp',
+    logo: '/communities/royal-flush-business.png',
+    description: `בפוקר כל אחד לעצמו, אבל בעסקים אנחנו כוח אחד גדול.
+
+זהו הבית של שחקני הפוקר שהם גם בעלי עסקים ועצמאים – אנשים שיודעים לנהל סיכונים, לקרוא את המפה ולהמר על עצמם כשצריך. הקבוצה הוקמה כדי להרים אחד לשני ולחזק את הקהילה דווקא בתקופה המאתגרת הזו.
+
+כאן לא עושים 'צ'ק' – כאן דוחפים קדימה את העסקים של חברי הענף, צורכים שירותים אחד מהשני ומוצאים אנשי מקצוע שאפשר לסמוך עליהם (בלי בלופים). מוזמנים להציג את העסק שלכם, להציע מבצעים לחברים ולמצוא את הדרך לצמוח יחד.
+
+כי כשהקהילה מנצחת – כולם זוכים בקופה.
+
+מומלץ לשנות את הכינוי בוואטסאפ לשם המלא + תחום העיסוק כדי שיהיה קל למצוא אתכם`,
+    url: 'https://chat.whatsapp.com/KNl0cjfrtQDDMeIFKQSBLd',
+  },
   { id: 'wa-kidrurim-dream-with-me', name: 'Kidrurim - Dream With Me!', type: 'whatsapp', logo: '/communities/kidrurim.png', url: 'https://chat.whatsapp.com/LF4rfcplQtIEoWUukT5PDO?s=cl&p=i&mlu=4' },
   { id: 'wa-alon-eldar-channel', name: 'הערוץ של אלון אלדר', type: 'whatsapp', cta: 'עקבו אחרי הערוץ', logo: '', url: 'https://whatsapp.com/channel/0029VbAn27jJf05UsbUO451E' },
   { id: 'tg-elkanuts', name: 'אלקנאטס', type: 'telegram', logo: '', url: 'https://t.me/elkanuts' },
