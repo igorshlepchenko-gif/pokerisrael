@@ -3,6 +3,7 @@
 // logo (אופציונלי): שימו את קובץ התמונה בתיקיית client/public/communities/ והפנו אליו כאן בתור "/communities/שם-קובץ.png"
 // (אם logo ריק/חסר, מוצג אייקון הפלטפורמה כברירת מחדל)
 // cta (אופציונלי): טקסט כפתור מותאם אישית (למשל ערוץ שידור שדורש "עקבו" ולא "הצטרפות לקבוצה"). בלי זה, מוצג טקסט ברירת המחדל של הפלטפורמה.
+// logoFit (אופציונלי): 'cover' ממלא את המסגרת גם אם זה חותך את הצדדים (ברירת מחדל: 'contain' — לא חותך, אבל עלול להשאיר רווח). שימושי ללוגו לרוחב.
 export const COMMUNITIES = [
   {
     id: 'wa-high-pulse-poker',
@@ -27,6 +28,6 @@ export const COMMUNITIES = [
   { id: 'wa-alon-eldar-channel', name: 'הערוץ של אלון אלדר', type: 'whatsapp', cta: 'עקבו אחרי הערוץ', logo: '', url: 'https://whatsapp.com/channel/0029VbAn27jJf05UsbUO451E' },
   { id: 'tg-elkanuts', name: 'אלקנאטס', type: 'telegram', logo: '', url: 'https://t.me/elkanuts' },
   { id: 'fb-pokernet', name: 'פוקרנט - קהילת הפוקר של ישראל', type: 'facebook', logo: '', url: 'https://www.facebook.com/groups/968496560156456' },
-  { id: 'fb-poker-israel-ads', name: 'פוקר ישראל בפייסבוק - פרסום משחקי קאש בשקיפות מלאה', type: 'facebook', logo: '/communities/poker-israel-facebook.png', url: 'https://www.facebook.com/groups/173732592641570/?ref=share&mibextid=NSMWBT' },
-  { id: 'yt-poker7-israel', name: 'חדשות פוקר 7', type: 'youtube', logo: '/communities/poker7-israel.png', url: 'https://www.youtube.com/@Poker7.Israel' },
+  { id: 'fb-poker-israel-ads', name: 'פוקר ישראל בפייסבוק - פרסום משחקי קאש בשקיפות מלאה', type: 'facebook', logo: '/communities/poker-israel-facebook.png', logoFit: 'cover', url: 'https://www.facebook.com/groups/173732592641570/?ref=share&mibextid=NSMWBT' },
+  { id: 'yt-poker7-israel', name: 'חדשות פוקר 7', type: 'youtube', logo: '/communities/poker7-israel.png', logoFit: 'cover', url: 'https://www.youtube.com/@Poker7.Israel' },
 ];

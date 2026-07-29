@@ -64,12 +64,13 @@ function CommunityAvatar({ community, Icon, color }) {
   const [imgError, setImgError] = useState(false);
 
   if (community.logo && !imgError) {
+    const fit = community.logoFit === 'cover' ? 'object-cover' : 'object-contain';
     return (
       <img
         src={community.logo}
         alt={community.name}
         onError={() => setImgError(true)}
-        className="w-11 h-11 rounded-xl object-contain bg-slate-800 border border-slate-700 shrink-0"
+        className={`w-11 h-11 rounded-xl ${fit} bg-slate-800 border border-slate-700 shrink-0`}
       />
     );
   }
