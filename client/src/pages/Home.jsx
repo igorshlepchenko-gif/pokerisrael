@@ -7,6 +7,7 @@ import VenueMultiSelect from '../components/VenueMultiSelect';
 import { DAYS_HE } from '../utils/whatsapp';
 import HandLoggerSection from '../components/HandLogger/HandLoggerSection';
 import ServiceShowcase from '../components/ServiceShowcase';
+import NextTournamentPill from '../components/NextTournamentPill';
 import { useAuth } from '../context/AuthContext';
 
 export default function Home() {
@@ -105,6 +106,9 @@ export default function Home() {
           </div>
 
           <div className="flex-1 text-center lg:order-1">
+            {/* Next tournament pill — real data, cycles through the upcoming list */}
+            <NextTournamentPill tournaments={tournaments} />
+
             {/* Main heading */}
             <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black text-white leading-tight mb-6 animate-slide-up">
               כל הפוקר{' '}
