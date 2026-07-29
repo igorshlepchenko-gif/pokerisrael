@@ -1,6 +1,6 @@
 import { buildWhatsAppLink, formatTime, formatDate, formatCost, DAYS_HE, getStageDurations, formatGames, venueDisplayName, eventDisplayDate, isLateRegClosed } from '../../utils/whatsapp';
 import { useAuth } from '../../context/AuthContext';
-import api from '../../utils/api';
+import { logRegistration } from '../../utils/api';
 
 export default function TournamentListRow({ t, index, onClick }) {
   const { user } = useAuth();
@@ -18,11 +18,11 @@ export default function TournamentListRow({ t, index, onClick }) {
     e.stopPropagation();
     if (!t.organizer_whatsapp) return;
     const n = user?.name, p = user?.phone;
-    api.post('/registrations', {
+    logRegistration({
       tournament_id: t.id, tournament_name: t.name, venue_id: t.organizer_venue_id,
       venue_name: t.organizer_name, tournament_date: t.start_time,
       registrant_name: n || 'אנונימי', registrant_phone: p || null, user_id: user?.id || null,
-    }).catch(() => {});
+    });
     window.open(buildWhatsAppLink(t.organizer_whatsapp, t, n, p), '_blank', 'noopener,noreferrer');
   };
 

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { formatTime, formatDate, formatCost, DAYS_HE, buildWhatsAppLink, getStageDurations, formatGames, venueDisplayName, eventDisplayDate, isLateRegClosed } from '../../utils/whatsapp';
 import { useAuth } from '../../context/AuthContext';
-import api from '../../utils/api';
+import { logRegistration } from '../../utils/api';
 import RegistrationModal from './RegistrationModal';
 
 /* סוג הטורניר קובע את סימן הקלף — לא אקראי, כדי שהעיצוב יעביר מידע אמיתי */
@@ -31,7 +31,7 @@ export default function TournamentCard({ t, onClick, brands = [] }) {
   const displayLogo = matchedBrand?.logo_url || t.venue_logo;
 
   const openWhatsApp = (name, phone) => {
-    api.post('/registrations', {
+    logRegistration({
       tournament_id:    t.id,
       tournament_name:  t.name,
       venue_id:         t.venue_id,
@@ -40,7 +40,7 @@ export default function TournamentCard({ t, onClick, brands = [] }) {
       registrant_name:  name || 'אנונימי',
       registrant_phone: phone || null,
       user_id:          user?.id || null,
-    }).catch(() => {});
+    });
     window.open(buildWhatsAppLink(t.whatsapp_number, t, name, phone), '_blank', 'noopener,noreferrer');
   };
 
@@ -61,11 +61,11 @@ export default function TournamentCard({ t, onClick, brands = [] }) {
     e.stopPropagation();
     if (!t.organizer_whatsapp) return;
     const n = user?.name, p = user?.phone;
-    api.post('/registrations', {
+    logRegistration({
       tournament_id: t.id, tournament_name: t.name, venue_id: t.organizer_venue_id,
       venue_name: t.organizer_name, tournament_date: t.start_time,
       registrant_name: n || 'אנונימי', registrant_phone: p || null, user_id: user?.id || null,
-    }).catch(() => {});
+    });
     window.open(buildWhatsAppLink(t.organizer_whatsapp, t, n, p), '_blank', 'noopener,noreferrer');
   };
 

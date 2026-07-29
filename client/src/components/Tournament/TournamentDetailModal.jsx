@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { buildVenueContactLink, buildWhatsAppLink, formatTime, formatDate, formatCost, DAYS_HE, getStageDurations, formatGames, venueDisplayName, eventDisplayDate, isLateRegClosed } from '../../utils/whatsapp';
 import { buildGoogleCalendarUrl, downloadICS } from '../../utils/calendar';
 import { useAuth } from '../../context/AuthContext';
-import api from '../../utils/api';
+import { logRegistration } from '../../utils/api';
 import RegistrationModal from './RegistrationModal';
 
 export default function TournamentDetailModal({ tournament: t, onClose, brands = [] }) {
@@ -34,7 +34,7 @@ export default function TournamentDetailModal({ tournament: t, onClose, brands =
   const [showCalendarOptions, setShowCalendarOptions] = useState(false);
 
   const openWhatsApp = (name, phone) => {
-    api.post('/registrations', {
+    logRegistration({
       tournament_id:    t.id,
       tournament_name:  t.name,
       venue_id:         t.venue_id,
@@ -43,7 +43,7 @@ export default function TournamentDetailModal({ tournament: t, onClose, brands =
       registrant_name:  name || 'אנונימי',
       registrant_phone: phone || null,
       user_id:          user?.id || null,
-    }).catch(() => {});
+    });
     window.open(buildWhatsAppLink(t.whatsapp_number, t, name, phone), '_blank', 'noopener,noreferrer');
   };
 
@@ -60,11 +60,11 @@ export default function TournamentDetailModal({ tournament: t, onClose, brands =
   const openOrganizerWhatsApp = () => {
     if (!t.organizer_whatsapp) return;
     const n = user?.name, p = user?.phone;
-    api.post('/registrations', {
+    logRegistration({
       tournament_id: t.id, tournament_name: t.name, venue_id: t.organizer_venue_id,
       venue_name: t.organizer_name, tournament_date: t.start_time,
       registrant_name: n || 'אנונימי', registrant_phone: p || null, user_id: user?.id || null,
-    }).catch(() => {});
+    });
     window.open(buildWhatsAppLink(t.organizer_whatsapp, t, n, p), '_blank', 'noopener,noreferrer');
   };
 

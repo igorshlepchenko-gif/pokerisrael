@@ -22,4 +22,13 @@ api.interceptors.response.use(
   }
 );
 
+// לוג הרשמה יורה-ושכח, נקרא תמיד ממש לפני window.open לוואטסאפ — ברגע שהטאב
+// עובר לרקע (המשתמש עבר לוואטסאפ), דפדפנים רבים מבטלים בקשות fetch/axios שעדיין
+// באוויר. sendBeacon מיועד בדיוק למקרה הזה ומובטח להישלח גם כשהדף ברקע/נסגר.
+export function logRegistration(payload) {
+  const body = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+  if (navigator.sendBeacon && navigator.sendBeacon('/api/registrations', body)) return;
+  api.post('/registrations', payload).catch(() => {}); // דפדפן ישן ללא תמיכה ב-sendBeacon
+}
+
 export default api;
