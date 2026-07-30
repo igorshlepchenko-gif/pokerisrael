@@ -127,10 +127,23 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
       heroCards, handData, result, heroProfit, splitDist, notes, showShowdown, oppRevealedCards, narrative,
       autoDecided, autoReason]);
 
-  // מניעת גלילה ברקע — בלי זה, גרירה במובייל שמגיעה לקצה תוכן המודל "בורחת" לגלילת הדף שמאחורי
+  // מניעת גלילה ברקע — "overflow: hidden" לבדו לא אמין ב-iOS Safari (גלילה עדיין
+  // "בורחת" לדף שמאחורי ומזיזה את סרגל הכתובת). התרגיל האמין: מוציאים את ה-body
+  // מזרימת המסמך לגמרי (position: fixed) ומחזירים את מיקום הגלילה בסגירה.
   useEffect(() => {
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = ''; };
+    const scrollY = window.scrollY;
+    const body = document.body;
+    body.style.position = 'fixed';
+    body.style.top = `-${scrollY}px`;
+    body.style.left = '0';
+    body.style.right = '0';
+    return () => {
+      body.style.position = '';
+      body.style.top = '';
+      body.style.left = '';
+      body.style.right = '';
+      window.scrollTo(0, scrollY);
+    };
   }, []);
 
   // ── Auto-decide the winner at showdown ──────────────────────
