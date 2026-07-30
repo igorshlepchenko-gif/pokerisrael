@@ -35,4 +35,13 @@ export const LESSONS = [
     cta: 'לשיחת היכרות',
     url: 'https://agame-welcome.youcanbook.me/?source=igor&Q5=igor',
   },
+  {
+    id: 'tsuf-saltsberg',
+    name: 'צוף סלצברג - מאמן אומהה 4/5 קלפים קאש וטורנירים',
+    description: 'בעל קבלות בטורנירי אומהה ב 7xl ומשחקי קאש אונליין\n\nמתמחה בקאש אונליין מיד והיי סטייקס',
+    logo: '/lessons/tsuf.png',
+    badge: 'Sold Out',
+    cta: 'לפרטים והרשמה',
+    url: 'https://api.whatsapp.com/send?phone=972523890509&text=שלום,+הגעתי+מאתר+פוקר+ישראל+ואני+מתעניין+בלימודי+אומהה',
+  },
 ];
