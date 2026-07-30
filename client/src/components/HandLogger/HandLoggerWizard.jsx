@@ -393,6 +393,7 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
       if (isTournament) return !!customBb;
       return !!stakesPreset || !!customStakes;
     }
+    if (step === 2) return opponents.length > 0;
     if (step === 3) return !!heroPosition;
     if (step === 4) return heroCards.length === 2;
     if (step === 5) {
