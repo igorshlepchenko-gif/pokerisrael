@@ -127,6 +127,12 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
       heroCards, handData, result, heroProfit, splitDist, notes, showShowdown, oppRevealedCards, narrative,
       autoDecided, autoReason]);
 
+  // מניעת גלילה ברקע — בלי זה, גרירה במובייל שמגיעה לקצה תוכן המודל "בורחת" לגלילת הדף שמאחורי
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, []);
+
   // ── Auto-decide the winner at showdown ──────────────────────
   // A player who folds can never win, so a fold alone can settle the hand.
   // Otherwise, once every remaining player's cards are known, compare best 5-card hands.
@@ -1194,7 +1200,7 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto px-5 pb-4" dir="rtl">
+        <div className="flex-1 overflow-y-auto overscroll-contain px-5 pb-4" dir="rtl">
           {renderStep()}
         </div>
 
