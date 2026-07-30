@@ -9,12 +9,13 @@ function LessonAvatar({ lesson }) {
 
   if (lesson.logo && !imgError) {
     const fit = lesson.logoFit === 'cover' ? 'object-cover' : 'object-contain';
+    const size = lesson.logoWide ? 'h-11 w-auto max-w-[11rem]' : 'w-11 h-11';
     return (
       <img
         src={lesson.logo}
         alt={lesson.name}
         onError={() => setImgError(true)}
-        className={`w-11 h-11 rounded-xl ${fit} bg-slate-800 border border-slate-700 shrink-0`}
+        className={`${size} rounded-xl ${fit} bg-slate-800 border border-slate-700 shrink-0`}
       />
     );
   }
