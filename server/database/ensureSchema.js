@@ -108,6 +108,36 @@ async function ensureSchema() {
       `ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT true`,
       // מעקב התחברות אחרונה — לזיהוי חשבונות שנרשמו ולא חזרו להתחבר
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMP`,
+      // registration_logs היה קיים בפרודקשן רק דרך schema.sql (רץ פעם אחת על מסד ריק) —
+      // לא הופיע כאן, כך שסביבה/מסד חדש לא היו יוצרים אותו אוטומטית. מוסיפים גם כאן
+      // בתור רשת ביטחון idempotent (no-op על המסד הקיים).
+      `CREATE TABLE IF NOT EXISTS registration_logs (
+        id                SERIAL PRIMARY KEY,
+        tournament_id     INTEGER,
+        tournament_name   VARCHAR(200) NOT NULL,
+        venue_id          INTEGER,
+        venue_name        VARCHAR(200) NOT NULL,
+        tournament_date   TIMESTAMP WITH TIME ZONE,
+        user_id           INTEGER,
+        registrant_name   VARCHAR(200) NOT NULL,
+        registrant_phone  VARCHAR(30),
+        created_at        TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_reg_logs_tournament ON registration_logs(tournament_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_reg_logs_venue      ON registration_logs(venue_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_reg_logs_created    ON registration_logs(created_at DESC)`,
+      // יומן פניות למאמנים/קורסים (טאב לימודי פוקר) — אותה תבנית בדיוק כמו registration_logs
+      `CREATE TABLE IF NOT EXISTS inquiry_logs (
+        id               SERIAL PRIMARY KEY,
+        lesson_id        VARCHAR(100),
+        lesson_name      VARCHAR(200) NOT NULL,
+        user_id          INTEGER,
+        inquirer_name    VARCHAR(200) NOT NULL,
+        inquirer_phone   VARCHAR(30),
+        created_at       TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_inquiry_logs_lesson  ON inquiry_logs(lesson_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_inquiry_logs_created ON inquiry_logs(created_at DESC)`,
     ];
     for (const sql of MIGRATIONS) {
       try { await pool.query(sql); } catch (e) { console.error('migration failed:', e.message); }

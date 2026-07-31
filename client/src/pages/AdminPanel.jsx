@@ -137,6 +137,11 @@ export default function AdminPanel() {
   const [regSearchInput, setRegSearchInput] = useState('');
   const [regTotal, setRegTotal] = useState(0);
   const [regOffset, setRegOffset] = useState(0);
+  const [inquiries, setInquiries] = useState([]);
+  const [inqSearch, setInqSearch] = useState('');
+  const [inqSearchInput, setInqSearchInput] = useState('');
+  const [inqTotal, setInqTotal] = useState(0);
+  const [inqOffset, setInqOffset] = useState(0);
   const [loading, setLoading] = useState(true);
   const [rejectModal, setRejectModal] = useState(null);
   const [rejectReason, setRejectReason] = useState('');
@@ -166,7 +171,7 @@ export default function AdminPanel() {
   const [pendingVenueList, setPendingVenueList] = useState([]);
   const [expandedImport,   setExpandedImport]   = useState(null);
 
-  useEffect(() => { fetchData(); }, [tab, clEntityType, clAction, clDateFrom, clDateTo, clSearch, regSearch]);
+  useEffect(() => { fetchData(); }, [tab, clEntityType, clAction, clDateFrom, clDateTo, clSearch, regSearch, inqSearch]);
 
   // Poll WhatsApp connection status while on imports tab.
   // Stops polling once connected ('ready') or disconnected to avoid hammering the API.
@@ -232,6 +237,14 @@ export default function AdminPanel() {
         setRegistrations(prev => offset === 0 ? res.data.registrations : [...prev, ...res.data.registrations]);
         setRegTotal(res.data.total);
         setRegOffset(offset);
+      } else if (tab === 'inquiries') {
+        const offset = opts.offset ?? 0;
+        const res = await api.get('/inquiries', {
+          params: { search: inqSearch || undefined, limit: 200, offset },
+        });
+        setInquiries(prev => offset === 0 ? res.data.inquiries : [...prev, ...res.data.inquiries]);
+        setInqTotal(res.data.total);
+        setInqOffset(offset);
       } else if (tab === 'imports') {
         const [hist, src, pend, venues] = await Promise.all([
           api.get('/imports?status=approved'),
@@ -371,6 +384,7 @@ export default function AdminPanel() {
           ['users', `👥 משתמשים${lockedCount > 0 ? ` 🔒${lockedCount}` : ''}`],
           ['changelog', '📋 יומן שינויים'],
           ['registrations', `📝 הרשמות${regTotal > 0 ? ` (${regTotal})` : ''}`],
+          ['inquiries', `📞 פניות למאמנים${inqTotal > 0 ? ` (${inqTotal})` : ''}`],
           ['hand-logger', '🃏 רישום ידיים'],
           ['imports', '📥 ייבוא מפרסומים'],
         ].map(([id, label]) => (
@@ -730,6 +744,101 @@ export default function AdminPanel() {
                     <div className="p-3 text-center border-t border-slate-700">
                       <button onClick={() => fetchData({ offset: regOffset + 200 })} className="btn-ghost text-sm px-5">
                         טען עוד (<span className="font-mono tabular-nums">{registrations.length}</span> מתוך <span className="font-mono tabular-nums">{regTotal}</span>)
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Inquiry log — פניות דרך כפתורי הוואטסאפ בטאב לימודי פוקר */}
+          {tab === 'inquiries' && (
+            <div>
+              {/* כותרת + חיפוש + ייצוא */}
+              <div className="flex items-center gap-3 mb-5 flex-wrap">
+                <input
+                  type="text"
+                  value={inqSearchInput}
+                  onChange={e => setInqSearchInput(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && setInqSearch(inqSearchInput)}
+                  placeholder="חיפוש לפי שם או שיעור/מאמן..."
+                  className="input-field flex-1 min-w-48 py-2 text-sm"
+                />
+                <button onClick={() => setInqSearch(inqSearchInput)} className="btn-primary px-5 text-sm shrink-0">
+                  🔍 חפש
+                </button>
+                {inqSearch && (
+                  <button onClick={() => { setInqSearch(''); setInqSearchInput(''); }} className="btn-ghost text-sm px-3 shrink-0">
+                    ✕
+                  </button>
+                )}
+                <button
+                  onClick={async () => {
+                    try {
+                      const res = await api.get('/inquiries/export', {
+                        params: { search: inqSearch || undefined },
+                        responseType: 'blob',
+                      });
+                      const url = URL.createObjectURL(res.data);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `inquiries_${new Date().toISOString().slice(0,10)}.xlsx`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    } catch (err) {
+                      let message = 'שגיאה בייצוא לאקסל';
+                      if (err?.response?.data instanceof Blob) {
+                        try { message = JSON.parse(await err.response.data.text())?.message || message; } catch { /* not JSON, keep default */ }
+                      }
+                      alert(message);
+                    }
+                  }}
+                  className="flex items-center gap-2 bg-green-900/30 hover:bg-green-900/60 text-green-400 font-semibold py-2 px-4 rounded-xl transition-all text-sm shrink-0 border border-green-700/30"
+                >
+                  📊 ייצוא לאקסל
+                </button>
+                <span className="text-xs text-slate-500 shrink-0"><span className="font-mono tabular-nums">{inqTotal}</span> פניות סה"כ</span>
+              </div>
+
+              {inquiries.length === 0 ? (
+                <div className="card p-16 text-center">
+                  <div className="text-5xl mb-3">📞</div>
+                  <p className="text-slate-400 font-semibold">אין פניות עדיין</p>
+                  <p className="text-slate-600 text-sm mt-1">פניות דרך כפתורי הוואטסאפ בטאב לימודי פוקר יירשמו כאן אוטומטית</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto rounded-xl border border-slate-700">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-slate-900 text-right">
+                        <th className="py-3 px-4 text-slate-400 font-semibold">תאריך פנייה</th>
+                        <th className="py-3 px-4 text-slate-400 font-semibold">שם הפונה</th>
+                        <th className="py-3 px-4 text-slate-400 font-semibold">טלפון</th>
+                        <th className="py-3 px-4 text-slate-400 font-semibold">שיעור / מאמן</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {inquiries.map((r, i) => (
+                        <tr key={r.id}
+                          className={`border-t border-slate-700/50 hover:bg-slate-700/20 transition-colors ${i % 2 === 0 ? '' : 'bg-slate-800/30'}`}>
+                          <td className="py-3 px-4 text-slate-400 text-xs whitespace-nowrap font-mono tabular-nums">
+                            {new Date(r.created_at).toLocaleString('he-IL', {
+                              day: '2-digit', month: '2-digit', year: '2-digit',
+                              hour: '2-digit', minute: '2-digit',
+                            })}
+                          </td>
+                          <td className="py-3 px-4 font-semibold text-slate-100">{r.inquirer_name}</td>
+                          <td className="py-3 px-4 text-slate-400 dir-ltr text-left font-mono tabular-nums">{r.inquirer_phone || '—'}</td>
+                          <td className="py-3 px-4 text-slate-300">{r.lesson_name}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {inquiries.length < inqTotal && (
+                    <div className="p-3 text-center border-t border-slate-700">
+                      <button onClick={() => fetchData({ offset: inqOffset + 200 })} className="btn-ghost text-sm px-5">
+                        טען עוד (<span className="font-mono tabular-nums">{inquiries.length}</span> מתוך <span className="font-mono tabular-nums">{inqTotal}</span>)
                       </button>
                     </div>
                   )}

@@ -17,6 +17,7 @@ const tournamentRoutes = require('./routes/tournaments');
 const adminRoutes = require('./routes/admin');
 const uploadRoutes = require('./routes/upload');
 const registrationRoutes   = require('./routes/registrations');
+const inquiryRoutes        = require('./routes/inquiries');
 const blindTemplateRoutes  = require('./routes/blindTemplates');
 const eventTemplateRoutes  = require('./routes/eventTemplates');
 const handHistoryRoutes    = require('./routes/handHistories');
@@ -73,6 +74,7 @@ app.use('/api/tournaments', tournamentRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/registrations', registrationRoutes);
+app.use('/api/inquiries', inquiryRoutes);
 app.use('/api/blind-templates', blindTemplateRoutes); // rate limit רק על POST — מוגדר בתוך הנתיב
 app.use('/api/event-templates', eventTemplateRoutes);
 app.use('/api/hand-histories', handHistoryRoutes);

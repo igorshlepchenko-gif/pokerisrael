@@ -31,4 +31,12 @@ export function logRegistration(payload) {
   api.post('/registrations', payload).catch(() => {}); // דפדפן ישן ללא תמיכה ב-sendBeacon
 }
 
+// אותו דפוס בדיוק כמו logRegistration — לוג פנייה למאמן/קורס (טאב לימודי פוקר),
+// נקרא ממש לפני window.open לוואטסאפ
+export function logInquiry(payload) {
+  const body = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+  if (navigator.sendBeacon && navigator.sendBeacon('/api/inquiries', body)) return;
+  api.post('/inquiries', payload).catch(() => {}); // דפדפן ישן ללא תמיכה ב-sendBeacon
+}
+
 export default api;

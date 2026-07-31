@@ -1,8 +1,98 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { LESSONS } from '../data/lessons';
+import { useAuth } from '../context/AuthContext';
+import { logInquiry } from '../utils/api';
 
 const ACCENT = '#f59e0b';
 const DEFAULT_CTA = 'לפרטים נוספים';
+
+// מוצג רק כשהמשתמש אינו מחובר — כמו RegistrationModal, כדי שפנייה של אורח
+// תירשם עם שם אמיתי ולא רק "אנונימי"
+function LessonContactModal({ lesson, onClose, onSubmit }) {
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+
+  useEffect(() => {
+    const h = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', h);
+    return () => window.removeEventListener('keydown', h);
+  }, [onClose]);
+
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, []);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!name.trim()) return;
+    onSubmit(name.trim(), phone.trim());
+  };
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+         role="dialog" aria-modal="true" aria-labelledby="lesson-contact-modal-title"
+         onClick={(e) => { e.stopPropagation(); if (e.target === e.currentTarget) onClose(); }}>
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+
+      <div className="relative bg-slate-800 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-sm p-6 animate-slide-up">
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h3 id="lesson-contact-modal-title" className="font-black text-white text-lg">השאירו פרטים</h3>
+            <p className="text-poker-green-light text-sm font-semibold truncate max-w-[220px]">{lesson.name}</p>
+          </div>
+          <button onClick={onClose}
+            className="w-8 h-8 rounded-full bg-slate-700 hover:bg-red-500/80 flex items-center justify-center text-slate-300 hover:text-white transition-all shrink-0">
+            ✕
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-semibold text-slate-300 mb-1">שם מלא *</label>
+            <input
+              type="text"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              className="input-field"
+              placeholder="ישראל ישראלי"
+              required
+              autoFocus
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-slate-300 mb-1">
+              מספר טלפון <span className="text-slate-500 font-normal">(אופציונלי)</span>
+            </label>
+            <input
+              type="tel"
+              value={phone}
+              onChange={e => setPhone(e.target.value)}
+              className="input-field"
+              placeholder="050-0000000"
+              dir="ltr"
+            />
+          </div>
+
+          <p className="text-xs text-slate-500 bg-slate-900/40 rounded-lg px-3 py-2">
+            📋 הפרטים שלך יעזרו לנו לעקוב אחרי הפנייה.
+            <br />
+            <span className="text-slate-600">רוצה שהפרטים יישמרו? <a href="/login" className="text-poker-green-light hover:underline">התחבר</a> או <a href="/register" className="text-poker-green-light hover:underline">הירשם</a> למערכת.</span>
+          </p>
+
+          <button
+            type="submit"
+            disabled={!name.trim()}
+            className="w-full bg-poker-gold disabled:opacity-50 text-white font-bold py-3 px-4 rounded-xl transition-all duration-200 hover:opacity-90 hover:scale-[1.02] active:scale-95 text-base shadow-lg"
+          >
+            {lesson.cta || DEFAULT_CTA}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
 
 function LessonAvatar({ lesson }) {
   const [imgError, setImgError] = useState(false);
@@ -28,6 +118,31 @@ function LessonAvatar({ lesson }) {
 
 function LessonCard({ lesson }) {
   const cta = lesson.cta || DEFAULT_CTA;
+  const { user } = useAuth();
+  const [showContactModal, setShowContactModal] = useState(false);
+
+  // לוג פנייה יורה-ושכח (sendBeacon), נקרא ממש לפני window.open — אותו דפוס
+  // בדיוק כמו הרשמה לטורניר (ראה utils/api.js: logRegistration/logInquiry)
+  const submitContact = (name, phone) => {
+    logInquiry({
+      lesson_id:      lesson.id,
+      lesson_name:    lesson.name,
+      inquirer_name:  name || 'אנונימי',
+      inquirer_phone: phone || null,
+      user_id:        user?.id || null,
+    });
+    window.open(lesson.url, '_blank', 'noopener,noreferrer');
+  };
+
+  // מחובר — ישר עם הפרטים מהמערכת, כמו הרשמה לטורניר. לא מחובר — חלון הזנת
+  // פרטים קודם, כדי שהפנייה תירשם עם שם אמיתי ולא רק "אנונימי"
+  const handleContact = () => {
+    if (user) {
+      submitContact(user.name, user.phone);
+    } else {
+      setShowContactModal(true);
+    }
+  };
 
   return (
     <div className="relative rounded-2xl border border-slate-800 bg-slate-900/60 p-5 flex flex-col gap-3 transition-all duration-300 hover:border-slate-600 hover:shadow-2xl hover:shadow-poker-green/10"
@@ -49,16 +164,24 @@ function LessonCard({ lesson }) {
         <p className="text-sm text-slate-400 flex-1 whitespace-pre-line">{lesson.description}</p>
       )}
 
-      <a href={lesson.url} target="_blank" rel="noopener noreferrer"
+      <button onClick={handleContact}
         className="mt-1 inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold text-white bg-poker-gold transition-opacity hover:opacity-90">
         {cta}
-      </a>
+      </button>
 
       {lesson.secondaryUrl && (
         <a href={lesson.secondaryUrl} target="_blank" rel="noopener noreferrer"
           className="inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold border border-poker-gold text-poker-gold transition-colors hover:bg-slate-800">
           {lesson.secondaryCta || 'לאתר'}
         </a>
+      )}
+
+      {showContactModal && (
+        <LessonContactModal
+          lesson={lesson}
+          onClose={() => setShowContactModal(false)}
+          onSubmit={(name, phone) => { setShowContactModal(false); submitContact(name, phone); }}
+        />
       )}
     </div>
   );

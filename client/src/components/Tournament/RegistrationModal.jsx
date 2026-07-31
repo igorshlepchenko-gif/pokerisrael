@@ -35,7 +35,13 @@ export default function RegistrationModal({ tournament, onClose, onSubmit }) {
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4"
          role="dialog" aria-modal="true" aria-labelledby="registration-modal-title"
-         onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+         onClick={(e) => {
+           // עוצר בועה — המודל הזה מקונן בתוך כרטיס/שורת טורניר שלמה עם onClick משלה
+           // (פותח את מודל הפרטים), אז בלי זה כל קליק כאן (כולל שליחת הטופס) היה
+           // גם פותח את מודל הפרטים ברקע מייד אחרי הרישום
+           e.stopPropagation();
+           if (e.target === e.currentTarget) onClose();
+         }}>
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
       <div className="relative bg-slate-800 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-sm p-6 animate-slide-up">

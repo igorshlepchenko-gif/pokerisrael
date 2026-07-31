@@ -1,16 +1,44 @@
+import { useState } from 'react';
 import { buildWhatsAppLink, formatTime, formatDate, formatCost, DAYS_HE, getStageDurations, formatGames, venueDisplayName, eventDisplayDate, isLateRegClosed } from '../../utils/whatsapp';
 import { useAuth } from '../../context/AuthContext';
 import { logRegistration } from '../../utils/api';
+import RegistrationModal from './RegistrationModal';
 
 export default function TournamentListRow({ t, index, onClick }) {
   const { user } = useAuth();
-  const waLink = buildWhatsAppLink(t.whatsapp_number, t);
+  const [showRegModal, setShowRegModal] = useState(false);
   const stages = Array.isArray(t.stages) ? t.stages : (typeof t.stages === 'string' ? JSON.parse(t.stages || '[]') : []);
   const levelDur = getStageDurations(stages, t.level_duration);
   const lateRegClosed = isLateRegClosed(t);
   const registerLabel = t.tournament_type === 'cash' || t.tournament_type === 'online_cash' ? 'הצטרפות למשחק' : 'הרשמה לטורניר';
   // formatCost() נופל ל"חינם" (עברית) כשאין עלות אמיתית — mono רק כשהערך המוצג הוא באמת מספר
   const costMono = t.cost ? 'font-mono tabular-nums' : '';
+
+  // הרשמה דרך המארח — כמו ב-TournamentCard וב-Modal (בעבר: קישור <a> גולמי בלי
+  // לוג ובלי איסוף שם/טלפון לאורח — כך תצוגת הרשימה, ברירת המחדל לביקור ראשון,
+  // לא רשמה אף הרשמה מעולם)
+  const openWhatsApp = (name, phone) => {
+    logRegistration({
+      tournament_id:    t.id,
+      tournament_name:  t.name,
+      venue_id:         t.venue_id,
+      venue_name:       t.venue_name,
+      tournament_date:  t.start_time,
+      registrant_name:  name || 'אנונימי',
+      registrant_phone: phone || null,
+      user_id:          user?.id || null,
+    });
+    window.open(buildWhatsAppLink(t.whatsapp_number, t, name, phone), '_blank', 'noopener,noreferrer');
+  };
+
+  const handleRegister = (e) => {
+    e.stopPropagation();
+    if (user) {
+      openWhatsApp(user.name, user.phone);
+    } else {
+      setShowRegModal(true);
+    }
+  };
 
   // רישום כפול — הרשמה דרך המארגן (Runner Runner וכו') — כמו ב-TournamentCard וב-Modal
   const hasOrganizer = !!(t.organizer_name && (t.organizer_whatsapp || t.organizer_registration_url));
@@ -71,11 +99,10 @@ export default function TournamentListRow({ t, index, onClick }) {
             <WaIcon /> ⏳ ההרשמה נסגרה
           </span>
         ) : (
-          <a href={waLink} target="_blank" rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
+          <button onClick={handleRegister}
             className="wa-btn flex items-center justify-center gap-2 w-full bg-[#25D366] hover:bg-[#1da851] text-white font-bold py-2 px-4 rounded-xl text-sm transition-all">
             <WaIcon /> {registerLabel}
-          </a>
+          </button>
         )}
         {/* רישום כפול — דרך המארגן, וקישור חיצוני — כמו ב-Card וב-Modal */}
         {hasOrganizer && t.organizer_whatsapp && (
@@ -198,11 +225,10 @@ export default function TournamentListRow({ t, index, onClick }) {
               <WaIcon /> נסגרה
             </span>
           ) : (
-            <a href={waLink} target="_blank" rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
+            <button onClick={handleRegister}
               className="wa-btn flex items-center justify-center gap-1.5 bg-[#25D366] hover:bg-[#1da851] text-white font-bold py-2 px-3 rounded-xl text-xs whitespace-nowrap transition-all hover:scale-105">
               <WaIcon /> הרשמה
-            </a>
+            </button>
           )}
           {hasOrganizer && t.organizer_whatsapp && (
             <button onClick={openOrganizerWhatsApp}
@@ -232,6 +258,14 @@ export default function TournamentListRow({ t, index, onClick }) {
         <div className="hidden md:block text-xs text-slate-500 mt-1 truncate pr-0 max-w-md group-hover:text-slate-400 transition-colors">
           {t.description}
         </div>
+      )}
+
+      {showRegModal && (
+        <RegistrationModal
+          tournament={t}
+          onClose={() => setShowRegModal(false)}
+          onSubmit={(name, phone) => { setShowRegModal(false); openWhatsApp(name, phone); }}
+        />
       )}
     </div>
   );
