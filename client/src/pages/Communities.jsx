@@ -33,6 +33,23 @@ function YoutubeIcon(props) {
   );
 }
 
+function GlobeIcon(props) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <circle cx="12" cy="12" r="10" />
+      <path d="M2 12h20M12 2c2.7 2.7 4 6.1 4 10s-1.3 7.3-4 10c-2.7-2.7-4-6.1-4-10s1.3-7.3 4-10z" />
+    </svg>
+  );
+}
+
+const CATEGORY_META = {
+  online: {
+    title: 'קהילות אונליין',
+    Icon: GlobeIcon,
+    color: '#a78bfa',
+  },
+};
+
 const TYPE_META = {
   whatsapp: {
     title: 'קבוצות וואטסאפ',
@@ -131,9 +148,28 @@ function CommunityCard({ community }) {
 }
 
 function CommunitySection({ type }) {
-  const items = COMMUNITIES.filter(c => c.type === type);
+  const items = COMMUNITIES.filter(c => c.type === type && !c.category);
   if (items.length === 0) return null;
   const meta = TYPE_META[type];
+
+  return (
+    <section className="space-y-4">
+      <h2 className="flex items-center gap-2 text-lg font-black text-white">
+        <meta.Icon className="w-5 h-5" style={{ color: meta.color }} />
+        {meta.title}
+        <span className="font-mono tabular-nums text-xs font-normal text-slate-500">({items.length})</span>
+      </h2>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {items.map(c => <CommunityCard key={c.id} community={c} />)}
+      </div>
+    </section>
+  );
+}
+
+function CommunityCategorySection({ category }) {
+  const items = COMMUNITIES.filter(c => c.category === category);
+  if (items.length === 0) return null;
+  const meta = CATEGORY_META[category];
 
   return (
     <section className="space-y-4">
@@ -189,6 +225,7 @@ export default function Communities() {
           </div>
         ) : (
           <>
+            <CommunityCategorySection category="online" />
             <CommunitySection type="whatsapp" />
             <CommunitySection type="telegram" />
             <CommunitySection type="facebook" />
