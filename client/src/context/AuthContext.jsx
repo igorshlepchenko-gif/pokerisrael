@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import api from '../utils/api';
+import { clearHandLoggerDraft } from '../utils/handLoggerDraft';
 
 const AuthContext = createContext(null);
 
@@ -14,7 +15,7 @@ export function AuthProvider({ children }) {
       .catch((err) => {
         // רק כשל 401 אמיתי מבטל את הטוקן — שגיאת רשת/שרת חולפת לא אמורה
         // לנתק משתמש שכבר מחובר כחוק
-        if (err.response?.status === 401) localStorage.removeItem('pli_token');
+        if (err.response?.status === 401) { localStorage.removeItem('pli_token'); clearHandLoggerDraft(); }
       })
       .finally(() => setLoading(false));
   }, []);
@@ -29,6 +30,7 @@ export function AuthProvider({ children }) {
   const logout = async () => {
     try { await api.post('/auth/logout'); } catch { /* עדיין מנקה בצד לקוח */ }
     localStorage.removeItem('pli_token');
+    clearHandLoggerDraft();
     setUser(null);
   };
 

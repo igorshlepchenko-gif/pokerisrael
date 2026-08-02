@@ -6,6 +6,7 @@ import OpponentManager from './OpponentManager';
 import HandSummary from './HandSummary';
 import { generateNarrative } from '../../utils/handNarrative';
 import { bestHandEval, compareEvals, describeHandHe } from '../../utils/handEvaluator';
+import { HAND_LOGGER_DRAFT_KEY, clearHandLoggerDraft } from '../../utils/handLoggerDraft';
 
 const PREFLOP_ORDER  = ['UTG', 'UTG+1', 'MP', 'HJ', 'CO', 'BTN', 'SB', 'BB'];
 const POSTFLOP_ORDER = ['SB', 'BB', 'UTG', 'UTG+1', 'MP', 'HJ', 'CO', 'BTN'];
@@ -67,11 +68,11 @@ function StepIndicator({ steps, current }) {
   );
 }
 
-const DRAFT_KEY = 'handlogger_draft_v1';
+const DRAFT_KEY = HAND_LOGGER_DRAFT_KEY;
 function loadDraft() {
   try { return JSON.parse(localStorage.getItem(DRAFT_KEY)) || null; } catch { return null; }
 }
-function clearDraft() { localStorage.removeItem(DRAFT_KEY); }
+const clearDraft = clearHandLoggerDraft;
 
 export default function HandLoggerWizard({ onClose, onSaved }) {
   const _d = loadDraft();
@@ -426,6 +427,36 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
     setStep(s => Math.min(s + 1, steps.length - 1));
   };
   const goBack = () => setStep(s => Math.max(s - 1, 0));
+
+  const hasDraftInProgress = step > 0 || !!gameType;
+  const discardAndRestart = () => {
+    if (!confirm('למחוק את רישום היד הנוכחי ולהתחיל מחדש?')) return;
+    clearDraft();
+    setStep(0);
+    setGameType(null);
+    setTournamentStage('');
+    setBlindPreset('');
+    setCustomSb('');
+    setCustomBb('');
+    setAnte(0);
+    setStakesPreset('');
+    setCustomStakes('');
+    setPlayersCount(6);
+    setOpponents([]);
+    setHeroPosition('');
+    setHeroStack('');
+    setHeroCards([]);
+    setHandData(initHandData());
+    setResult('');
+    setHeroProfit('');
+    setSplitDist({});
+    setNotes('');
+    setShowShowdown(false);
+    setOppRevealedCards([]);
+    setAutoDecided(false);
+    setAutoReason('');
+    setNarrative('');
+  };
 
   // אם היד כבר הוכרעה בפולד (פחות מ-2 שחקנים נותרו) — קפוץ ישר לתוצאה
   // במקום להעביר את המשתמש דרך שלבי פלופ/טרן/ריבר/קלפי-יריב ריקים
@@ -1199,10 +1230,18 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
 
         {/* Header */}
         <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-poker-green/15 flex-shrink-0">
-          <button onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-full text-slate-400 hover:text-white hover:bg-slate-700 transition-all text-lg">
-            ✕
-          </button>
+          <div className="flex items-center gap-1">
+            {hasDraftInProgress && (
+              <button onClick={discardAndRestart} title="מחק והתחל מחדש"
+                className="w-8 h-8 flex items-center justify-center rounded-full text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-all text-base">
+                🗑
+              </button>
+            )}
+            <button onClick={onClose} title="סגור"
+              className="w-8 h-8 flex items-center justify-center rounded-full text-slate-400 hover:text-white hover:bg-slate-700 transition-all text-lg">
+              ✕
+            </button>
+          </div>
           <h2 className="text-base font-black text-white">🃏 רישום יד פוקר</h2>
           <span className="text-xs text-slate-500">{step + 1}/{steps.length}</span>
         </div>

@@ -1065,6 +1065,14 @@ async function recordVideoWebCodecs(state,onProgress){
   for(const f of frames){
     for(let i=0;i<f.duration;i++){
       if(encErr) throw encErr;
+      // Backpressure — software VP8 encoding often lags behind frame generation
+      // (especially at RENDER_SCALE 2× on mobile). Without this, raw frames pile
+      // up in the encoder's internal queue (~5.8MB each) until the tab is
+      // OOM-killed mid-recording instead of ever reaching onstop/resolve.
+      while(encoder.encodeQueueSize>2){
+        await new Promise(r=>encoder.addEventListener('dequeue',r,{once:true}));
+        if(encErr) throw encErr;
+      }
       f.draw(ctx,i/f.duration);
       const vf=new VideoFrame(canvas,{timestamp:frameIdx*FRAME_US,duration:FRAME_US});
       encoder.encode(vf,{keyFrame:frameIdx%FPS===0});

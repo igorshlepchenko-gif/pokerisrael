@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { clearHandLoggerDraft } from './handLoggerDraft';
 
 const api = axios.create({ baseURL: '/api', withCredentials: true });
 
@@ -15,6 +16,7 @@ api.interceptors.response.use(
     // 401 מ-/auth/login = סיסמה/מייל שגויים → לטפל בטופס עצמו, לא לעשות redirect
     if (err.response?.status === 401 && !err.config?.url?.includes('/auth/')) {
       localStorage.removeItem('pli_token');
+      clearHandLoggerDraft();
       const message = err.response?.data?.message;
       window.location.href = message ? `/login?sessionMessage=${encodeURIComponent(message)}` : '/login';
     }
