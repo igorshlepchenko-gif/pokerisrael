@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { buildWhatsAppLink, formatTime, formatDate, formatCost, DAYS_HE, getStageDurations, formatGames, venueDisplayName, eventDisplayDate, isLateRegClosed } from '../../utils/whatsapp';
+import { buildWhatsAppLink, formatTime, formatDate, formatCost, DAYS_HE, getStageDurations, formatGames, venueDisplayName, eventDisplayDate, isLateRegClosed, isJokerClubVenue, JOKER_CLUB_REGISTRATION_URL } from '../../utils/whatsapp';
 import { useAuth } from '../../context/AuthContext';
 import { logRegistration } from '../../utils/api';
 import RegistrationModal from './RegistrationModal';
@@ -10,6 +10,7 @@ export default function TournamentListRow({ t, index, onClick }) {
   const stages = Array.isArray(t.stages) ? t.stages : (typeof t.stages === 'string' ? JSON.parse(t.stages || '[]') : []);
   const levelDur = getStageDurations(stages, t.level_duration);
   const lateRegClosed = isLateRegClosed(t);
+  const isJokerClub = isJokerClubVenue(t.venue_name);
   const registerLabel = t.tournament_type === 'cash' || t.tournament_type === 'online_cash' ? 'הצטרפות למשחק' : 'הרשמה לטורניר';
   // formatCost() נופל ל"חינם" (עברית) כשאין עלות אמיתית — mono רק כשהערך המוצג הוא באמת מספר
   const costMono = t.cost ? 'font-mono tabular-nums' : '';
@@ -94,7 +95,22 @@ export default function TournamentListRow({ t, index, onClick }) {
             ערימה: <span className="font-mono tabular-nums">{t.starting_stack.toLocaleString()}</span>
           </span>
         )}
-        {lateRegClosed ? (
+        {isJokerClub ? (
+          lateRegClosed ? (
+            <span className="flex items-center justify-center gap-2 w-full bg-slate-700 text-slate-400 font-bold py-2 px-4 rounded-xl text-sm cursor-not-allowed">
+              ⏳ ההרשמה נסגרה
+            </span>
+          ) : (
+            <div>
+              <div className="flex justify-center mb-1 text-lg animate-bounce select-none pointer-events-none" aria-hidden="true">👇</div>
+              <a href={JOKER_CLUB_REGISTRATION_URL} target="_blank" rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="flex items-center justify-center gap-2 w-full bg-gradient-to-l from-blue-600 to-indigo-600 text-white font-bold py-2 px-4 rounded-xl text-sm transition-all animate-pulse-slow">
+                🔗 הרשמה ישירה
+              </a>
+            </div>
+          )
+        ) : lateRegClosed ? (
           <span className="flex items-center justify-center gap-2 w-full bg-slate-700 text-slate-400 font-bold py-2 px-4 rounded-xl text-sm cursor-not-allowed">
             <WaIcon /> ⏳ ההרשמה נסגרה
           </span>
@@ -220,7 +236,22 @@ export default function TournamentListRow({ t, index, onClick }) {
 
         {/* WhatsApp button + רישום כפול/קישור חיצוני — כמו ב-Card וב-Modal */}
         <div className="flex flex-col gap-1.5 items-stretch">
-          {lateRegClosed ? (
+          {isJokerClub ? (
+            lateRegClosed ? (
+              <span className="flex items-center justify-center gap-1.5 bg-slate-700 text-slate-400 font-bold py-2 px-3 rounded-xl text-xs whitespace-nowrap cursor-not-allowed">
+                נסגרה
+              </span>
+            ) : (
+              <div>
+                <div className="flex justify-center text-base animate-bounce select-none pointer-events-none" aria-hidden="true">👇</div>
+                <a href={JOKER_CLUB_REGISTRATION_URL} target="_blank" rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="flex items-center justify-center gap-1.5 bg-gradient-to-l from-blue-600 to-indigo-600 text-white font-bold py-2 px-3 rounded-xl text-xs whitespace-nowrap transition-all hover:scale-105 animate-pulse-slow">
+                  🔗 הרשמה ישירה
+                </a>
+              </div>
+            )
+          ) : lateRegClosed ? (
             <span className="flex items-center justify-center gap-1.5 bg-slate-700 text-slate-400 font-bold py-2 px-3 rounded-xl text-xs whitespace-nowrap cursor-not-allowed">
               <WaIcon /> נסגרה
             </span>

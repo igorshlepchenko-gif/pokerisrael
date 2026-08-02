@@ -37,6 +37,13 @@ export function buildVenueContactLink(whatsappNumber, venueName) {
   return `https://api.whatsapp.com/send?phone=${clean}&text=${encodeURIComponent(msg)}`;
 }
 
+// Joker Club עברו להרשמה ישירה באתר שלהם במקום וואטסאפ. מזוהה לפי שם המועדון
+// ולא venue_id — ה-id של המועדון הזה בטבלת venues אינו קבוע/ידוע מראש
+export const JOKER_CLUB_REGISTRATION_URL = 'https://jokerclub.co.il/reg';
+export function isJokerClubVenue(venueName) {
+  return /joker/i.test(venueName || '');
+}
+
 export const DAYS_HE = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
 
 // כל הזמנים מחושבים לפי שעון ישראל — ללא תלות באזור הזמן של הדפדפן של הצופה.

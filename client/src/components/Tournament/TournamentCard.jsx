@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { formatTime, formatDate, formatCost, DAYS_HE, buildWhatsAppLink, getStageDurations, formatGames, venueDisplayName, eventDisplayDate, isLateRegClosed } from '../../utils/whatsapp';
+import { formatTime, formatDate, formatCost, DAYS_HE, buildWhatsAppLink, getStageDurations, formatGames, venueDisplayName, eventDisplayDate, isLateRegClosed, isJokerClubVenue, JOKER_CLUB_REGISTRATION_URL } from '../../utils/whatsapp';
 import { useAuth } from '../../context/AuthContext';
 import { logRegistration } from '../../utils/api';
 import RegistrationModal from './RegistrationModal';
@@ -23,6 +23,7 @@ export default function TournamentCard({ t, onClick, brands = [] }) {
   const { suit, color } = TYPE_SUITS[t.tournament_type] ?? TYPE_SUITS.live;
   const { user } = useAuth();
   const [showRegModal, setShowRegModal] = useState(false);
+  const isJokerClub = isJokerClubVenue(t.venue_name);
 
   // מצא brand logo לפי שם הטורניר
   const matchedBrand = brands.find(b =>
@@ -283,23 +284,47 @@ export default function TournamentCard({ t, onClick, brands = [] }) {
         );
       })()}
 
-      {/* WhatsApp button — הרשמה דרך המארח */}
-      <button
-        onClick={handleRegister}
-        disabled={lateRegClosed}
-        className={`wa-btn flex items-center justify-center gap-2 w-full font-bold py-2.5 px-4 rounded-xl transition-all duration-200 text-sm shadow-lg ${
-          lateRegClosed
-            ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
-            : 'bg-[#25D366] hover:bg-[#1da851] text-white hover:scale-105 active:scale-95'
-        }`}
-      >
-        <WaIcon />
-        {lateRegClosed
-          ? '⏳ ההרשמה נסגרה'
-          : hasOrganizer
-            ? `הרשמה דרך ${t.venue_name}`
-            : (t.tournament_type === 'cash' || t.tournament_type === 'online_cash' ? 'הצטרפות למשחק' : 'הרשמה לטורניר')}
-      </button>
+      {/* הרשמה — Joker Club עברו לקישור ישיר לאתר שלהם במקום וואטסאפ; שאר המועדונים ממשיכים בוואטסאפ */}
+      {isJokerClub ? (
+        lateRegClosed ? (
+          <span className="flex items-center justify-center gap-2 w-full font-bold py-2.5 px-4 rounded-xl text-sm shadow-lg bg-slate-700 text-slate-400 cursor-not-allowed">
+            ⏳ ההרשמה נסגרה
+          </span>
+        ) : (
+          <div>
+            <div className="flex justify-center mb-1 text-xl animate-bounce select-none pointer-events-none" aria-hidden="true">👇</div>
+            <a
+              href={JOKER_CLUB_REGISTRATION_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="flex items-center justify-center gap-2 w-full font-bold py-2.5 px-4 rounded-xl transition-all duration-200 text-sm
+                text-white bg-gradient-to-l from-blue-600 to-indigo-600
+                shadow-[0_0_14px_rgba(99,102,241,0.6)] hover:shadow-[0_0_22px_rgba(99,102,241,0.9)]
+                hover:scale-105 active:scale-95 animate-pulse-slow"
+            >
+              🔗 הרשמה ישירה
+            </a>
+          </div>
+        )
+      ) : (
+        <button
+          onClick={handleRegister}
+          disabled={lateRegClosed}
+          className={`wa-btn flex items-center justify-center gap-2 w-full font-bold py-2.5 px-4 rounded-xl transition-all duration-200 text-sm shadow-lg ${
+            lateRegClosed
+              ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
+              : 'bg-[#25D366] hover:bg-[#1da851] text-white hover:scale-105 active:scale-95'
+          }`}
+        >
+          <WaIcon />
+          {lateRegClosed
+            ? '⏳ ההרשמה נסגרה'
+            : hasOrganizer
+              ? `הרשמה דרך ${t.venue_name}`
+              : (t.tournament_type === 'cash' || t.tournament_type === 'online_cash' ? 'הצטרפות למשחק' : 'הרשמה לטורניר')}
+        </button>
+      )}
 
       {/* רישום כפול — הרשמה דרך המארגן (Runner Runner וכו') */}
       {hasOrganizer && (
