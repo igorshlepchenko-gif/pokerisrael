@@ -116,6 +116,28 @@ function LessonAvatar({ lesson }) {
   );
 }
 
+function LessonDescription({ text }) {
+  const [expanded, setExpanded] = useState(false);
+  const isLong = text.length > 140;
+
+  return (
+    <div className="flex-1">
+      <p className={`text-sm text-slate-400 whitespace-pre-line ${!expanded && isLong ? 'line-clamp-3' : ''}`}>
+        {text}
+      </p>
+      {isLong && (
+        <button
+          type="button"
+          onClick={() => setExpanded(v => !v)}
+          className="mt-1 text-xs font-bold text-slate-400 hover:text-poker-gold transition-colors"
+        >
+          {expanded ? 'הצג פחות' : 'קרא עוד'}
+        </button>
+      )}
+    </div>
+  );
+}
+
 function LessonCard({ lesson }) {
   const cta = lesson.cta || DEFAULT_CTA;
   const { user } = useAuth();
@@ -160,9 +182,7 @@ function LessonCard({ lesson }) {
         <h3 className="text-base font-black text-white min-w-0">{lesson.name}</h3>
       </div>
 
-      {lesson.description && (
-        <p className="text-sm text-slate-400 flex-1 whitespace-pre-line">{lesson.description}</p>
-      )}
+      {lesson.description && <LessonDescription text={lesson.description} />}
 
       <button onClick={handleContact}
         className="mt-1 inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold text-white bg-poker-gold transition-opacity hover:opacity-90">
