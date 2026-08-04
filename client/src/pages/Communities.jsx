@@ -138,7 +138,7 @@ function CommunityCard({ community }) {
       {community.description && <CommunityDescription text={community.description} />}
 
       <a href={community.url} target="_blank" rel="noopener noreferrer"
-        className="mt-1 inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold text-white transition-opacity hover:opacity-90"
+        className="mt-auto inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold text-white transition-opacity hover:opacity-90"
         style={{ backgroundColor: color }}>
         <Icon className="w-4 h-4" />
         {cta}
