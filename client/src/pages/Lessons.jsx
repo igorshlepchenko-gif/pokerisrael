@@ -182,6 +182,13 @@ function LessonCard({ lesson }) {
         <h3 className="text-base font-black text-white min-w-0">{lesson.name}</h3>
       </div>
 
+      {lesson.highlight && (
+        <div className="flex items-center gap-2 rounded-lg bg-poker-gold/10 border border-poker-gold/30 px-3 py-2 text-sm font-bold text-poker-gold">
+          <span>📅</span>
+          <span>{lesson.highlight}</span>
+        </div>
+      )}
+
       {lesson.description && <LessonDescription text={lesson.description} />}
 
       <button onClick={handleContact}
