@@ -48,7 +48,7 @@ const ACTION_LABELS = {
 export default function ActionSelector({
   actor, label, unit = 'BB', street = 'preflop',
   onAction, onUndo, priorActions = [], blindBb = null, blindSb = null, actorPosted = 0,
-  playerStack = null,
+  playerStack = null, getActorPosted = null,
 }) {
   const [chosen, setChosen] = useState(null);
   const [amount, setAmount] = useState('');
@@ -109,7 +109,27 @@ export default function ActionSelector({
     } else if (key === 'call') {
       const lastRaise = [...priorActions].reverse()
         .find(a => ['bet', 'raise', 'three-bet', 'four-bet', 'allin'].includes(a.action) && a.amount);
-      const raiseAmt = lastRaise?.amount ? parseFloat(lastRaise.amount) : 0;
+      let raiseAmt = lastRaise?.amount ? parseFloat(lastRaise.amount) : 0;
+      // allin שונה מ-bet/raise: הסכום שלו הוא הצ'יפים שנדחפו *בפעולה הזו* בלבד
+      // (הארמה שנותרה), לא סה"כ מוחלט לשלב — בניגוד ל-bet/raise ש"מרימים ל-X"
+      // (X כבר כולל הכל). בלי השחזור הזה, קורא שמתמודד מול אול-אין של שחקן
+      // שכבר הימר/שילם blind באותו שלב (בין אם אלה הצ'יפים שממש עכשיו נדחפים
+      // ובין אם צריך לצרף גם הימור/blind קודם שלו מאותו שלב) נרשם כמשלם פחות
+      // ממה שהמהמר באמת שם בקופה — ונוצרת "קופת צד" מדומה בחישוב הקופות
+      // (side pots) בסיכום היד.
+      if (lastRaise?.action === 'allin') {
+        let priorCommitment = getActorPosted ? (getActorPosted(lastRaise.actor, street) || 0) : 0;
+        for (const a of priorActions) {
+          if (a === lastRaise) break;
+          if (String(a.actor) !== String(lastRaise.actor) || !a.amount) continue;
+          const raw = String(a.amount);
+          if (raw.endsWith('%')) continue;
+          const num = parseFloat(raw);
+          if (isNaN(num)) continue;
+          priorCommitment = ['bet', 'raise', 'three-bet', 'four-bet'].includes(a.action) ? num : priorCommitment + num;
+        }
+        raiseAmt = priorCommitment + raiseAmt;
+      }
       // אם השחקן כבר הימר — סכום ה-BET הוא TOTAL (כולל blind),
       // אל תוסיף את ה-blind בנפרד. אם לא הימר — הוסף רק את ה-blind.
       const actorHasRaised = priorActions.some(a =>

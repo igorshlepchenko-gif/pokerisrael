@@ -71,10 +71,14 @@ export default function HandSummary({ handState, narrative, onSaveSuccess, onRes
     }
   };
 
-  const resultColor = handState.result === 'won'
-    ? 'text-emerald-400' : handState.result === 'lost' ? 'text-red-400' : 'text-amber-400';
+  const resultColor = handState.result === 'won' ? 'text-emerald-400'
+    : handState.result === 'lost' ? 'text-red-400'
+    : handState.result === 'unknown' ? 'text-blue-400'
+    : 'text-amber-400';
   const resultLabel = handState.result === 'won' ? '🏆 ניצחון'
-    : handState.result === 'lost' ? '💀 הפסד' : '🤝 קופה מחולקת';
+    : handState.result === 'lost' ? '💀 הפסד'
+    : handState.result === 'unknown' ? '🤔 מה היית עושה?'
+    : '🤝 קופה מחולקת';
 
   const atLimit = user && handCount !== null && handCount >= MAX_SAVED_HANDS;
 

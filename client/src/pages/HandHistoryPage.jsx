@@ -20,8 +20,14 @@ function HandCard({ hand, onDelete }) {
   const [expanded, setExpanded] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const cards = hand.hero_cards || [];
-  const resultColor = hand.result === 'won' ? 'border-l-emerald-500' : hand.result === 'lost' ? 'border-l-red-500' : 'border-l-amber-500';
-  const resultIcon  = hand.result === 'won' ? '🏆' : hand.result === 'lost' ? '💀' : '🤝';
+  const resultColor = hand.result === 'won' ? 'border-l-emerald-500'
+    : hand.result === 'lost' ? 'border-l-red-500'
+    : hand.result === 'unknown' ? 'border-l-blue-500'
+    : 'border-l-amber-500';
+  const resultIcon  = hand.result === 'won' ? '🏆'
+    : hand.result === 'lost' ? '💀'
+    : hand.result === 'unknown' ? '🤔'
+    : '🤝';
   const isTournament = hand.game_type === 'tournament' || hand.game_type === 'tournament_online';
   const isOnline = hand.game_type === 'tournament_online' || hand.game_type === 'cash_online';
   const typeLabel = isTournament

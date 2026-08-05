@@ -168,10 +168,10 @@ export function generateNarrative(state) {
   lines.push(`Table 'PokerIsrael' ${players_count}-max Seat #1 is the button`);
 
   // ── Build ordered player list ──────────────────────────────
-  const heroEntry = { name: 'Hero', position: hero_position, stack: hero_stack || 200 };
+  const heroEntry = { name: 'Hero', position: hero_position, stack: hero_stack || 200, actorId: 'hero' };
   const allPlayers = [
     heroEntry,
-    ...opponents.map(o => ({ name: o.label || 'Villain', position: o.position, stack: o.stack || 100 })),
+    ...opponents.map(o => ({ name: o.label || 'Villain', position: o.position, stack: o.stack || 100, actorId: String(o.id) })),
   ].sort((a, b) => {
     const ai = POSITION_ORDER.indexOf(a.position);
     const bi = POSITION_ORDER.indexOf(b.position);
@@ -255,7 +255,50 @@ export function generateNarrative(state) {
   const totalPot = computeTotalPot(streets, sbSize, bbSize, ante, hero_position, opponents);
   const totalPotFmt = totalPot > 0 ? `${isCash ? '$' : ''}${totalPot}` : 'the pot';
   const atShowdown = showdown?.reached || (result && allBoard.length > 0);
-  if (atShowdown) {
+  // קופות-צד (main pot + side pot אחת או יותר) — pots נשמר ב-hand_data רק
+  // כשהיד באמת פוצלה (ראה handPots.js/HandLoggerWizard); כל יד רגילה, כולל
+  // אול-אין חד-על-חד, לא נוגעת בענף הזה כלל
+  const pots = hand_data.pots;
+  const isMultiPot = Array.isArray(pots) && pots.length > 1;
+
+  const cardsForActor = (actorId) => {
+    if (actorId === 'hero') return hero_cards;
+    const idx = opponents.findIndex(o => String(o.id) === String(actorId));
+    return idx >= 0 ? (showdown?.opponent_cards?.[idx] || []) : [];
+  };
+
+  // "מה היית עושה?" — היד נעצרה מכוונת בנקודת החלטה (כפתור ? באשף), כדי
+  // לשתף ולקבל פידבק בלי לחשוף את התוצאה. אין SHOW DOWN, אין "collected",
+  // אין תוצאה בכלל — הנרטיב פשוט נעצר איפה שהפעולות שנרשמו נעצרות.
+  const isQuiz = result === 'unknown';
+
+  if (isQuiz) {
+    lines.push('*** DECISION POINT — what should Hero do? ***');
+  } else if (isMultiPot) {
+    lines.push('*** SHOW DOWN ***');
+    const shown = new Set();
+    pots.forEach(pot => pot.eligible.forEach(actorId => {
+      if (shown.has(actorId)) return;
+      shown.add(actorId);
+      const name = actorId === 'hero' ? 'Hero' : actorLabel(actorId, opponents);
+      const cards = cardsForActor(actorId);
+      if (cards?.length === 2) {
+        lines.push(`${name}: shows ${psCards(cards)} (${handStrength(cards, allBoard)})`);
+      } else {
+        lines.push(`${name}: mucks hand`);
+      }
+    }));
+    pots.forEach((pot, i) => {
+      const potName = i === 0 ? 'main pot' : (pots.length > 2 ? `side pot ${i}` : 'side pot');
+      const winners = pot.winners || [];
+      if (!winners.length) return; // לא הוכרע ידנית — לא מדווחים "collected" שגוי
+      const share = Math.floor(pot.amount / winners.length);
+      winners.forEach(actorId => {
+        const name = actorId === 'hero' ? 'Hero' : actorLabel(actorId, opponents);
+        lines.push(`${name} collected ${isCash ? '$' : ''}${share} from ${potName}`);
+      });
+    });
+  } else if (atShowdown) {
     lines.push('*** SHOW DOWN ***');
 
     if (result === 'won') {
@@ -315,15 +358,35 @@ export function generateNarrative(state) {
   // ── Summary ────────────────────────────────────────────────
   lines.push('*** SUMMARY ***');
   const rakeAmt = isCash ? '$0' : '0';
-  lines.push(`Total pot ${totalPotFmt} | Rake ${rakeAmt}`);
+  if (isMultiPot) {
+    const cur = isCash ? '$' : '';
+    const breakdown = pots.map((p, i) => `${i === 0 ? 'Main pot' : 'Side pot'} ${cur}${p.amount}`).join(' ');
+    lines.push(`Total pot ${totalPotFmt} ${breakdown} | Rake ${rakeAmt}`);
+  } else {
+    lines.push(`Total pot ${totalPotFmt} | Rake ${rakeAmt}`);
+  }
   if (allBoard.length > 0) {
     lines.push(`Board ${psCards(allBoard)}`);
   }
 
   // Seat results in summary
+  // הגנה כפולה: גם אם isQuiz נשלף אי-פעם עם pots לא-מסונן (קורא אחר מ-
+  // buildState, או יד שמורה ישנה) — לא חושפים כאן מי ניצח איזו קופה
+  const wonByActor = {};
+  if (isMultiPot && !isQuiz) {
+    pots.forEach(pot => {
+      const winners = pot.winners || [];
+      if (!winners.length) return;
+      const share = Math.floor(pot.amount / winners.length);
+      winners.forEach(actorId => { wonByActor[actorId] = (wonByActor[actorId] || 0) + share; });
+    });
+  }
   allPlayers.forEach((p, i) => {
     let suffix = '';
-    if (p.name === 'Hero') {
+    if (isMultiPot && !isQuiz) {
+      const won = wonByActor[p.actorId];
+      suffix = won ? ` (${p.position || hero_position}) won ${isCash ? '$' : ''}${won}` : ` (${p.position || hero_position})`;
+    } else if (p.name === 'Hero') {
       if (result === 'won') {
         const won = totalPot > 0 ? `${isCash ? '$' : ''}${totalPot}` : '';
         suffix = ` (${hero_position}) won ${won}`;

@@ -1,5 +1,6 @@
 ﻿// PokerIsrael – GGPoker/WSOP Broadcast Style
 // Canvas 760×480, 30fps, WebM VP9
+import { getAllInLockStreet } from './handPots';
 
 const W = 760, H = 480;
 const TCX = 382, TCY = 244;
@@ -40,6 +41,28 @@ function seatCards(pos){
 function seatBet(pos){
   const deg=SEAT_DEG[pos]||0, rad=deg*Math.PI/180;
   return{x:TCX+(TRX*.52)*Math.cos(rad), y:TCY+(TRY*.52)*Math.sin(rad)};
+}
+
+// Mini-log placement — pick whichever corner doesn't sit on top of a seat that's
+// actually in this hand (e.g. UTG+1's avatar+cards land right under the default
+// top-left corner). Checked as circles around both the avatar (seatOuter) and
+// hole cards (seatCards) since those two are ~80px apart, not one cluster.
+function rectCircleOverlap(lx,ly,lw,lh,cx,cy,r){
+  const nx=Math.max(lx,Math.min(cx,lx+lw)), ny=Math.max(ly,Math.min(cy,ly+lh));
+  const dx=cx-nx, dy=cy-ny;
+  return (dx*dx+dy*dy)<r*r;
+}
+function pickLogSpot(activePositions,lw,lh){
+  const SEAT_CLEAR_R=45;
+  const candidates=[
+    {x:8,y:48},              // top-left — default
+    {x:W-lw-8,y:48},         // top-right
+    {x:8,y:H-lh-8},          // bottom-left
+    {x:W-lw-8,y:H-lh-8},     // bottom-right
+  ];
+  const seatPoints=(activePositions||[]).flatMap(pos=>[seatOuter(pos),seatCards(pos)]);
+  return candidates.find(c=>!seatPoints.some(p=>rectCircleOverlap(c.x,c.y,lw,lh,p.x,p.y,SEAT_CLEAR_R)))
+    || candidates[0];
 }
 
 // ════════════════════════════════════════════════════
@@ -397,6 +420,62 @@ function drawPotCenter(ctx,pot,isCash){
 }
 
 // ════════════════════════════════════════════════════
+// MULTI-POT CENTER — several labeled piles side by side (main + side pots),
+// shown together on the table — used only for genuine multi-way all-ins at
+// different stack depths (hand_data.pots.length > 1)
+// ════════════════════════════════════════════════════
+function getPotPilePositions(n){
+  const spacing=Math.min(150,600/Math.max(1,n-1||1));
+  const totalW=(n-1)*spacing;
+  const startX=TCX-totalW/2;
+  return Array.from({length:n},(_,i)=>({x:startX+i*spacing,y:TCY-72}));
+}
+function drawPotPile(ctx,x,y,amount,label,isCash){
+  if(amount<=0) return;
+  const potStr=isCash?`₪${Math.round(amount).toLocaleString()}`:`${Math.round(amount).toLocaleString()}`;
+  drawChipStack(ctx,x-13,y,4,'#dc2626','#1e293b');
+  drawChipStack(ctx,x,   y,5,'#e2e8f0','#1e293b');
+  drawChipStack(ctx,x+13,y,3,'#dc2626','#f8c030');
+  const pw=112, ph=32;
+  setSh(ctx,'rgba(0,0,0,0.55)',7);
+  rr(ctx,x-pw/2,y-ph-9,pw,ph,9,'rgba(4,10,26,0.94)','#2d4a3a',1);
+  clrSh(ctx);
+  ctx.fillStyle='#64748b'; ctx.font='bold 8px Arial';
+  ctx.textAlign='center'; ctx.textBaseline='top';
+  ctx.fillText(label,x,y-ph-5);
+  ctx.fillStyle='#f8c030'; ctx.font='bold 14px Arial';
+  ctx.textBaseline='bottom';
+  ctx.fillText(potStr,x,y-13);
+}
+
+// ════════════════════════════════════════════════════
+// QUESTION CARD — "מה היית עושה?" (מצב שאלה, result==='unknown'). כרטיס
+// מוגבה משלו במקום טקסט מרחף על שולחן עמוס — צריך "במה" משלו כי זו כל
+// המטרה של הסרטון הזה, לא רק כיתוב סיום סטנדרטי
+// ════════════════════════════════════════════════════
+function drawQuestionCard(ctx,alpha){
+  if(alpha<=0) return;
+  ctx.save();
+  ctx.globalAlpha=alpha;
+  const cw=580, ch=210, cx=TCX-cw/2, cy=TCY-ch/2-6;
+  setSh(ctx,'#60a5fa',30);
+  rr(ctx,cx,cy,cw,ch,26,'rgba(6,12,28,0.96)','#60a5fa',2.5);
+  clrSh(ctx);
+  rr(ctx,cx+7,cy+7,cw-14,ch-14,20,null,'rgba(96,165,250,0.22)',1);
+
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  setSh(ctx,'#60a5fa',20);
+  ctx.fillStyle='#93c5fd'; ctx.font='bold 62px Arial';
+  ctx.fillText('🤔',TCX,cy+64);
+  clrSh(ctx);
+  ctx.fillStyle='#f0f9ff'; ctx.font='bold 40px Arial';
+  ctx.fillText('מה היית עושה?',TCX,cy+134);
+  ctx.fillStyle='rgba(191,219,254,0.75)'; ctx.font='bold 15px Arial';
+  ctx.fillText('שתפו וקבלו תשובות — בלי לגלות איך היד הסתיימה',TCX,cy+172);
+  ctx.restore();
+}
+
+// ════════════════════════════════════════════════════
 // BET CHIPS NEAR PLAYER
 // ════════════════════════════════════════════════════
 function drawBetChips(ctx,pos,amount,isCash){
@@ -455,10 +534,10 @@ function drawActionBadge(ctx,pos,action,amount,isCash,alpha){
 // ════════════════════════════════════════════════════
 // ACTION LOG — left panel
 // ════════════════════════════════════════════════════
-function drawMiniLog(ctx,events,maxRows=5){
+function drawMiniLog(ctx,events,activePositions=[],maxRows=5){
   if(!events.length) return;
   const lw=190, lh=Math.min(events.length,maxRows)*21+30;
-  const lx=8, ly=48;
+  const{x:lx,y:ly}=pickLogSpot(activePositions,lw,lh);
   rr(ctx,lx,ly,lw,lh,8,'rgba(4,10,26,0.9)','#1e3553',1);
   ctx.fillStyle='rgba(255,255,255,0.35)'; ctx.font='bold 9px Arial';
   ctx.textAlign='left'; ctx.textBaseline='top';
@@ -602,9 +681,9 @@ function drawScene(ctx,{
   isCash, sb, bb, ante, stakes, tournamentStage,
   pot, stacks, board, flipStates,
   logEvents, currentStreet, betAmounts={},
-  chipFrom=null, chipTo=null, chipT=0, chipAmt=0,
   actionBadge=null, actionBadgeAlpha=0,
   showHeroCards=true, foldedActors=new Set(),
+  revealedActors=new Set(), opponentCardsById={},
 }){
   drawBG(ctx);
   drawTable(ctx);
@@ -616,21 +695,21 @@ function drawScene(ctx,{
     const isFolded=foldedActors.has(p.isHero?'hero':p.id);
     drawPlayerBox(ctx,p.position,p.label||'Hero',stk,p.isHero,isDealer,false);
     if(isFolded) return;
-    if(p.isHero&&showHeroCards&&heroCards?.length>=2)
+    if(p.isHero&&showHeroCards&&heroCards?.length>=2){
       drawHoleCards(ctx,p.position,heroCards,heroCardsFaceUp);
-    else if(!p.isHero)
-      drawHoleCards(ctx,p.position,null,false);
+    } else if(!p.isHero){
+      const revealed=revealedActors.has(p.id);
+      drawHoleCards(ctx,p.position,revealed?opponentCardsById[p.id]:null,revealed);
+    }
   });
 
   if(board.length) drawBoard(ctx,board,flipStates||[]);
   drawPotCenter(ctx,pot,isCash);
   Object.entries(betAmounts).forEach(([pos,amt])=>drawBetChips(ctx,pos,amt,isCash));
-  if(chipT>0&&chipFrom&&chipTo)
-    drawChipParticles(ctx,chipFrom.x,chipFrom.y,chipTo.x,chipTo.y,chipT,chipAmt);
   if(currentStreet) drawStreetBadge(ctx,currentStreet);
   if(actionBadge&&actionBadgeAlpha>0)
     drawActionBadge(ctx,actionBadge.pos,actionBadge.action,actionBadge.amount,isCash,actionBadgeAlpha);
-  if(logEvents.length) drawMiniLog(ctx,logEvents);
+  if(logEvents.length) drawMiniLog(ctx,logEvents,allPlayers.map(p=>p.position));
   drawPotDisplay(ctx,pot,sb,bb,ante,isCash,stakes);
 }
 
@@ -654,12 +733,16 @@ function computeInitialPot(hand_data,hero_position,opponents,sb,bb,ante){
   return blindTotal+(ante||0)*actors.length;
 }
 
-function buildEvents(hand_data,hero_stack,opponents,sb,bb,ante,hero_position){
+function buildEvents(hand_data,hero_stack,opponents,sb,bb,ante,hero_position,isTournament){
   const stacks={hero:hero_stack};
   opponents.forEach(o=>stacks[o.id]=o.stack||0);
   let pot=computeInitialPot(hand_data,hero_position,opponents,sb,bb,ante);
   const events=[];
   const streets=hand_data?.streets||{};
+  // השלב שאחריו כבר אי-אפשר לבצע יותר פעולות הימור (כולם אול-אין/קיפלו) —
+  // אותו זיהוי בדיוק כמו באשף (HandLoggerWizard), כדי שהסרטון יגלה קלפים
+  // באותה נקודה בדיוק שבה האשף כבר הציג את פאנל הגילוי המוקדם
+  const lockStreet=getAllInLockStreet(hand_data,hero_position,hero_stack,opponents,sb,bb,ante,isTournament);
   ['preflop','flop','turn','river'].forEach(street=>{
     if(street==='flop'&&streets.flop?.board?.length)
       streets.flop.board.forEach((card,i)=>events.push({type:'card',street:'flop',cardIdx:i,card,pot,stacks:{...stacks}}));
@@ -687,6 +770,7 @@ function buildEvents(hand_data,hero_stack,opponents,sb,bb,ante,hero_position){
         actorPos:a.actor==='hero'?hero_stack:opp?.position,
       });
     });
+    if(street===lockStreet) events.push({type:'reveal'});
   });
   return{events,finalPot:pot,finalStacks:{...stacks}};
 }
@@ -704,10 +788,10 @@ export function buildFrames(state){
   const opponents=hand_data?.opponents||[];
   const isCash=game_type==='cash'||game_type==='cash_online';
 
-  const{events,finalStacks}=buildEvents(hand_data,hero_stack,opponents,sb,bb,ante,hero_position);
-  // קופה אמיתית לפי סכימת הפעולות בפועל — לא ניחוש מ-hero_profit (שהוא נטו,
-  // ולכן מבטא פחות מדי במיוחד בקופה מחולקת, שבה חלקו של הירו יכול להיות קטן מהקופה)
-  const finalPot=events.length?events[events.length-1].potAfter:((sb||0)+(bb||0));
+  const{events,finalStacks,finalPot}=buildEvents(hand_data,hero_stack,opponents,sb,bb,ante,hero_position,!isCash);
+  // finalPot מגיע ישירות מ-buildEvents (סכימת הפעולות בפועל, לא ניחוש
+  // מ-hero_profit שהוא נטו ומטעה בקופה מחולקת) — לא מ-events[last].potAfter,
+  // שיכול להיות אירוע 'reveal' בלי potAfter כשהאול-אין קורה על הריבר עצמו
   // מזהה היריב שבאמת ניצח, לא תמיד opponents[0]: אם בדיוק יריב אחד לא קיפל
   // עד השואודאון, הוא המנצח החד-משמעי; אחרת (2+ יריבים בשואודאון) אין די מידע
   // שמור כדי לדעת מי מהם ניצח בפועל, ומשתמשים ב-opponents[0] כברירת מחדל ידועה
@@ -732,11 +816,27 @@ export function buildFrames(state){
   const initialStacks={hero:hero_stack};
   opponents.forEach(o=>initialStacks[o.id]=o.stack||0);
 
+  // קלפי יריב שנחשפו במהלך היד (אשף "קלפי יריב" / AllInRevealPanel) — ממופה
+  // לפי actor id, בדיוק כמו hand_data.showdown.opponent_cards (אינדקס = סדר
+  // opponents). סטטי לאורך כל הסרטון — מי בפועל *רואה* את הקלפים האלה נקבע
+  // בנפרד ע"י revealedActors, שגדל עם הזמן (ראה events.forEach למטה)
+  const opponentCardsById={};
+  opponents.forEach((o,i)=>{
+    const oc=hand_data?.showdown?.opponent_cards?.[i];
+    if(oc?.length>=2) opponentCardsById[o.id]=oc;
+  });
+
+  // קופות-צד — hand_data.pots נשמר רק כשהיד באמת פוצלה (ראה handPots.js/
+  // HandLoggerWizard); כל יד רגילה כולל אול-אין חד-על-חד לא נוגעת בזה כלל
+  const pots=hand_data?.pots;
+  const isMultiPot=Array.isArray(pots)&&pots.length>1;
+
   const STREET_LABELS={preflop:'פרה-פלופ',flop:'פלופ',turn:'טרן',river:'ריבר'};
   const frames=[];
   const base={
     allPlayers, heroPos:hero_position, heroCards:hero_cards,
     isCash, sb, bb, ante, stakes:cash_stakes, tournamentStage:tournament_stage,
+    opponentCardsById,
   };
 
   // ── INTRO ────────────────────────────── 42f
@@ -823,59 +923,120 @@ export function buildFrames(state){
   let currentStreet='פרה-פלופ';
   let betAmounts={};
   let foldedActors=new Set();
+  // מי מהיריבים גלוי כרגע (קלפים כלפי מעלה) — ריק עד לרגע הגילוי בפועל, בין
+  // אם באירוע 'reveal' (אול-אין לפני שהבורד הושלם) ובין אם בסצינת ה-RESULT
+  // (שואודאון רגיל בסוף הריבר, ללא אול-אין באמצע)
+  let revealedActors=new Set();
 
-  events.forEach(ev=>{
+  events.forEach((ev,evIdx)=>{
     if(ev.type==='card'){
+      // מאפסים את סמני ההימור ליד השחקנים בכל מעבר שלב, לא רק פלופ — בלי זה
+      // סמן מהטרן נשאר "תקוע" על המסך גם בריבר (הבאג שהמשתמש דיווח עליו,
+      // מאומת מול הסרטון האמיתי שלו)
       if(ev.street==='flop')  {currentStreet='פלופ'; betAmounts={};}
-      else if(ev.street==='turn')  currentStreet='טרן';
-      else if(ev.street==='river') currentStreet='ריבר';
+      else if(ev.street==='turn')  {currentStreet='טרן'; betAmounts={};}
+      else if(ev.street==='river') {currentStreet='ריבר'; betAmounts={};}
 
       const newBoard=[...revealedBoard,ev.card];
-      const snap={board:[...newBoard],pot:currentPot,stacks:{...currentStacks},log:[...logEvents],str:currentStreet};
+      const snap={board:[...newBoard],pot:currentPot,stacks:{...currentStacks},log:[...logEvents],
+        str:currentStreet,folded:new Set(foldedActors),revealed:new Set(revealedActors)};
       frames.push({duration:18,draw:(ctx,t)=>{
         const fStates=snap.board.map((_,i)=>i<snap.board.length-1?1:easeInOut(t));
         drawScene(ctx,{...base,pot:snap.pot,stacks:snap.stacks,
           board:snap.board,flipStates:fStates,logEvents:snap.log,
-          currentStreet:snap.str,showHeroCards:true,heroCardsFaceUp:true});
+          currentStreet:snap.str,showHeroCards:true,heroCardsFaceUp:true,
+          foldedActors:snap.folded,revealedActors:snap.revealed});
       }});
       // hold per street: flop=18f(0.6s), turn=24f(0.8s), river=40f(1.3s)
       const holdDur=ev.street==='river'?40:ev.street==='turn'?24:18;
       frames.push({duration:holdDur,draw:(ctx)=>{
         drawScene(ctx,{...base,pot:snap.pot,stacks:snap.stacks,
           board:snap.board,flipStates:Array(snap.board.length).fill(1),
-          logEvents:snap.log,currentStreet:snap.str,showHeroCards:true,heroCardsFaceUp:true});
+          logEvents:snap.log,currentStreet:snap.str,showHeroCards:true,heroCardsFaceUp:true,
+          foldedActors:snap.folded,revealedActors:snap.revealed});
       }});
       revealedBoard=newBoard; flipStates=Array(revealedBoard.length).fill(1);
+
+    } else if(ev.type==='reveal'){
+      // אול-אין לפני שהבורד הושלם: מציגים את קלפי כל מי שנשאר ולא קיפל,
+      // *לפני* שממשיכים לחלק את שאר קלפי הבורד — ראה [[project_poker_handlogger]]
+      const toReveal=allPlayers.filter(p=>!p.isHero&&!foldedActors.has(p.id)&&opponentCardsById[p.id]);
+      if(toReveal.length){
+        const revealSnap={board:[...revealedBoard],str:currentStreet,bets:{...betAmounts},
+          pot:currentPot,stacks:{...currentStacks},log:[...logEvents],folded:new Set(foldedActors)};
+        frames.push({duration:10,draw:(ctx)=>{
+          drawScene(ctx,{...base,pot:revealSnap.pot,stacks:revealSnap.stacks,
+            board:revealSnap.board,flipStates:Array(revealSnap.board.length).fill(1),
+            logEvents:revealSnap.log,currentStreet:revealSnap.str,betAmounts:revealSnap.bets,
+            showHeroCards:true,heroCardsFaceUp:true,foldedActors:revealSnap.folded,
+            revealedActors:new Set()});
+          ctx.save();
+          ctx.globalAlpha=0.6; ctx.fillStyle='rgba(0,0,0,0.55)'; ctx.fillRect(0,0,W,H); ctx.globalAlpha=1;
+          setSh(ctx,'#f8c030',12);
+          ctx.fillStyle='#f8c030'; ctx.font='bold 22px Arial';
+          ctx.textAlign='center'; ctx.textBaseline='middle';
+          ctx.fillText('🔓 כולם באול-אין!',TCX,TCY-TRY-26);
+          clrSh(ctx);
+          ctx.restore();
+        }});
+        frames.push({duration:28,draw:(ctx,t)=>{
+          drawScene(ctx,{...base,pot:revealSnap.pot,stacks:revealSnap.stacks,
+            board:revealSnap.board,flipStates:Array(revealSnap.board.length).fill(1),
+            logEvents:revealSnap.log,currentStreet:revealSnap.str,betAmounts:revealSnap.bets,
+            showHeroCards:true,heroCardsFaceUp:true,foldedActors:revealSnap.folded,
+            revealedActors:new Set()});
+          toReveal.forEach((p,i)=>{
+            const ft=Math.min(1,easeInOut(Math.max(0,(t-i*.12)*2.2)));
+            drawHoleCards(ctx,p.position,opponentCardsById[p.id],ft>=1,ft);
+          });
+        }});
+        revealedActors=new Set([...revealedActors,...toReveal.map(p=>p.id)]);
+        const afterSnap={folded:new Set(foldedActors),revealed:new Set(revealedActors)};
+        frames.push({duration:16,draw:(ctx)=>{
+          drawScene(ctx,{...base,pot:revealSnap.pot,stacks:revealSnap.stacks,
+            board:revealSnap.board,flipStates:Array(revealSnap.board.length).fill(1),
+            logEvents:revealSnap.log,currentStreet:revealSnap.str,betAmounts:revealSnap.bets,
+            showHeroCards:true,heroCardsFaceUp:true,foldedActors:afterSnap.folded,
+            revealedActors:afterSnap.revealed});
+        }});
+      }
 
     } else if(ev.type==='action'){
       const actorIsHero=ev.actor==='hero';
       const actorOpp=actorIsHero?null:opponents.find(o=>o.id===ev.actor||o.id===parseInt(ev.actor));
       const actorPos=actorIsHero?hero_position:actorOpp?.position;
-      const fromXY=actorPos?seatOuter(actorPos):null;
-      const toXY={x:TCX,y:TCY};
       const hasChips=ev.amount>0;
       if(hasChips&&actorPos) betAmounts={...betAmounts,[actorPos]:(betAmounts[actorPos]||0)+ev.amount};
 
       const newLog=[...logEvents,{...ev,opponentLabel:actorOpp?.label||null}];
-      const snap={board:[...revealedBoard],str:currentStreet,bets:{...betAmounts},folded:new Set(foldedActors)};
+      const snap={board:[...revealedBoard],str:currentStreet,bets:{...betAmounts},
+        folded:new Set(foldedActors),revealed:new Set(revealedActors)};
       const badge={pos:actorPos,action:ev.action,amount:ev.amount};
 
       // ── FOLD: slide cards to center, then update foldedActors ──
       if(ev.action==='fold'&&actorPos){
         const foldSnap={board:[...revealedBoard],str:currentStreet,bets:{...betAmounts},
-          pot:currentPot,stacks:{...currentStacks},log:[...logEvents],folded:new Set(foldedActors)};
+          pot:currentPot,stacks:{...currentStacks},log:[...logEvents],
+          folded:new Set(foldedActors),revealed:new Set(revealedActors)};
         frames.push({duration:14,draw:(ctx,t)=>{
           drawScene(ctx,{...base,pot:foldSnap.pot,stacks:foldSnap.stacks,
             board:foldSnap.board,flipStates:Array(foldSnap.board.length).fill(1),
             logEvents:foldSnap.log,currentStreet:foldSnap.str,betAmounts:foldSnap.bets,
-            showHeroCards:true,heroCardsFaceUp:true,foldedActors:foldSnap.folded});
+            showHeroCards:true,heroCardsFaceUp:true,foldedActors:foldSnap.folded,
+            revealedActors:foldSnap.revealed});
           drawFoldSlide(ctx,actorPos,easeInOut(t));
         }});
         foldedActors=new Set([...foldedActors,actorIsHero?'hero':ev.actor]);
         snap.folded=new Set(foldedActors);
       }
 
-      frames.push({duration:20,draw:(ctx,t)=>{
+      // 40f — סגנון "PokerStars hand replayer" קלאסי (לפי סרטון ייחוס שהמשתמש
+      // סיפק): הצ'יפים לא עפים מיד למרכז עם כל פעולה — סמן ההימור גדל *במקום*
+      // ליד השחקן, נשאר שם וגלוי לאורך כל הסיבוב (הפרדה מרחבית ברורה בין
+      // הפעולות של כל שחקן), והקופה למעלה היא תווית טקסט חיה שמסתנכרנת עם
+      // סכום הסמנים. תנועה דרמטית למרכז שמורה רק לרגעים משמעותיים — סוף
+      // סיבוב ההימורים (הטאטוא, ראה roundOver למטה), לא לכל פעולה בודדת.
+      frames.push({duration:40,draw:(ctx,t)=>{
         const interpPot=lerp(ev.potBefore,ev.potAfter,hasChips?easeInOut(t):0);
         const interpStacks={};
         Object.keys(ev.stacksBefore).forEach(k=>{
@@ -887,88 +1048,259 @@ export function buildFrames(state){
           board:snap.board,flipStates:Array(snap.board.length).fill(1),
           logEvents:newLog,currentStreet:snap.str,betAmounts:interpBets,
           showHeroCards:true,heroCardsFaceUp:true,foldedActors:snap.folded,
-          chipFrom:hasChips?fromXY:null,chipTo:hasChips?toXY:null,
-          chipT:hasChips?t:0,chipAmt:ev.amount,
+          revealedActors:snap.revealed,
           actionBadge:badge,actionBadgeAlpha:Math.min(1,t*4)});
       }});
 
       const pausePot=ev.potAfter, pauseStacks={...ev.stacksAfter};
-      frames.push({duration:7,draw:(ctx,t)=>{
+      // 16f (היה 7) — עוד רגע החזקה אחרי שהצ'יפים הגיעו, לפני שעוברים לפעולה הבאה
+      frames.push({duration:16,draw:(ctx,t)=>{
         drawScene(ctx,{...base,pot:pausePot,stacks:pauseStacks,
           board:snap.board,flipStates:Array(snap.board.length).fill(1),
           logEvents:newLog,currentStreet:snap.str,betAmounts:snap.bets,
           showHeroCards:true,heroCardsFaceUp:true,foldedActors:snap.folded,
+          revealedActors:snap.revealed,
           actionBadge:badge,actionBadgeAlpha:1-easeOut(t)});
       }});
 
       logEvents=newLog; currentPot=ev.potAfter; currentStacks={...ev.stacksAfter};
+
+      // סוף סיבוב הימורים בשלב הזה (הפעולה הבאה — אם יש — שייכת לשלב אחר,
+      // או שאין פעולה נוספת בכלל): מטאטאים את כל סמני ההימור שנשארו ליד
+      // השחקנים לתוך הקופה במרכז ואז מוחקים אותם — הפרדה ברורה בין הסיבוב
+      // שנגמר לפעולה/לשלב הבא, במקום שהם פשוט יישארו תלויים על המסך
+      const nextEv=events[evIdx+1];
+      const roundOver=!nextEv||nextEv.type!=='action'||nextEv.street!==ev.street;
+      if(roundOver&&Object.keys(betAmounts).length){
+        const sweepFrom={...betAmounts};
+        const sweepSnap={board:[...revealedBoard],str:currentStreet,pot:currentPot,
+          stacks:{...currentStacks},log:[...logEvents],
+          folded:new Set(foldedActors),revealed:new Set(revealedActors)};
+        frames.push({duration:18,draw:(ctx,t)=>{
+          const et=easeInOut(t);
+          const fadingBets={};
+          Object.entries(sweepFrom).forEach(([pos,amt])=>{ fadingBets[pos]=amt*(1-et); });
+          drawScene(ctx,{...base,pot:sweepSnap.pot,stacks:sweepSnap.stacks,
+            board:sweepSnap.board,flipStates:Array(sweepSnap.board.length).fill(1),
+            logEvents:sweepSnap.log,currentStreet:sweepSnap.str,betAmounts:fadingBets,
+            showHeroCards:true,heroCardsFaceUp:true,foldedActors:sweepSnap.folded,
+            revealedActors:sweepSnap.revealed});
+          Object.entries(sweepFrom).forEach(([pos,amt])=>{
+            const{x,y}=seatBet(pos);
+            drawChipParticles(ctx,x,y,TCX,TCY,et,amt);
+          });
+        }});
+        betAmounts={};
+      }
     }
   });
 
-  // ── RESULT ──────────────────────────── 60f
+  // ── RESULT ──────────────────────────── 60-70f
   const preResultBoard=[...revealedBoard];
   const preResultStacks={...currentStacks};
   const winnerXY=winnerPos?seatOuter(winnerPos):{x:TCX,y:TCY};
   const resultColor=result==='won'?'#22c55e':result==='lost'?'#ef4444':'#f8c030';
   const resultLabel=result==='won'?'ניצחון! 🏆':result==='lost'?'הפסד 💀':'קופה מחולקת 🤝';
+  // מציגים קלפי יריב בתוצאה כשידועים — בין אם כבר נחשפו קודם (אירוע 'reveal',
+  // אול-אין באמצע היד) ובין אם זו הפעם הראשונה (שואודאון רגיל אחרי הריבר)
+  const oppCardsAtResult=(p)=>opponentCardsById[p.id]||null;
 
-  frames.push({duration:60,draw:(ctx,t)=>{
-    const moveT=Math.min(1,t*2);
-    const animStacks={...preResultStacks};
-    const winKey=result==='won'?'hero':winnerOpponent?.id;
-    if(winKey!=null) animStacks[winKey]=lerp(preResultStacks[winKey]||0,(preResultStacks[winKey]||0)+finalPot,easeInOut(moveT));
-
-    drawBG(ctx); drawTable(ctx);
-    drawTopHUD(ctx,isCash,cash_stakes,sb,bb,ante,tournament_stage);
-    allPlayers.forEach(p=>{
-      const stk=Math.round(animStacks[p.isHero?'hero':p.id]??p.stack??0);
-      const isWin=(result==='won'&&p.isHero)||(result==='lost'&&!p.isHero&&winnerOpponent&&String(p.id)===String(winnerOpponent.id));
-      drawPlayerBox(ctx,p.position,p.label||'Hero',stk,p.isHero,p.position==='BTN',isWin&&t>.5);
-      if(p.isHero) drawHoleCards(ctx,p.position,hero_cards,true);
-      else drawHoleCards(ctx,p.position,null,false);
-    });
-    drawBoard(ctx,preResultBoard,Array(preResultBoard.length).fill(1));
-    drawPotCenter(ctx,lerp(currentPot,0,easeInOut(moveT)),isCash);
-    drawChipParticles(ctx,TCX,TCY,winnerXY.x,winnerXY.y,moveT,finalPot);
-    drawMiniLog(ctx,logEvents);
-    drawPotDisplay(ctx,lerp(currentPot,0,easeInOut(moveT)),sb,bb,ante,isCash,cash_stakes);
-
-    if(t>.38){
-      const rt=(t-.38)*1.65;
-      ctx.globalAlpha=Math.min(.55,easeOut(rt)*.55);
-      ctx.fillStyle='rgba(0,0,0,.5)'; ctx.fillRect(0,0,W,H); ctx.globalAlpha=1;
-      ctx.save();
-      ctx.translate(TCX,TCY-18);
-      const sc=.5+Math.min(.5,easeOut(rt)*.95); ctx.scale(sc,sc);
-      ctx.globalAlpha=Math.min(1,easeOut(rt*2.5));
-      setSh(ctx,resultColor,14);
-      ctx.fillStyle=resultColor; ctx.font='bold 64px Arial';
-      ctx.textAlign='center'; ctx.textBaseline='middle';
-      ctx.fillText(resultLabel,0,0);
-      clrSh(ctx); ctx.restore();
-      if(hero_profit){
-        const ps=hero_profit>0?`+${hero_profit}`:`${hero_profit}`;
-        ctx.globalAlpha=Math.min(1,easeOut((rt-.2)*3));
-        ctx.fillStyle=resultColor; ctx.font='bold 26px Arial';
-        ctx.textAlign='center';
-        ctx.fillText(`${ps}${isCash?'₪':' chips'}`,TCX,TCY+50);
-        ctx.globalAlpha=1;
+  if(result==='unknown'){
+    // "מה היית עושה?" — היד נעצרה מכוונת בנקודת החלטה (כפתור ? באשף), כדי
+    // לשתף ולקבל פידבק בלי לחשוף תוצאה. בלי תזוזת צ'יפים, בלי מנצח — פשוט
+    // עוצרים איפה שהפעולות שנרשמו נעצרות ושואלים
+    // שלב 1 (50f, ~1.7s): השולחן עוד נראה לרגע לקונטקסט, הוילון מכהה במהירות
+    // והכרטיס נכנס — לא נשארים כאן מספיק זמן בשביל לקרוא, זו רק המעבר
+    frames.push({duration:50,draw:(ctx,t)=>{
+      drawBG(ctx); drawTable(ctx);
+      drawTopHUD(ctx,isCash,cash_stakes,sb,bb,ante,tournament_stage);
+      allPlayers.forEach(p=>{
+        const stk=Math.round(preResultStacks[p.isHero?'hero':p.id]??p.stack??0);
+        drawPlayerBox(ctx,p.position,p.label||'Hero',stk,p.isHero,p.position==='BTN',false);
+        if(p.isHero) drawHoleCards(ctx,p.position,hero_cards,true);
+        else drawHoleCards(ctx,p.position,null,false); // יריב לא נחשף — זו כל הנקודה של מצב "שאלה"
+      });
+      drawBoard(ctx,preResultBoard,Array(preResultBoard.length).fill(1));
+      if(isMultiPot){
+        const potPositions=getPotPilePositions(pots.length);
+        pots.forEach((pot,i)=>{
+          const{x,y}=potPositions[i];
+          const label=i===0?'MAIN POT':(pots.length>2?`SIDE POT ${i}`:'SIDE POT');
+          drawPotPile(ctx,x,y,pot.amount,label,isCash);
+        });
+      } else {
+        drawPotCenter(ctx,currentPot,isCash);
       }
-    }
-  }});
+      drawMiniLog(ctx,logEvents,allPlayers.map(p=>p.position));
+      drawPotDisplay(ctx,currentPot,sb,bb,ante,isCash,cash_stakes);
+
+      const rt=Math.min(1,t*2.2);
+      // וילון הרבה יותר חזק (עד 0.88, לא 0.55) — השולחן צריך לשקוע לגמרי
+      // לרקע כדי שהשאלה תהיה הדבר היחיד שבאמת קוראים, לא מתחרה עם הבלגן
+      // של הקלפים/הצ'יפים/הלוג מתחת
+      ctx.globalAlpha=easeOut(rt)*0.88;
+      ctx.fillStyle='#000'; ctx.fillRect(0,0,W,H); ctx.globalAlpha=1;
+      drawQuestionCard(ctx,easeOut(Math.min(1,t*1.8)));
+    }});
+    // שלב 2 (110f, ~3.7s): החזקה מלאה — רק הכרטיס, בלי הלוג/הקופה שמסיחים
+    // את הדעת — הזמן העיקרי לקרוא ולצלם מסך
+    frames.push({duration:110,draw:(ctx)=>{
+      drawBG(ctx); drawTable(ctx);
+      drawTopHUD(ctx,isCash,cash_stakes,sb,bb,ante,tournament_stage);
+      allPlayers.forEach(p=>{
+        const stk=Math.round(preResultStacks[p.isHero?'hero':p.id]??p.stack??0);
+        drawPlayerBox(ctx,p.position,p.label||'Hero',stk,p.isHero,p.position==='BTN',false);
+        if(p.isHero) drawHoleCards(ctx,p.position,hero_cards,true);
+        else drawHoleCards(ctx,p.position,null,false);
+      });
+      if(preResultBoard.length) drawBoard(ctx,preResultBoard,Array(preResultBoard.length).fill(1));
+
+      ctx.fillStyle='rgba(0,0,0,0.88)'; ctx.fillRect(0,0,W,H);
+      drawQuestionCard(ctx,1);
+
+      ctx.fillStyle='rgba(148,163,184,0.7)'; ctx.font='bold 12px Arial';
+      ctx.textAlign='center'; ctx.textBaseline='bottom';
+      ctx.fillText('PokerIsrael.org',TCX,H-10);
+    }});
+  } else if(isMultiPot){
+    const potPositions=getPotPilePositions(pots.length);
+    const potWinnerXY=pots.map(pot=>{
+      const w=(pot.winners&&pot.winners[0])||null;
+      if(!w) return {x:TCX,y:TCY};
+      if(w==='hero') return seatOuter(hero_position);
+      const opp=opponents.find(o=>String(o.id)===String(w));
+      return opp?seatOuter(opp.position):{x:TCX,y:TCY};
+    });
+    const winSet=new Set();
+    pots.forEach(pot=>(pot.winners||[]).forEach(w=>winSet.add(w)));
+
+    frames.push({duration:70,draw:(ctx,t)=>{
+      const moveT=Math.min(1,t*2);
+      // סוכמים את חלקו של כל שחקן על פני *כל* הקופות לפני הציור — שחקן
+      // שמנצח יותר מקופה אחת (למשל הקופה הראשית וגם קופת הצד) צריך שהאנימציה
+      // תראה את הסכום המצטבר, לא רק את חלקו בקופה האחרונה שעברנו עליה
+      const shareByActor={};
+      pots.forEach(pot=>{
+        const winners=pot.winners||[];
+        if(!winners.length) return;
+        const share=Math.floor(pot.amount/winners.length);
+        winners.forEach(w=>{ shareByActor[w]=(shareByActor[w]||0)+share; });
+      });
+      const animStacks={...preResultStacks};
+      Object.entries(shareByActor).forEach(([w,totalShare])=>{
+        animStacks[w]=lerp(preResultStacks[w]||0,(preResultStacks[w]||0)+totalShare,easeInOut(moveT));
+      });
+
+      drawBG(ctx); drawTable(ctx);
+      drawTopHUD(ctx,isCash,cash_stakes,sb,bb,ante,tournament_stage);
+      allPlayers.forEach(p=>{
+        const key=p.isHero?'hero':p.id;
+        const stk=Math.round(animStacks[key]??p.stack??0);
+        const isWin=winSet.has(key)&&t>.5;
+        drawPlayerBox(ctx,p.position,p.label||'Hero',stk,p.isHero,p.position==='BTN',isWin);
+        if(p.isHero) drawHoleCards(ctx,p.position,hero_cards,true);
+        else { const oc=oppCardsAtResult(p); drawHoleCards(ctx,p.position,oc,!!oc); }
+      });
+      drawBoard(ctx,preResultBoard,Array(preResultBoard.length).fill(1));
+      pots.forEach((pot,i)=>{
+        const{x,y}=potPositions[i];
+        const remaining=lerp(pot.amount,0,easeInOut(moveT));
+        const label=i===0?'MAIN POT':(pots.length>2?`SIDE POT ${i}`:'SIDE POT');
+        drawPotPile(ctx,x,y,remaining,label,isCash);
+        if(pot.winners?.length) drawChipParticles(ctx,x,y,potWinnerXY[i].x,potWinnerXY[i].y,moveT,pot.amount);
+      });
+      drawMiniLog(ctx,logEvents,allPlayers.map(p=>p.position));
+      const totalRemaining=pots.reduce((s,pot)=>s+lerp(pot.amount,0,easeInOut(moveT)),0);
+      drawPotDisplay(ctx,totalRemaining,sb,bb,ante,isCash,cash_stakes);
+
+      if(t>.42){
+        const rt=(t-.42)*1.6;
+        ctx.globalAlpha=Math.min(.55,easeOut(rt)*.55);
+        ctx.fillStyle='rgba(0,0,0,.5)'; ctx.fillRect(0,0,W,H); ctx.globalAlpha=1;
+        ctx.save();
+        ctx.translate(TCX,TCY-18);
+        const sc=.5+Math.min(.5,easeOut(rt)*.95); ctx.scale(sc,sc);
+        ctx.globalAlpha=Math.min(1,easeOut(rt*2.5));
+        setSh(ctx,resultColor,14);
+        ctx.fillStyle=resultColor; ctx.font='bold 46px Arial';
+        ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillText(resultLabel,0,0);
+        clrSh(ctx); ctx.restore();
+        if(hero_profit){
+          const ps=hero_profit>0?`+${hero_profit}`:`${hero_profit}`;
+          ctx.globalAlpha=Math.min(1,easeOut((rt-.2)*3));
+          ctx.fillStyle=resultColor; ctx.font='bold 24px Arial';
+          ctx.textAlign='center';
+          ctx.fillText(`${ps}${isCash?'₪':' chips'}`,TCX,TCY+58);
+          ctx.globalAlpha=1;
+        }
+      }
+    }});
+  } else {
+    frames.push({duration:60,draw:(ctx,t)=>{
+      const moveT=Math.min(1,t*2);
+      const animStacks={...preResultStacks};
+      const winKey=result==='won'?'hero':winnerOpponent?.id;
+      if(winKey!=null) animStacks[winKey]=lerp(preResultStacks[winKey]||0,(preResultStacks[winKey]||0)+finalPot,easeInOut(moveT));
+
+      drawBG(ctx); drawTable(ctx);
+      drawTopHUD(ctx,isCash,cash_stakes,sb,bb,ante,tournament_stage);
+      allPlayers.forEach(p=>{
+        const stk=Math.round(animStacks[p.isHero?'hero':p.id]??p.stack??0);
+        const isWin=(result==='won'&&p.isHero)||(result==='lost'&&!p.isHero&&winnerOpponent&&String(p.id)===String(winnerOpponent.id));
+        drawPlayerBox(ctx,p.position,p.label||'Hero',stk,p.isHero,p.position==='BTN',isWin&&t>.5);
+        if(p.isHero) drawHoleCards(ctx,p.position,hero_cards,true);
+        else { const oc=oppCardsAtResult(p); drawHoleCards(ctx,p.position,oc,!!oc); }
+      });
+      drawBoard(ctx,preResultBoard,Array(preResultBoard.length).fill(1));
+      drawPotCenter(ctx,lerp(currentPot,0,easeInOut(moveT)),isCash);
+      drawChipParticles(ctx,TCX,TCY,winnerXY.x,winnerXY.y,moveT,finalPot);
+      drawMiniLog(ctx,logEvents,allPlayers.map(p=>p.position));
+      drawPotDisplay(ctx,lerp(currentPot,0,easeInOut(moveT)),sb,bb,ante,isCash,cash_stakes);
+
+      if(t>.38){
+        const rt=(t-.38)*1.65;
+        ctx.globalAlpha=Math.min(.55,easeOut(rt)*.55);
+        ctx.fillStyle='rgba(0,0,0,.5)'; ctx.fillRect(0,0,W,H); ctx.globalAlpha=1;
+        ctx.save();
+        ctx.translate(TCX,TCY-18);
+        const sc=.5+Math.min(.5,easeOut(rt)*.95); ctx.scale(sc,sc);
+        ctx.globalAlpha=Math.min(1,easeOut(rt*2.5));
+        setSh(ctx,resultColor,14);
+        ctx.fillStyle=resultColor; ctx.font='bold 64px Arial';
+        ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillText(resultLabel,0,0);
+        clrSh(ctx); ctx.restore();
+        if(hero_profit){
+          const ps=hero_profit>0?`+${hero_profit}`:`${hero_profit}`;
+          ctx.globalAlpha=Math.min(1,easeOut((rt-.2)*3));
+          ctx.fillStyle=resultColor; ctx.font='bold 26px Arial';
+          ctx.textAlign='center';
+          ctx.fillText(`${ps}${isCash?'₪':' chips'}`,TCX,TCY+50);
+          ctx.globalAlpha=1;
+        }
+      }
+    }});
+  }
 
   // ── OUTRO ─────────────────────────── 30f (players visible + result overlay)
+  // לא רלוונטי במצב "מה היית עושה?" — הסצינה של result==='unknown' למעלה כבר
+  // כוללת סיום משלה (בלי תוצאה/תזוזת צ'יפים לחשוף)
+  if(result!=='unknown'){
   frames.push({duration:30,draw:(ctx,t)=>{
     drawBG(ctx); drawTable(ctx);
     drawTopHUD(ctx,isCash,cash_stakes,sb,bb,ante,tournament_stage);
 
     // Draw players with final stacks
+    const outroWinSet=isMultiPot
+      ? new Set(pots.flatMap(pot=>pot.winners||[]))
+      : new Set([result==='won'?'hero':(winnerOpponent?.id??null)].filter(k=>k!=null));
     allPlayers.forEach(p=>{
       const stk=Math.round((finalStacks[p.isHero?'hero':p.id]??p.stack??0));
-      const isWin=(result==='won'&&p.isHero)||(result==='lost'&&!p.isHero&&p===allPlayers[1]);
+      const isWin=outroWinSet.has(p.isHero?'hero':p.id);
       drawPlayerBox(ctx,p.position,p.label||'Hero',stk,p.isHero,p.position==='BTN',isWin);
       if(p.isHero) drawHoleCards(ctx,p.position,hero_cards,true);
-      else drawHoleCards(ctx,p.position,null,false);
+      else { const oc=oppCardsAtResult(p); drawHoleCards(ctx,p.position,oc,!!oc); }
     });
     if(preResultBoard.length) drawBoard(ctx,preResultBoard,Array(preResultBoard.length).fill(1));
 
@@ -1003,6 +1335,7 @@ export function buildFrames(state){
     ctx.fillText('PokerIsrael.org',TCX,H-10);
     ctx.globalAlpha=1;
   }});
+  }
 
   return{frames,W,H};
 }

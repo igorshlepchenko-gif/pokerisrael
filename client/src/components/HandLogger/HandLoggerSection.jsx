@@ -18,8 +18,14 @@ function MiniCard({ card }) {
 
 function HandPreview({ hand }) {
   const cards = hand.hero_cards || [];
-  const resultColor = hand.result === 'won' ? 'text-emerald-400' : hand.result === 'lost' ? 'text-red-400' : 'text-amber-400';
-  const resultIcon  = hand.result === 'won' ? '🏆' : hand.result === 'lost' ? '💀' : '🤝';
+  const resultColor = hand.result === 'won' ? 'text-emerald-400'
+    : hand.result === 'lost' ? 'text-red-400'
+    : hand.result === 'unknown' ? 'text-blue-400'
+    : 'text-amber-400';
+  const resultIcon  = hand.result === 'won' ? '🏆'
+    : hand.result === 'lost' ? '💀'
+    : hand.result === 'unknown' ? '🤔'
+    : '🤝';
   const typeLabel   = hand.game_type === 'tournament' ? '🏆 טורניר' : '💰 קאש';
 
   return (

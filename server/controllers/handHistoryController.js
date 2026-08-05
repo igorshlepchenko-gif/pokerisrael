@@ -17,7 +17,9 @@ exports.createHand = async (req, res) => {
   if (!hero_position) return res.status(400).json({ message: 'עמדה חסרה' });
   if (!hero_cards || !Array.isArray(hero_cards) || hero_cards.length !== 2)
     return res.status(400).json({ message: 'יש לבחור 2 קלפים' });
-  if (!result || !['won', 'lost', 'split'].includes(result))
+  // 'unknown' = יד שנעצרה מכוונת בנקודת החלטה (כפתור "?" באשף) בלי לחשוף
+  // תוצאה — כדי לשתף ולקבל פידבק על ההחלטה בלי הטיית hindsight אצל הנשאלים
+  if (!result || !['won', 'lost', 'split', 'unknown'].includes(result))
     return res.status(400).json({ message: 'תוצאה לא תקינה' });
 
   // מגבלת 20 ידיים שמורות למשתמש — הבדיקה וההכנסה בתוך אותה טרנזקציה, נעולות

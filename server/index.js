@@ -36,9 +36,24 @@ app.use(helmet({
 }));
 
 // ── CORS ──────────────────────────────────────────────────────────
+// The Hand Logger mobile app (Capacitor) requests from a fixed local-scheme origin
+// rather than the web CLIENT_URL — capacitor://localhost on iOS, https://localhost
+// on Android — so the web app's single allowed origin needs to become an allowlist.
+const corsAllowedOrigins = [
+  process.env.CLIENT_URL || 'http://localhost:5173',
+  'capacitor://localhost',
+  'https://localhost',
+];
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  origin: (origin, callback) => {
+    if (!origin || corsAllowedOrigins.includes(origin)) return callback(null, true);
+    callback(new Error('Not allowed by CORS'));
+  },
   credentials: true,
+  // Custom response headers are invisible to client JS on cross-origin requests unless
+  // explicitly exposed — without this the mobile app's token-refresh header (see
+  // middleware/auth.js) would be silently dropped by the browser/WebView.
+  exposedHeaders: ['X-Refreshed-Token'],
 }));
 
 // ── Rate limiting כלל-מערכתי ──────────────────────────────────────

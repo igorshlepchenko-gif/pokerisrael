@@ -24,11 +24,15 @@ const authenticate = async (req, res, next) => {
       return res.status(401).json({ message: 'ההתחברות פגה — יש להתחבר מחדש' });
     }
 
-    // רענון גולש (sliding session) — רק ללקוחות עוגייה, לא ל-Authorization header:
-    // כל בקשה מאומתת מאריכה את החלון ל-30 דקות נוספות, כך שרק חוסר-פעילות אמיתי
-    // (לא שימוש רציף) מנתק את המשתמש
+    // רענון גולש (sliding session): כל בקשה מאומתת מאריכה את החלון ל-30 דקות נוספות,
+    // כך שרק חוסר-פעילות אמיתי (לא שימוש רציף) מנתק את המשתמש.
+    // לקוחות עוגייה (אתר) מקבלים עוגייה מחודשת; לקוחות Authorization header בלבד
+    // (אפליקציית המובייל, שאין לה עוגייה cross-site) מקבלים טוקן מחודש בהדר תגובה —
+    // בלעדיו הם היו מתנתקים בכפייה כל 30 דקות ללא קשר לפעילות בפועל
     if (req.cookies?.pli_token) {
       setAuthCookie(res, generateToken(user));
+    } else {
+      res.set('X-Refreshed-Token', generateToken(user));
     }
 
     const { token_version, ...safeUser } = user;

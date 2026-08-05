@@ -7,9 +7,11 @@ import HandSummary from './HandSummary';
 import { generateNarrative } from '../../utils/handNarrative';
 import { bestHandEval, compareEvals, describeHandHe } from '../../utils/handEvaluator';
 import { HAND_LOGGER_DRAFT_KEY, clearHandLoggerDraft } from '../../utils/handLoggerDraft';
+import { getContributions, computeSidePots, resolvePotWinners, getAllInLockStreet } from '../../utils/handPots';
 
 const PREFLOP_ORDER  = ['UTG', 'UTG+1', 'MP', 'HJ', 'CO', 'BTN', 'SB', 'BB'];
 const POSTFLOP_ORDER = ['SB', 'BB', 'UTG', 'UTG+1', 'MP', 'HJ', 'CO', 'BTN'];
+const STREET_SEQUENCE = ['preflop', 'flop', 'turn', 'river'];
 
 function sortedPlayers(heroPos, opponents, street) {
   const order = street === 'preflop' ? PREFLOP_ORDER : POSTFLOP_ORDER;
@@ -110,6 +112,12 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
   const [oppRevealedCards, setOppRevealedCards] = useState(_d?.oppRevealedCards ?? []);
   const [autoDecided, setAutoDecided] = useState(_d?.autoDecided ?? false);
   const [autoReason, setAutoReason] = useState(_d?.autoReason ?? '');
+  // כשכולם באול-אין לפני שהבורד הושלם: מציגים גילוי קלפים מיד (לפני שממשיכים
+  // לחלק את השלבים הנותרים), במקום לחכות לשלב 9 שמגיע רק אחרי הריבר
+  const [revealedAtLock, setRevealedAtLock] = useState(_d?.revealedAtLock ?? false);
+  // מנצח/ים לכל קופה בנפרד (ראשית + צדדיות) — רק כשיש יותר מקופה אחת;
+  // null = טרם נקבע (עדיין מחכה לזיהוי אוטומטי או לבחירה ידנית)
+  const [potWinners, setPotWinners] = useState(_d?.potWinners ?? null);
 
   // Narrative (generated at result step)
   const [narrative, setNarrative] = useState(_d?.narrative ?? '');
@@ -121,12 +129,12 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
       step, gameType, tournamentStage, blindPreset, customSb, customBb, ante,
       stakesPreset, customStakes, playersCount, opponents, heroPosition, heroStack,
       heroCards, handData, result, heroProfit, splitDist, notes, showShowdown, oppRevealedCards, narrative,
-      autoDecided, autoReason,
+      autoDecided, autoReason, revealedAtLock, potWinners,
     }));
   }, [step, gameType, tournamentStage, blindPreset, customSb, customBb, ante,
       stakesPreset, customStakes, playersCount, opponents, heroPosition, heroStack,
       heroCards, handData, result, heroProfit, splitDist, notes, showShowdown, oppRevealedCards, narrative,
-      autoDecided, autoReason]);
+      autoDecided, autoReason, revealedAtLock, potWinners]);
 
   // מניעת גלילה ברקע — "overflow: hidden" לבדו לא אמין ב-iOS Safari (גלילה עדיין
   // "בורחת" לדף שמאחורי ומזיזה את סרגל הכתובת). התרגיל האמין: מוציאים את ה-body
@@ -250,7 +258,19 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
   };
 
   useEffect(() => {
-    if (step !== 10) return;
+    if (step !== 10 || result === 'unknown') return;
+    // יד עם קופות-צד מטופלת כולה ע"י האפקט/הלוגיקה הייעודיים למטה
+    // (computeAutoPotWinners/applyPotWinners) — האפקט הזה מניח קופה אחת
+    // בלבד, ובלי החסימה הזו הוא "מנצח" את החישוב הנכון בכל חזרה לשלב 10
+    // (autoDecided נשאר true אחרי ריצה ראשונה, אז ממשיך "לתקן" לערך שגוי).
+    // result==='unknown' חסום גם כאן: אחרת חזרה לשלב 10 אחרי לחיצה על "?"
+    // (כפתור מצב "מה היית עושה?") "מתקנת" בשקט את התוצאה האמיתית בחזרה —
+    // בדיוק מה שהכפתור הזה נועד למנוע.
+    const isTournamentNow = gameType === 'tournament' || gameType === 'tournament_online';
+    const potsNow = computeSidePots(getContributions(
+      handData, heroPosition, opponents, getBlindSbBb().sb, getBlindSbBb().bb, ante, isTournamentNow
+    ));
+    if (potsNow.length > 1) return;
     const auto = computeAutoResult();
     if (!auto) return;
     if (result === '' || autoDecided) applyAutoResult(auto);
@@ -296,7 +316,18 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
       hero_position: heroPosition,
       hero_stack: parseInt(heroStack) || 0,
       hero_cards: heroCards,
-      hand_data: { ...handData, opponents },
+      hand_data: {
+        ...handData,
+        opponents,
+        // מצב "שאלה" (כפתור ? — עצירה מכוונת בנקודת החלטה, ראה exitToSummaryEarly):
+        // אסור לדלוף קלפי יריב או מנצחי-קופה שכבר נקבעו קודם ביד הזו (למשל
+        // אול-אין מוקדם יותר שכבר נפתר בשלב 10 לפני שחזרו אחורה ולחצו "?"),
+        // אחרת השאלה "מה היית עושה" כבר "בוגדת" בתשובה בעצמה
+        pots: (isMultiPot && result !== 'unknown')
+          ? pots.map((p, i) => ({ ...p, winners: potWinners?.[i] || [] }))
+          : undefined,
+        showdown: result === 'unknown' ? { reached: false, opponent_cards: [] } : handData.showdown,
+      },
       result,
       hero_profit: parseInt(heroProfit) || null,
       notes,
@@ -401,6 +432,89 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
     return playersWhoNeedToAct(actions, allPlayers).length === 0;
   };
 
+  // השלב שאחריו כבר אי-אפשר לבצע יותר פעולות הימור — נשאר ≤1 שחקן עם צ'יפים
+  // מאחורי הקופה (השאר קיפלו/אול-אין). null אם היד לא הגיעה למצב הזה.
+  const lockStreet = getAllInLockStreet(
+    handData, heroPosition, heroStack, opponents,
+    getBlindSbBb().sb, getBlindSbBb().bb, ante, isTournament
+  );
+
+  // שחקנים שצריכים לפעול בשלב, עם נעילה: אם היד כבר "ננעלה" בשלב קודם (כולם
+  // אול-אין/קיפלו), אף אחד לא מתבקש לפעול שוב — כולל השחקן עם הצ'יפים
+  // שנשארו מאחוריו, שהיום מתבקש בטעות להמר שוב מול יריבים שכבר לא יכולים
+  // להגיב. ראה [[project_poker_handlogger]] — זו הבעיה שהמשתמש דיווח עליה.
+  const actablePlayers = (street) => {
+    if (lockStreet && STREET_SEQUENCE.indexOf(street) > STREET_SEQUENCE.indexOf(lockStreet)) return [];
+    const prevFolded = getFoldedBefore(street);
+    const allPlayers = sortedPlayers(heroPosition, opponents, street).filter(p => !prevFolded.has(p.actor));
+    return playersWhoNeedToAct(handData.streets[street]?.actions || [], allPlayers);
+  };
+
+  // הרגע הנכון להציג את פאנל גילוי הקלפים: מיד בשלב הבא אחרי שהיד ננעלה,
+  // לפני שממשיכים לחלק את שאר הבורד — לא מחכים לשלב 9 שמגיע רק אחרי הריבר
+  const showRevealPanelFor = (street) => {
+    if (!lockStreet || revealedAtLock) return false;
+    return STREET_SEQUENCE.indexOf(street) === STREET_SEQUENCE.indexOf(lockStreet) + 1;
+  };
+
+  // קופות-צד: מחושב תמיד (זול, טהור) — pots.length===1 בכל יד רגילה, כולל
+  // אול-אין חד-על-חד (ראה handPots.js); רק אול-אין מרובה-שחקנים בעומקי-ערימה
+  // שונים מייצר יותר מקופה אחת
+  const contributions = getContributions(
+    handData, heroPosition, opponents,
+    getBlindSbBb().sb, getBlindSbBb().bb, ante, isTournament
+  );
+  const pots = computeSidePots(contributions);
+  const isMultiPot = pots.length > 1;
+
+  // זיהוי אוטומטי של מנצח/ים לכל קופה בנפרד — קופה עם זכאי יחיד (כל השאר
+  // קיפלו) מוכרעת בלי צורך בקלפים; קופה עם 2+ זכאים דורשת שקלפי כולם ידועים
+  const computeAutoPotWinners = () => {
+    const evalsByActor = {};
+    getShowdownPlayers().forEach(p => {
+      const cards = getRevealedCards(p.actor);
+      evalsByActor[p.actor] = cards.length === 2 ? bestHandEval(cards, allBoardCards) : null;
+    });
+    const resolved = resolvePotWinners(pots, evalsByActor);
+    if (resolved.some(p => p.winners === null)) return null;
+    return resolved.map(p => p.winners);
+  };
+
+  const applyPotWinners = (winnersPerPot) => {
+    setPotWinners(winnersPerPot);
+    const heroTotal = contributions.find(c => c.actor === 'hero')?.contributed || 0;
+    let heroGross = 0;
+    pots.forEach((pot, i) => {
+      const winners = winnersPerPot[i] || [];
+      if (winners.includes('hero')) heroGross += Math.floor(pot.amount / winners.length);
+    });
+    setHeroProfit(String(heroGross - heroTotal));
+    setResult(heroGross > heroTotal ? 'won' : heroGross < heroTotal ? 'lost' : 'split');
+  };
+
+  // בחירה/ביטול ידניים של מנצח בקופה מסוימת (תומך בכמה מנצחים לאותה קופה — חלוקה)
+  // בונה תמיד מערך בגודל pots.length הנוכחי — אם המשתמש חזר אחורה ושינה
+  // פעולות כך שמספר הקופות השתנה, potWinners הישן (באורך אחר) לא נסמך עליו
+  const togglePotWinner = (potIndex, actor) => {
+    const stale = !potWinners || potWinners.length !== pots.length;
+    const current = (stale ? pots.map(() => []) : [...potWinners]).map(w => w || []);
+    current[potIndex] = current[potIndex].includes(actor)
+      ? current[potIndex].filter(a => a !== actor)
+      : [...current[potIndex], actor];
+    applyPotWinners(current);
+  };
+
+  useEffect(() => {
+    // result==='unknown' חסום מאותה סיבה בדיוק כמו האפקט החד-קופתי למעלה —
+    // לא "לתקן" תוצאה שהוקפאה בכוונה ע"י כפתור "?"
+    if (step !== 10 || !isMultiPot || result === 'unknown') return;
+    // potWinners קיים אבל באורך אחר מ-pots.length הנוכחי = נשאר מפעולה
+    // שנערכה אחרי שהוא נקבע (חזרה אחורה, שינוי הימורים) — לא לסמוך עליו
+    if (potWinners && potWinners.length === pots.length) return;
+    const auto = computeAutoPotWinners();
+    if (auto) applyPotWinners(auto);
+  }, [step, isMultiPot, pots.length, handData, oppRevealedCards, opponents, heroCards, heroPosition]);
+
   const canNext = () => {
     if (step === 0) return !!gameType;
     if (step === 1) {
@@ -415,7 +529,12 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
       if (!actions.length) return false;
       return playersWhoNeedToAct(actions, sortedPlayers(heroPosition, opponents, 'preflop')).length === 0;
     }
-    if (step === 10) return !!result;
+    if (step === 10) {
+      if (isMultiPot) {
+        return !!potWinners && potWinners.length === pots.length && potWinners.every(w => (w || []).length > 0);
+      }
+      return !!result;
+    }
     return true;
   };
 
@@ -424,9 +543,51 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
       const state = buildState();
       setNarrative(generateNarrative(state));
     }
-    setStep(s => Math.min(s + 1, steps.length - 1));
+    setStep(s => {
+      let next = Math.min(s + 1, steps.length - 1);
+      // שלב 9 (קלפי יריב) כבר נענה מוקדם יותר ע"י AllInRevealPanel — לא לשאול שוב
+      if (next === 9 && revealedAtLock) next = 10;
+      return next;
+    });
   };
-  const goBack = () => setStep(s => Math.max(s - 1, 0));
+  const goBack = () => {
+    let prev = Math.max(step - 1, 0);
+    if (prev === 9 && revealedAtLock) prev = 8;
+    // חזרה מ"קפוא" (result==='unknown', אחרי לחיצה על "?") לתוך שלבי העריכה
+    // עצמם (9 ומטה) — זה לא רק הצצה בתוצאה, זה סימן שהמשתמש רוצה להמשיך
+    // את היד באמת. מפשירים את המצב כדי שהזיהוי האוטומטי יעבוד שוב כשמגיעים
+    // לשלב 10 בפעם הבאה — בלי זה, result נשאר 'unknown' לנצח (בכוונה, כדי
+    // שלא "ידרוס" את עצמו בשקט — ראה האפקטים למעלה) והכפתור "צור סיכום"
+    // נשאר נעול כי אין דרך לחשב תוצאה אמיתית
+    if (prev <= 9 && result === 'unknown') {
+      setResult('');
+      setPotWinners(null);
+      setAutoDecided(false);
+      setAutoReason('');
+      setHeroProfit('');
+      setSplitDist({});
+    }
+    setStep(prev);
+  };
+
+  // כפתור "?" (שלבים 5-8): עוצר את רישום היד בדיוק בנקודת ההחלטה הנוכחית
+  // ומדלג ישר לסיכום (נרטיב+וידאו) — בלי גילוי קלפי יריב ובלי קביעת תוצאה —
+  // כדי לשתף את ההחלטה ("יריב עשה אול-אין בטרן, מה עושים?") ולקבל פידבק בלי
+  // שהנשאלים ידעו איך היד הסתיימה באמת
+  const exitToSummaryEarly = () => {
+    if (!confirm('לעצור את רישום היד כאן ולעבור ישר לתוצר (וידאו/טקסט), בלי לחשוף מה קרה בהמשך?')) return;
+    setResult('unknown');
+    setHeroProfit('');
+    setSplitDist({});
+    const base = buildState();
+    const state = {
+      ...base,
+      result: 'unknown',
+      hand_data: { ...base.hand_data, showdown: { reached: false, opponent_cards: [] } },
+    };
+    setNarrative(generateNarrative(state));
+    setStep(11);
+  };
 
   const hasDraftInProgress = step > 0 || !!gameType;
   const discardAndRestart = () => {
@@ -456,6 +617,8 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
     setAutoDecided(false);
     setAutoReason('');
     setNarrative('');
+    setRevealedAtLock(false);
+    setPotWinners(null);
   };
 
   // אם היד כבר הוכרעה בפולד (פחות מ-2 שחקנים נותרו) — קפוץ ישר לתוצאה
@@ -660,6 +823,70 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
     );
   };
 
+  // רשימת CardPicker אחת ליריב — משותפת בין שלב 9 (אחרי הריבר, הזרימה
+  // הרגילה) לבין פאנל הגילוי המוקדם (AllInRevealPanel, כשהיד ננעלת מוקדם)
+  const OpponentCardInputs = () => (
+    <>
+      {opponents.length === 0 && (
+        <p className="text-xs text-slate-500 text-right">לא הוזנו יריבים בשלב 3.</p>
+      )}
+      {opponents.map((opp, i) => (
+        <div key={opp.id}>
+          <label className="block text-sm font-bold text-slate-300 mb-2 text-right">
+            קלפי {opp.label || `יריב ${i + 1}`}
+          </label>
+          <CardPicker
+            selected={i === 0 ? oppRevealedCards : (handData.showdown?.opponent_cards?.[i] || [])}
+            onChange={c => {
+              if (i === 0) { setOppRevealedCards(c); setShowdownCards(c); }
+              else {
+                setHandData(prev => ({
+                  ...prev,
+                  showdown: {
+                    reached: true,
+                    opponent_cards: prev.showdown.opponent_cards.map((oc, j) => j === i ? c : oc),
+                  },
+                }));
+              }
+            }}
+            max={2}
+            disabled={[...heroCards, ...allBoardCards]}
+          />
+        </div>
+      ))}
+    </>
+  );
+
+  // כשהיד ננעלת (כולם אול-אין) — פאנל גילוי מיידי, לפני שממשיכים לחלק את
+  // שאר הבורד. ראה showRevealPanelFor למיקום המדויק בזרימה.
+  const AllInRevealPanel = () => (
+    <div className="space-y-3 p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30" dir="rtl">
+      <div className="flex items-center gap-2">
+        <span className="text-xl">🔓</span>
+        <div>
+          <div className="text-sm font-black text-amber-300">כולם באול-אין!</div>
+          <div className="text-xs text-slate-400">גלו את קלפי המשתתפים לפני שממשיכים לחלק את הבורד</div>
+        </div>
+      </div>
+      <OpponentCardInputs />
+      <button onClick={() => setRevealedAtLock(true)}
+        className="w-full py-2.5 rounded-xl font-bold text-sm text-white transition-all"
+        style={{ background: 'linear-gradient(135deg, #1d4ed8, #2563eb)' }}>
+        המשך לחלוקת שאר הקלפים →
+      </button>
+      <button onClick={() => setRevealedAtLock(true)}
+        className="w-full py-1.5 rounded-xl text-xs text-slate-500 border border-dashed border-slate-700 hover:border-slate-600 hover:text-slate-400 transition-all">
+        ⏭ דלג — לא לגלות קלפים
+      </button>
+    </div>
+  );
+
+  const LockBanner = ({ street }) => (
+    lockStreet && STREET_SEQUENCE.indexOf(street) > STREET_SEQUENCE.indexOf(lockStreet) ? (
+      <div className="text-center text-xs text-amber-400/80 font-bold py-1">🔒 כולם באול-אין — משלימים את הבורד</div>
+    ) : null
+  );
+
   // ── Render steps ──────────────────────────────────
   const renderStep = () => {
     // 0: Game type
@@ -853,6 +1080,7 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
             blindBb={getBlindSbBb().bb} blindSb={getBlindSbBb().sb}
             actorPosted={getActorPosted(p.actor, 'preflop')}
             playerStack={getPlayerCurrentStack(p.actor, 'preflop')}
+            getActorPosted={getActorPosted}
             onAction={a => addAction('preflop', { ...a, actor: p.actor })} />
         ))}
         <button onClick={() => skipStreet('preflop')}
@@ -863,7 +1091,9 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
     );
 
     // 6: Flop
-    if (step === 6) return (
+    if (step === 6) {
+      if (showRevealPanelFor('flop')) return <AllInRevealPanel />;
+      return (
       <div className="space-y-3">
         <PotDisplay street="flop" />
         <div>
@@ -877,17 +1107,16 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
             <ActionLog street="flop" />
             <PotDisplay street="flop" />
             <StackDisplay street="flop" />
-            {playersWhoNeedToAct(
-              handData.streets.flop.actions,
-              sortedPlayers(heroPosition, opponents, 'flop').filter(p => !getFoldedBefore('flop').has(p.actor))
-            ).map(p => (
+            {actablePlayers('flop').map(p => (
               <ActionSelector key={`flop-${p.actor}-${handData.streets.flop.actions.length}`}
                 actor={p.actor} label={p.label} unit={unit} street="flop"
                 priorActions={handData.streets.flop.actions}
                 blindBb={getBlindSbBb().bb} blindSb={getBlindSbBb().sb}
                 playerStack={getPlayerCurrentStack(p.actor, 'flop')}
+                getActorPosted={getActorPosted}
                 onAction={a => addAction('flop', { ...a, actor: p.actor })} />
             ))}
+            <LockBanner street="flop" />
           </div>
         )}
         {handEndedByFold('flop') && (
@@ -897,10 +1126,13 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
           </button>
         )}
       </div>
-    );
+      );
+    }
 
     // 7: Turn
-    if (step === 7) return (
+    if (step === 7) {
+      if (showRevealPanelFor('turn')) return <AllInRevealPanel />;
+      return (
       <div className="space-y-3">
         <BoardDisplay cards={handData.streets.flop.board} label="פלופ:" />
         <div>
@@ -914,17 +1146,16 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
             <ActionLog street="turn" />
             <PotDisplay street="turn" />
             <StackDisplay street="turn" />
-            {playersWhoNeedToAct(
-              handData.streets.turn.actions,
-              sortedPlayers(heroPosition, opponents, 'turn').filter(p => !getFoldedBefore('turn').has(p.actor))
-            ).map(p => (
+            {actablePlayers('turn').map(p => (
               <ActionSelector key={`turn-${p.actor}-${handData.streets.turn.actions.length}`}
                 actor={p.actor} label={p.label} unit={unit} street="turn"
                 priorActions={handData.streets.turn.actions}
                 blindBb={getBlindSbBb().bb} blindSb={getBlindSbBb().sb}
                 playerStack={getPlayerCurrentStack(p.actor, 'turn')}
+                getActorPosted={getActorPosted}
                 onAction={a => addAction('turn', { ...a, actor: p.actor })} />
             ))}
+            <LockBanner street="turn" />
           </div>
         )}
         {handEndedByFold('turn') && (
@@ -934,10 +1165,13 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
           </button>
         )}
       </div>
-    );
+      );
+    }
 
     // 8: River
-    if (step === 8) return (
+    if (step === 8) {
+      if (showRevealPanelFor('river')) return <AllInRevealPanel />;
+      return (
       <div className="space-y-3">
         <div className="flex flex-col gap-2">
           <BoardDisplay cards={handData.streets.flop.board} label="פלופ:" />
@@ -958,17 +1192,16 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
             <ActionLog street="river" />
             <PotDisplay street="river" />
             <StackDisplay street="river" />
-            {playersWhoNeedToAct(
-              handData.streets.river.actions,
-              sortedPlayers(heroPosition, opponents, 'river').filter(p => !getFoldedBefore('river').has(p.actor))
-            ).map(p => (
+            {actablePlayers('river').map(p => (
               <ActionSelector key={`river-${p.actor}-${handData.streets.river.actions.length}`}
                 actor={p.actor} label={p.label} unit={unit} street="river"
                 priorActions={handData.streets.river.actions}
                 blindBb={getBlindSbBb().bb} blindSb={getBlindSbBb().sb}
                 playerStack={getPlayerCurrentStack(p.actor, 'river')}
+                getActorPosted={getActorPosted}
                 onAction={a => addAction('river', { ...a, actor: p.actor })} />
             ))}
+            <LockBanner street="river" />
           </div>
         )}
         {!streetRoundComplete('river') && (
@@ -978,10 +1211,62 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
           </button>
         )}
       </div>
-    );
+      );
+    }
 
     // 10: Result
     if (step === 10) {
+      if (isMultiPot) {
+        const { bb } = getBlindSbBb();
+        const allResolved = potWinners && potWinners.length === pots.length && potWinners.every(w => (w || []).length > 0);
+        return (
+          <div className="space-y-4" dir="rtl">
+            <div className="text-center text-sm font-bold text-amber-300">
+              🎰 יד עם קופות צד — {pots.length} קופות
+            </div>
+            {pots.map((pot, i) => {
+              const bbs = bb && bb > 0 ? Number((pot.amount / bb).toFixed(1)) : null;
+              const potLabelI = isTournament
+                ? `${pot.amount.toLocaleString('he-IL')} צ'יפים${bbs ? ` (${bbs}BB)` : ''}`
+                : `₪${pot.amount.toLocaleString('he-IL')}${bbs ? ` (${bbs}BB)` : ''}`;
+              const winners = potWinners?.[i] || [];
+              return (
+                <div key={i} className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-amber-300 font-black font-mono tabular-nums">{potLabelI}</span>
+                    <span className="text-sm font-bold text-slate-300">
+                      {i === 0 ? '💰 קופה ראשית' : `💰 קופה צדדית ${i}`}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-2 justify-end">
+                    {pot.eligible.map(actor => (
+                      <button key={actor} onClick={() => togglePotWinner(i, actor)}
+                        className={`px-3 py-1.5 rounded-lg text-sm font-bold border transition-all
+                          ${winners.includes(actor)
+                            ? 'border-emerald-400 bg-emerald-600/20 text-emerald-300'
+                            : 'border-slate-600 bg-slate-800/40 text-slate-300 hover:border-emerald-500/50'}`}>
+                        {winners.includes(actor) ? '🏆 ' : ''}{actorName(actor)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+            <div className="text-center text-xs text-blue-400/80">
+              {allResolved
+                ? '🤖 המנצחים זוהו אוטומטית — ניתן לשנות ידנית בלחיצה על שחקן'
+                : '⚠️ סמן מנצח (או כמה, לחלוקה) לכל קופה'}
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-slate-300 mb-1 text-right">הערות אישיות (אופציונלי)</label>
+              <textarea rows={2} placeholder="מה חשבתי? מה אפשר לעשות אחרת?"
+                value={notes} onChange={e => setNotes(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-600 text-slate-200 text-sm text-right resize-none focus:border-blue-500 focus:outline-none"
+              />
+            </div>
+          </div>
+        );
+      }
       const finalPot = calculatePot('river');
       // רווח/הפסד נטו של הירו = חלקו הגולמי מהקופה פחות מה שהוא עצמו שם בה
       const heroContribution = playerContribution('hero', 'river');
@@ -1174,33 +1459,7 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
         <p className="text-sm text-slate-400 text-right">
           במידה וגילינו את קלפי היריב — הזן אותם כאן. ניתן לדלג.
         </p>
-        {opponents.length === 0 && (
-          <p className="text-xs text-slate-500 text-right">לא הוזנו יריבים בשלב 3.</p>
-        )}
-        {opponents.map((opp, i) => (
-          <div key={opp.id}>
-            <label className="block text-sm font-bold text-slate-300 mb-2 text-right">
-              קלפי {opp.label || `יריב ${i + 1}`}
-            </label>
-            <CardPicker
-              selected={i === 0 ? oppRevealedCards : (handData.showdown?.opponent_cards?.[i] || [])}
-              onChange={c => {
-                if (i === 0) { setOppRevealedCards(c); setShowdownCards(c); }
-                else {
-                  setHandData(prev => ({
-                    ...prev,
-                    showdown: {
-                      reached: true,
-                      opponent_cards: prev.showdown.opponent_cards.map((oc, j) => j === i ? c : oc),
-                    },
-                  }));
-                }
-              }}
-              max={2}
-              disabled={[...heroCards, ...allBoardCards]}
-            />
-          </div>
-        ))}
+        <OpponentCardInputs />
         <button onClick={goNext}
           className="w-full py-2 rounded-xl text-xs text-slate-500 border border-dashed border-slate-700 hover:border-slate-600 hover:text-slate-400 transition-all">
           ⏭ דלג — קלפי היריב לא נגלו
@@ -1214,7 +1473,7 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
         handState={buildState()}
         narrative={narrative}
         onSaveSuccess={() => { clearDraft(); onSaved?.(); }}
-        onReset={() => { clearDraft(); setStep(0); setGameType(null); setHandData(initHandData()); setHeroCards([]); setOpponents([]); setResult(''); setNarrative(''); setOppRevealedCards([]); setHeroProfit(''); setSplitDist({}); setNotes(''); setAutoDecided(false); setAutoReason(''); }}
+        onReset={() => { clearDraft(); setStep(0); setGameType(null); setHandData(initHandData()); setHeroCards([]); setOpponents([]); setResult(''); setNarrative(''); setOppRevealedCards([]); setHeroProfit(''); setSplitDist({}); setNotes(''); setAutoDecided(false); setAutoReason(''); setRevealedAtLock(false); setPotWinners(null); }}
       />
     );
 
@@ -1264,6 +1523,12 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
               <button onClick={goBack}
                 className="px-4 py-2.5 rounded-xl border border-slate-600 text-slate-400 text-sm font-bold hover:border-slate-500 hover:text-slate-200 transition-all">
                 ← חזור
+              </button>
+            )}
+            {step >= 5 && step <= 8 && (
+              <button onClick={exitToSummaryEarly} title="עצור כאן — עבור לסיכום/וידאו בלי לחשוף איך היד נגמרה"
+                className="w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-xl border border-blue-500/40 text-blue-400 text-lg font-black hover:bg-blue-500/10 transition-all">
+                ?
               </button>
             )}
             <button onClick={goNext} disabled={!canNext()}

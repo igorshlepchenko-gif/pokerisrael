@@ -1,7 +1,10 @@
 import axios from 'axios';
 import { clearHandLoggerDraft } from './handLoggerDraft';
 
-const api = axios.create({ baseURL: '/api', withCredentials: true });
+// import.meta.env.VITE_API_BASE_URL is unset in the web app's own build, so this
+// still resolves to '/api' there unchanged — only the mobile app build sets it,
+// since a packaged app has no same-origin server for a relative path to resolve against.
+const api = axios.create({ baseURL: import.meta.env.VITE_API_BASE_URL || '/api', withCredentials: true });
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('pli_token');
@@ -10,7 +13,13 @@ api.interceptors.request.use((config) => {
 });
 
 api.interceptors.response.use(
-  (res) => res,
+  (res) => {
+    // Header-auth clients (mobile app — no cross-site cookie) get their sliding-session
+    // refresh via this response header instead of a re-issued cookie; see server/middleware/auth.js
+    const refreshed = res.headers['x-refreshed-token'];
+    if (refreshed) localStorage.setItem('pli_token', refreshed);
+    return res;
+  },
   (err) => {
     // 401 מנקודות קצה אחרות = סשן פג תוקף → redirect ללוגין
     // 401 מ-/auth/login = סיסמה/מייל שגויים → לטפל בטופס עצמו, לא לעשות redirect
