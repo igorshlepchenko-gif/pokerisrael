@@ -40,7 +40,12 @@ function seatCards(pos){
 }
 function seatBet(pos){
   const deg=SEAT_DEG[pos]||0, rad=deg*Math.PI/180;
-  return{x:TCX+(TRX*.52)*Math.cos(rad), y:TCY+(TRY*.52)*Math.sin(rad)};
+  // Same radius as the hole cards (not further in toward the pot) but offset
+  // tangentially — chips sit beside the cards on the felt instead of stacked
+  // on the same radial line, where they used to land on top of them.
+  const cx=TCX+(TRX-26)*Math.cos(rad), cy=TCY+(TRY-18)*Math.sin(rad);
+  const tx=-Math.sin(rad), ty=Math.cos(rad);
+  return{x:cx+tx*48, y:cy+ty*48};
 }
 
 // Mini-log placement — pick whichever corner doesn't sit on top of a seat that's
@@ -513,7 +518,11 @@ function drawActionBadge(ctx,pos,action,amount,isCash,alpha){
   ctx.font='bold 13px Arial';
   const tw=Math.max(64,ctx.measureText(text).width+28);
   const bh=28;
-  const bx=x-tw/2, by=y-AVATAR_R-bh-16;
+  // Clamp to the canvas — top-row seats (MP/HJ, y≈59) push by to a negative
+  // y with the naive fixed offset, running the badge off the top edge. The
+  // arrow below still points at (x,y) regardless, so clamping just shortens
+  // the visual gap instead of leaving the badge fully off-screen.
+  const bx=Math.max(4,Math.min(W-tw-4,x-tw/2)), by=Math.max(4,y-AVATAR_R-bh-16);
 
   ctx.globalAlpha=alpha;
   // Glow
