@@ -1,11 +1,12 @@
 // כדי להוסיף/לעדכן קישורים: הדביקו את כתובת ה-URL המלאה מכל פלטפורמה.
-// שדה ריק ("") פשוט מסתיר את הכפתור/הנגן המתאים בעמוד.
+// שדה ריק ("") פשוט מסתיר את הכפתור/הנגן/התיאור המתאים בעמוד.
 // logo: שימו את קובץ התמונה בתיקיית client/public/podcasts/ והפנו אליו כאן בתור "/podcasts/שם-קובץ.png"
 // (אם logo ריק/חסר, מוצג אימוג'י כברירת מחדל)
 export const PODCASTS = [
   {
     id: 'no-limit',
     name: 'No Limit',
+    description: '',
     emoji: '🎙️',
     logo: '/podcasts/no-limit.png',
     color: '#1d4ed8',
@@ -17,6 +18,7 @@ export const PODCASTS = [
   {
     id: 'ace-high',
     name: 'אס בגובה',
+    description: '',
     emoji: '🃏',
     logo: '/podcasts/ace-high.png',
     color: '#059669',
@@ -28,6 +30,7 @@ export const PODCASTS = [
   {
     id: 'poker-geeks',
     name: 'Poker Geeks',
+    description: '',
     emoji: '🤓',
     logo: '/podcasts/poker-geeks.png',
     color: '#d97706',
@@ -39,6 +42,7 @@ export const PODCASTS = [
   {
     id: 'keves-hakvasim',
     name: 'כבש הכבשים',
+    description: '',
     emoji: '🐑',
     logo: '/podcasts/keves-hakvasim.png',
     color: '#dc2626',
@@ -47,6 +51,22 @@ export const PODCASTS = [
     facebookUrl: '',
     youtubeUrl: 'https://www.youtube.com/playlist?list=PLeBFdRI-34EHNr8MqcAX7ykf84WqlB072',
   },
+  // בכוונה מושבת (2026-08-09) — המשתמש ביקש לשמור בצד, יחליט בעתיד אם להפעיל.
+  // להפעלה: להוציא מהערת /* */ למטה.
+  /*
+  {
+    id: 'holdem-strategy',
+    name: 'טורנירים של טקסס הולדם פוקר: אסטרטגיה, טיפים קריטים והגיגים',
+    description: 'פרקי מידע בעברית על אסטרטגיות משחק בטורנירים של טקסס הולדם פוקר, טיפים קריטים והגיגים מהשטח.',
+    emoji: '🎯',
+    logo: '/podcasts/holdem-strategy.jpeg',
+    color: '#7c3aed',
+    spotifyUrl: 'https://open.spotify.com/show/4QP9uD5LQJZXQB3dgX5CU4',
+    instagramUrl: '',
+    facebookUrl: '',
+    youtubeUrl: '',
+  },
+  */
 ];
 
 // מקבל כתובת show/episode רגילה מ-Spotify ומחזיר את כתובת ה-iframe להטמעה.

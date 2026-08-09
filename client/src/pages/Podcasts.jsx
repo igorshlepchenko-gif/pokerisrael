@@ -71,7 +71,7 @@ function PodcastCard({ podcast }) {
         style={{ borderTop: `3px solid ${podcast.color}` }}>
         <div className="flex items-center gap-3 min-w-0">
           <PodcastAvatar podcast={podcast} />
-          <h2 className="text-lg font-black text-white truncate">{podcast.name}</h2>
+          <h2 className="text-lg font-black text-white line-clamp-2">{podcast.name}</h2>
         </div>
 
         {activeLinks.length > 0 && (
@@ -88,6 +88,9 @@ function PodcastCard({ podcast }) {
 
       {/* Spotify embed / placeholder */}
       <div className="p-5">
+        {podcast.description && (
+          <p className="text-sm text-slate-400 mb-4">{podcast.description}</p>
+        )}
         {embedUrl ? (
           <div className="rounded-xl overflow-hidden">
             <iframe
