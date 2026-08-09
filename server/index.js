@@ -187,6 +187,12 @@ ensureSchema().then(() => {
       console.log('[letsPokerSync] running house sync…');
       syncLetsPoker('house').catch(e => console.error('[letsPokerSync:house] run failed:', e.message));
     }, { timezone: 'Asia/Jerusalem' });
+
+    // ShowDown LetsPoker sync — כל 5 שעות החל מחצות, אותו קצב כמו HOUSE
+    cron.schedule(process.env.SHOWDOWN_LETSPOKER_SYNC_CRON || '0 0,5,10,15,20 * * *', () => {
+      console.log('[letsPokerSync] running showdown sync…');
+      syncLetsPoker('showdown').catch(e => console.error('[letsPokerSync:showdown] run failed:', e.message));
+    }, { timezone: 'Asia/Jerusalem' });
   });
 
   // ── טיימאאוטים ברמת ה-socket — ללא זה חיבור תקוע נשאר פתוח לנצח ──
