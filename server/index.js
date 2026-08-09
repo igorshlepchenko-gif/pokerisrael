@@ -21,6 +21,7 @@ const inquiryRoutes        = require('./routes/inquiries');
 const blindTemplateRoutes  = require('./routes/blindTemplates');
 const eventTemplateRoutes  = require('./routes/eventTemplates');
 const handHistoryRoutes    = require('./routes/handHistories');
+const handNarrationRoutes  = require('./routes/handNarration');
 const importRoutes         = require('./routes/imports');
 const agentRoutes          = require('./routes/agent');
 
@@ -93,6 +94,7 @@ app.use('/api/inquiries', inquiryRoutes);
 app.use('/api/blind-templates', blindTemplateRoutes); // rate limit רק על POST — מוגדר בתוך הנתיב
 app.use('/api/event-templates', eventTemplateRoutes);
 app.use('/api/hand-histories', handHistoryRoutes);
+app.use('/api/hand-narration', handNarrationRoutes);
 app.use('/api/imports',       importRoutes);
 app.use('/api/agent',         agentRoutes);
 
@@ -178,8 +180,14 @@ ensureSchema().then(() => {
     // Daily LetsPoker sync (08:05 Israel time) — לוח הטורנירים של EVPlus
     const { syncLetsPoker } = require('./services/letsPokerSync');
     cron.schedule(process.env.LETSPOKER_SYNC_CRON || '5 8 * * *', () => {
-      console.log('[letsPokerSync] running daily sync…');
-      syncLetsPoker().catch(e => console.error('[letsPokerSync] daily run failed:', e.message));
+      console.log('[letsPokerSync] running evplus sync…');
+      syncLetsPoker('evplus').catch(e => console.error('[letsPokerSync:evplus] run failed:', e.message));
+    }, { timezone: 'Asia/Jerusalem' });
+
+    // HOUSE LetsPoker sync — כל 5 שעות החל מחצות (00:00/05:00/10:00/15:00/20:00, שעון ישראל)
+    cron.schedule(process.env.HOUSE_LETSPOKER_SYNC_CRON || '0 0,5,10,15,20 * * *', () => {
+      console.log('[letsPokerSync] running house sync…');
+      syncLetsPoker('house').catch(e => console.error('[letsPokerSync:house] run failed:', e.message));
     }, { timezone: 'Asia/Jerusalem' });
   });
 

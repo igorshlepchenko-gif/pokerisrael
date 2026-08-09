@@ -182,6 +182,20 @@ router.post('/whatsapp-image', requireAgentSecret, async (req, res) => {
     const { from, imageBase64, mimeType = 'image/jpeg', caption } = req.body;
     if (!imageBase64) return res.status(400).json({ error: 'no image data' });
 
+    // Respect the existing agent_sources admin toggle (AdminPanel → Imports) — previously only
+    // the text listener honored this; a source toggled off there now also mutes this image path,
+    // which is what lets HOUSE's WhatsApp import be muted instantly (no redeploy) when its
+    // LetsPoker sync takes over, and re-enabled the same way if that sync ever needs a fallback.
+    if (from) {
+      const srcCheck = await pool.query(
+        `SELECT active FROM agent_sources WHERE platform='whatsapp' AND identifier=$1`, [from]
+      );
+      if (srcCheck.rows[0]?.active === false) {
+        console.log(`[Agent] Source "${from}" is toggled inactive — skipping image import`);
+        return res.json({ imported: 0, updated: 0, message: 'source inactive' });
+      }
+    }
+
     const kb = Math.round(imageBase64.length * 0.75 / 1024);
     console.log(`[Agent] 🖼️ Image from "${from}" (${kb}KB)${caption ? ` — "${caption.slice(0,40)}"` : ''}`);
 

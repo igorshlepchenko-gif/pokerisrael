@@ -1,18 +1,34 @@
-// LetsPoker sync — EVPlus club schedule (open.lets.poker), fetched directly server-side.
+// LetsPoker sync — multi-club schedule sync (open.lets.poker), fetched directly server-side.
 // Unlike Joker Club, the club page is Next.js SSR and embeds the full event data as JSON in a
 // __NEXT_DATA__ script tag on the plain page load — no headless browser/scraper needed, and no
 // dependency on their internal build-id (which changes on their redeploys; we never construct
 // a /_next/data/<buildId>/... URL, just parse whatever the normal page returns).
 // Mirrors jokerClubSync.js's upsert/diff approach, but — unlike Joker Club — LetsPoker exposes a
 // real stable per-tournament id and a full per-level blind structure, so we store both.
+//
+// Multiple clubs run this same parser against their own club page (CLUBS below) — each is synced
+// independently (own cron schedule in index.js) but shares this module's logic and the
+// feed_sources bookkeeping table (keyed by venue_id+url, so rows never collide across clubs).
 const pool = require('../config/db');
 const axios = require('axios');
 const { assertSafeUrl, SAFE_AXIOS } = require('../utils/safeUrl');
 
-const EVPLUS_VENUE_ID = 8;
 const SOURCE_KEY = 'letspoker';
-const CLUB_URL = 'https://open.lets.poker/club/7e3d03b52cf0b58e';
 const ADMIN_USER_ID = 1;
+
+// venueId קבוע כשידוע ולא משתנה בין סביבות; venueName כשצריך שיפתר דינמית (HOUSE הוא
+// venue_id=7 בפרודקשן אבל venue_id=9 מקומית — id קשיח היה שובר את הריצה המקומית)
+const CLUBS = {
+  evplus: { venueId: 8, clubUrl: 'https://open.lets.poker/club/7e3d03b52cf0b58e', label: 'EVPlus — LetsPoker (יומי)' },
+  house:  { venueName: 'HOUSE', clubUrl: 'https://open.lets.poker/club/2252df1b3bc6f405', label: 'HOUSE — LetsPoker (כל 5 שעות)' },
+};
+
+async function resolveVenueId(club) {
+  if (club.venueId) return club.venueId;
+  const r = await pool.query(`SELECT id FROM venues WHERE name=$1 LIMIT 1`, [club.venueName]);
+  if (!r.rows[0]) throw new Error(`[letsPokerSync] venue not found by name: "${club.venueName}"`);
+  return r.rows[0].id;
+}
 
 // LetsPoker נותנת UTC אמיתי (עם Z), אבל עמודת start_time היא timestamp without time zone
 // ומאוכלסת בכל הקוד הקיים (feedSync/jokerClubSync) כמחרוזת שעון-קיר ישראלי נטול Z —
@@ -87,9 +103,9 @@ function normalize(event) {
 }
 
 // שליפת רשימת האירועים הגולמית מדף המועדון (ללא תלות ב-buildId של Next.js)
-async function fetchEvents() {
-  await assertSafeUrl(CLUB_URL);
-  const { data: html } = await axios.get(CLUB_URL, SAFE_AXIOS);
+async function fetchEvents(clubUrl) {
+  await assertSafeUrl(clubUrl);
+  const { data: html } = await axios.get(clubUrl, SAFE_AXIOS);
   const m = String(html).match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);
   if (!m) throw new Error('__NEXT_DATA__ לא נמצא בדף — ייתכן שהאתר שינה מבנה');
   const data = JSON.parse(m[1]);
@@ -127,10 +143,17 @@ function isChanged(existing, fresh) {
   );
 }
 
-async function syncLetsPoker() {
+// clubKey: מפתח לתוך CLUBS (כרגע 'evplus' | 'house') — כל מועדון נשמר ומנוטר בנפרד,
+// אך חולק את אותו פרסר/לוגיקת דיף/הגנות מחיקה
+async function syncLetsPoker(clubKey) {
+  const club = CLUBS[clubKey];
+  if (!club) throw new Error(`[letsPokerSync] Unknown club key: ${clubKey}`);
+  const venueId = await resolveVenueId(club);
+  const { clubUrl, label } = club;
+
   const result = { added: 0, updated: 0, removed: 0, skipped: 0, errors: 0 };
 
-  const rawEvents = await fetchEvents();
+  const rawEvents = await fetchEvents(clubUrl);
   const normalized = rawEvents.map(normalize).filter(Boolean);
   const freshIds = new Set(normalized.map(t => t.external_id));
 
@@ -138,7 +161,7 @@ async function syncLetsPoker() {
     `SELECT id, external_id, name, cost, start_time, description, starting_stack, gtd,
             re_entry, late_reg_level, stages, external_registration_url, manually_edited, level_duration
      FROM tournaments WHERE external_source=$1 AND venue_id=$2`,
-    [SOURCE_KEY, EVPLUS_VENUE_ID]
+    [SOURCE_KEY, venueId]
   );
   const existingById = new Map(existingRes.rows.map(r => [r.external_id, r]));
 
@@ -152,7 +175,7 @@ async function syncLetsPoker() {
               re_entry, late_reg_level, gtd, external_registration_url, is_recurring, tournament_type,
               status, created_by, external_source, external_id)
            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,false,'live','approved',$13,$14,$15)`,
-          [EVPLUS_VENUE_ID, t.name, t.description, t.cost, t.start_time, t.stages, t.starting_stack,
+          [venueId, t.name, t.description, t.cost, t.start_time, t.stages, t.starting_stack,
            t.level_duration, t.re_entry, t.late_reg_level, t.gtd, t.external_registration_url,
            ADMIN_USER_ID, SOURCE_KEY, t.external_id]
         );
@@ -174,7 +197,7 @@ async function syncLetsPoker() {
         result.skipped++;
       }
     } catch (e) {
-      console.error('[letsPokerSync] upsert error:', e.message);
+      console.error(`[letsPokerSync:${clubKey}] upsert error:`, e.message);
       result.errors++;
     }
   }
@@ -184,10 +207,10 @@ async function syncLetsPoker() {
   const existingCount = existingRes.rows.length;
 
   if (normalized.length === 0) {
-    console.warn('[letsPokerSync] feed returned 0 valid tournaments — skipping all deletions');
+    console.warn(`[letsPokerSync:${clubKey}] feed returned 0 valid tournaments — skipping all deletions`);
     result.removeSkipped = toRemove.length;
   } else if (existingCount >= 4 && toRemove.length > existingCount * 0.5) {
-    console.warn(`[letsPokerSync] suspicious drop (${toRemove.length}/${existingCount} > 50%) — skipping deletions`);
+    console.warn(`[letsPokerSync:${clubKey}] suspicious drop (${toRemove.length}/${existingCount} > 50%) — skipping deletions`);
     result.removeSkipped = toRemove.length;
   } else {
     for (const r of toRemove) {
@@ -195,7 +218,7 @@ async function syncLetsPoker() {
         await pool.query('DELETE FROM tournaments WHERE id=$1', [r.id]);
         result.removed++;
       } catch (e) {
-        console.error('[letsPokerSync] delete error:', e.message);
+        console.error(`[letsPokerSync:${clubKey}] delete error:`, e.message);
         result.errors++;
       }
     }
@@ -207,11 +230,11 @@ async function syncLetsPoker() {
     `INSERT INTO feed_sources (venue_id, url, label, source_key, auto_publish, active, last_synced, last_result, created_by)
      VALUES ($1,$2,$3,$4,true,true,NOW(),$5,$6)
      ON CONFLICT (venue_id, url) DO UPDATE SET last_synced=NOW(), last_result=$5`,
-    [EVPLUS_VENUE_ID, CLUB_URL, 'EVPlus — LetsPoker (יומי)', SOURCE_KEY, summary, ADMIN_USER_ID]
-  ).catch(e => console.error('[letsPokerSync] feed_sources bookkeeping error:', e.message));
+    [venueId, clubUrl, label, SOURCE_KEY, summary, ADMIN_USER_ID]
+  ).catch(e => console.error(`[letsPokerSync:${clubKey}] feed_sources bookkeeping error:`, e.message));
 
-  console.log(`[letsPokerSync] ${summary}`);
+  console.log(`[letsPokerSync:${clubKey}] ${summary}`);
   return result;
 }
 
-module.exports = { syncLetsPoker, normalize, fetchEvents };
+module.exports = { syncLetsPoker, normalize, fetchEvents, CLUBS };
