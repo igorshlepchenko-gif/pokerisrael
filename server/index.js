@@ -195,6 +195,12 @@ ensureSchema().then(() => {
       console.log('[letsPokerSync] running showdown sync…');
       syncLetsPoker('showdown').catch(e => console.error('[letsPokerSync:showdown] run failed:', e.message));
     }, { timezone: 'Asia/Jerusalem' });
+
+    // Suits LetsPoker sync — כל 5 שעות החל מחצות, מחליף את יבוא התמונות מוואטסאפ
+    cron.schedule(process.env.SUITS_LETSPOKER_SYNC_CRON || '0 0,5,10,15,20 * * *', () => {
+      console.log('[letsPokerSync] running suits sync…');
+      syncLetsPoker('suits').catch(e => console.error('[letsPokerSync:suits] run failed:', e.message));
+    }, { timezone: 'Asia/Jerusalem' });
   });
 
   // ── טיימאאוטים ברמת ה-socket — ללא זה חיבור תקוע נשאר פתוח לנצח ──

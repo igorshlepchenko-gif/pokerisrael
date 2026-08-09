@@ -22,6 +22,7 @@ const CLUBS = {
   evplus:   { venueId: 8, clubUrl: 'https://open.lets.poker/club/7e3d03b52cf0b58e', label: 'EVPlus — LetsPoker (יומי)' },
   house:    { venueName: 'HOUSE', clubUrl: 'https://open.lets.poker/club/2252df1b3bc6f405', label: 'HOUSE — LetsPoker (כל 5 שעות)' },
   showdown: { venueName: 'ShowDown', clubUrl: 'https://open.lets.poker/club/d6a9540abb951952', label: 'ShowDown — LetsPoker (כל 5 שעות)' },
+  suits:    { venueName: 'Suits', clubUrl: 'https://open.lets.poker/club/suits-il', label: 'Suits — LetsPoker (כל 5 שעות)' },
 };
 
 async function resolveVenueId(club) {
