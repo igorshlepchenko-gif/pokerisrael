@@ -51,9 +51,6 @@ export const PODCASTS = [
     facebookUrl: '',
     youtubeUrl: 'https://www.youtube.com/playlist?list=PLeBFdRI-34EHNr8MqcAX7ykf84WqlB072',
   },
-  // בכוונה מושבת (2026-08-09) — המשתמש ביקש לשמור בצד, יחליט בעתיד אם להפעיל.
-  // להפעלה: להוציא מהערת /* */ למטה.
-  /*
   {
     id: 'holdem-strategy',
     name: 'טורנירים של טקסס הולדם פוקר: אסטרטגיה, טיפים קריטים והגיגים',
@@ -66,7 +63,6 @@ export const PODCASTS = [
     facebookUrl: '',
     youtubeUrl: '',
   },
-  */
 ];
 
 // מקבל כתובת show/episode רגילה מ-Spotify ומחזיר את כתובת ה-iframe להטמעה.
