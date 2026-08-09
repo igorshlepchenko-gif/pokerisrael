@@ -175,9 +175,11 @@ ensureSchema().then(() => {
       syncAllFeeds().catch(e => console.error('[feedSync] daily run failed:', e.message));
     }, { timezone: 'Asia/Jerusalem' });
 
-    // Daily LetsPoker sync (08:05 Israel time) — לוח הטורנירים של EVPlus
+    // EVPlus LetsPoker sync — כל 5 שעות החל מחצות (הועבר מקצב יומי 08:05: הדף שלהם מתעדכן
+    // לעיתים רחוקות אך בלי התראה מוקדמת, וקצב יומי השאיר טורנירים שנוספו "היום ליום מחר"
+    // בלי זמן הכנה עד ריצת המחרת)
     const { syncLetsPoker } = require('./services/letsPokerSync');
-    cron.schedule(process.env.LETSPOKER_SYNC_CRON || '5 8 * * *', () => {
+    cron.schedule(process.env.LETSPOKER_SYNC_CRON || '0 0,5,10,15,20 * * *', () => {
       console.log('[letsPokerSync] running evplus sync…');
       syncLetsPoker('evplus').catch(e => console.error('[letsPokerSync:evplus] run failed:', e.message));
     }, { timezone: 'Asia/Jerusalem' });
