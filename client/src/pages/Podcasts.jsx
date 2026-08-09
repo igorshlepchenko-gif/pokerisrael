@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { PODCASTS, getSpotifyEmbedUrl } from '../data/podcasts';
+import { shuffleArray } from '../utils/shuffle';
 
 function SpotifyIcon(props) {
   return (
@@ -115,6 +116,9 @@ function PodcastCard({ podcast }) {
 }
 
 export default function Podcasts() {
+  // סדר אקראי בכל טעינת דף — כדי שאף פודקאסט לא ייראה כ"מועדף" תמידי
+  const [shuffled] = useState(() => shuffleArray(PODCASTS));
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-200" dir="rtl">
       {/* Header */}
@@ -143,9 +147,9 @@ export default function Podcasts() {
               </span>
             </h1>
             <p className="text-slate-400 text-sm">האזינו לפודקאסטים המובילים על פוקר בישראל — ישירות כאן, בלי לצאת מהאתר</p>
-            {PODCASTS.length > 0 && (
+            {shuffled.length > 0 && (
               <p className="mt-4 text-xs text-slate-500">
-                <span className="font-mono tabular-nums font-bold text-poker-green-light">{PODCASTS.length}</span> פודקאסטים זמינים להאזנה
+                <span className="font-mono tabular-nums font-bold text-poker-green-light">{shuffled.length}</span> פודקאסטים זמינים להאזנה
               </p>
             )}
           </div>
@@ -153,7 +157,7 @@ export default function Podcasts() {
       </div>
 
       <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
-        {PODCASTS.map(podcast => (
+        {shuffled.map(podcast => (
           <PodcastCard key={podcast.id} podcast={podcast} />
         ))}
 

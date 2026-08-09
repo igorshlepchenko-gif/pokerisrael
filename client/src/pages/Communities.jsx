@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { COMMUNITIES } from '../data/communities';
+import { shuffleArray } from '../utils/shuffle';
 
 function WhatsappIcon(props) {
   return (
@@ -147,8 +148,8 @@ function CommunityCard({ community }) {
   );
 }
 
-function CommunitySection({ type }) {
-  const items = COMMUNITIES.filter(c => c.type === type && !c.category);
+function CommunitySection({ type, communities }) {
+  const items = communities.filter(c => c.type === type && !c.category);
   if (items.length === 0) return null;
   const meta = TYPE_META[type];
 
@@ -166,8 +167,8 @@ function CommunitySection({ type }) {
   );
 }
 
-function CommunityCategorySection({ category }) {
-  const items = COMMUNITIES.filter(c => c.category === category);
+function CommunityCategorySection({ category, communities }) {
+  const items = communities.filter(c => c.category === category);
   if (items.length === 0) return null;
   const meta = CATEGORY_META[category];
 
@@ -186,6 +187,11 @@ function CommunityCategorySection({ category }) {
 }
 
 export default function Communities() {
+  // סדר אקראי בכל טעינת דף — כדי שאף קהילה לא תיראה כ"מועדפת" תמידית.
+  // מבוצע פעם אחת על כל הרשימה, ואז כל קבוצה מסננת מתוכה — כך סדר ה"הגרלה"
+  // נשמר בתוך כל קבוצה בלי לגלגל שוב בכל חלק.
+  const [shuffled] = useState(() => shuffleArray(COMMUNITIES));
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-200" dir="rtl">
       {/* Header */}
@@ -219,17 +225,17 @@ export default function Communities() {
       </div>
 
       <div className="max-w-4xl mx-auto px-4 py-8 space-y-10">
-        {COMMUNITIES.length === 0 ? (
+        {shuffled.length === 0 ? (
           <div className="rounded-xl border border-dashed border-slate-700 py-14 text-center text-slate-500 text-sm">
             👥 הקהילות יופיעו כאן בקרוב
           </div>
         ) : (
           <>
-            <CommunityCategorySection category="online" />
-            <CommunitySection type="whatsapp" />
-            <CommunitySection type="telegram" />
-            <CommunitySection type="facebook" />
-            <CommunitySection type="youtube" />
+            <CommunityCategorySection category="online" communities={shuffled} />
+            <CommunitySection type="whatsapp" communities={shuffled} />
+            <CommunitySection type="telegram" communities={shuffled} />
+            <CommunitySection type="facebook" communities={shuffled} />
+            <CommunitySection type="youtube" communities={shuffled} />
           </>
         )}
       </div>

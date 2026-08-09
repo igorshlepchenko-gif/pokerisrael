@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { LESSONS } from '../data/lessons';
 import { useAuth } from '../context/AuthContext';
 import { logInquiry } from '../utils/api';
+import { shuffleArray } from '../utils/shuffle';
 
 const ACCENT = '#f59e0b';
 const DEFAULT_CTA = 'לפרטים נוספים';
@@ -215,6 +216,9 @@ function LessonCard({ lesson }) {
 }
 
 export default function Lessons() {
+  // סדר אקראי בכל טעינת דף — כדי שאף תוכנית לא תיראה כ"מועדפת" תמידית
+  const [shuffled] = useState(() => shuffleArray(LESSONS));
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-200" dir="rtl">
       {/* Header */}
@@ -244,9 +248,9 @@ export default function Lessons() {
               </span>
             </h1>
             <p className="text-slate-400 text-sm">קורסים, מאמנים ותוכניות הכשרה לשיפור המשחק שלכם</p>
-            {LESSONS.length > 0 && (
+            {shuffled.length > 0 && (
               <p className="mt-4 text-xs text-slate-500">
-                <span className="font-mono tabular-nums font-bold text-poker-green-light">{LESSONS.length}</span> תוכניות זמינות כרגע
+                <span className="font-mono tabular-nums font-bold text-poker-green-light">{shuffled.length}</span> תוכניות זמינות כרגע
               </p>
             )}
           </div>
@@ -254,13 +258,13 @@ export default function Lessons() {
       </div>
 
       <div className="max-w-4xl mx-auto px-4 py-8">
-        {LESSONS.length === 0 ? (
+        {shuffled.length === 0 ? (
           <div className="rounded-xl border border-dashed border-slate-700 py-14 text-center text-slate-500 text-sm">
             🎓 הקורסים יופיעו כאן בקרוב
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {LESSONS.map(l => <LessonCard key={l.id} lesson={l} />)}
+            {shuffled.map(l => <LessonCard key={l.id} lesson={l} />)}
           </div>
         )}
       </div>
