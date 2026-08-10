@@ -8,6 +8,10 @@ const wa = require('../services/whatsappListener');
 const router = express.Router();
 
 // ── WhatsApp Forwarder heartbeat (called by local whatsapp-forwarder script) ──
+// Forwarder now beats every 12h (nothing depends on this connection anymore — both SUITS
+// and HOUSE moved to LetsPoker sync); threshold must stay above that interval or every
+// check between beats reports "not alive" even while genuinely connected.
+const FORWARDER_ALIVE_THRESHOLD_MS = 13 * 60 * 60 * 1000; // 12h heartbeat + 1h slack
 let forwarderLastSeen = null; // ms timestamp
 let forwarderInfo     = null; // { pushname, number, groups }
 
@@ -22,7 +26,7 @@ router.post('/whatsapp/forwarder-heartbeat', requireAgentSecret, (req, res) => {
 // (no admin session available to a scheduled/headless check, unlike /whatsapp/status below)
 router.get('/whatsapp/forwarder-health', requireAgentSecret, (req, res) => {
   const ageSeconds = forwarderLastSeen ? Math.round((Date.now() - forwarderLastSeen) / 1000) : null;
-  res.json({ alive: ageSeconds !== null && ageSeconds < 90, lastSeen: forwarderLastSeen, ageSeconds });
+  res.json({ alive: ageSeconds !== null && ageSeconds * 1000 < FORWARDER_ALIVE_THRESHOLD_MS, lastSeen: forwarderLastSeen, ageSeconds });
 });
 
 // ── WhatsApp connection management (admin only) ───────────────────────────────
@@ -30,7 +34,7 @@ router.get('/whatsapp/forwarder-health', requireAgentSecret, (req, res) => {
 // GET /api/agent/whatsapp/status — connection state + QR code
 router.get('/whatsapp/status', authenticate, requireRole('admin'), (req, res) => {
   const base = wa.getStatus();
-  const forwarderAlive = forwarderLastSeen && (Date.now() - forwarderLastSeen < 90_000);
+  const forwarderAlive = forwarderLastSeen && (Date.now() - forwarderLastSeen < FORWARDER_ALIVE_THRESHOLD_MS);
   res.json({
     ...base,
     forwarder: forwarderAlive
