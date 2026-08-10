@@ -201,6 +201,12 @@ ensureSchema().then(() => {
       console.log('[letsPokerSync] running suits sync…');
       syncLetsPoker('suits').catch(e => console.error('[letsPokerSync:suits] run failed:', e.message));
     }, { timezone: 'Asia/Jerusalem' });
+
+    // House דרום LetsPoker sync — כל 5 שעות החל מחצות, מקום חדש
+    cron.schedule(process.env.HOUSEDAROM_LETSPOKER_SYNC_CRON || '0 0,5,10,15,20 * * *', () => {
+      console.log('[letsPokerSync] running housedarom sync…');
+      syncLetsPoker('housedarom').catch(e => console.error('[letsPokerSync:housedarom] run failed:', e.message));
+    }, { timezone: 'Asia/Jerusalem' });
   });
 
   // ── טיימאאוטים ברמת ה-socket — ללא זה חיבור תקוע נשאר פתוח לנצח ──
