@@ -144,7 +144,7 @@ export default function TournamentListRow({ t, index, onClick }) {
       </div>
 
       {/* Desktop layout */}
-      <div className="hidden md:grid grid-cols-[2fr_1.5fr_1fr_1fr_auto] gap-4 items-center">
+      <div className="hidden md:grid grid-cols-[2fr_1.5fr_1fr_1fr_auto] gap-4 items-start">
 
         {/* Name + venue */}
         <div className="min-w-0">
@@ -235,7 +235,7 @@ export default function TournamentListRow({ t, index, onClick }) {
         </div>
 
         {/* WhatsApp button + רישום כפול/קישור חיצוני — כמו ב-Card וב-Modal */}
-        <div className="flex flex-col gap-1.5 items-stretch">
+        <div className="flex flex-col gap-1.5 items-stretch self-center">
           {isJokerClub ? (
             lateRegClosed ? (
               <span className="flex items-center justify-center gap-1.5 bg-slate-700 text-slate-400 font-bold py-2 px-3 rounded-xl text-xs whitespace-nowrap cursor-not-allowed">
