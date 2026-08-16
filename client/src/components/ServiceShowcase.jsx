@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { LESSONS } from '../data/lessons';
 import { COMMUNITIES } from '../data/communities';
 import { PODCASTS, getSpotifyEmbedUrl } from '../data/podcasts';
+import { shuffleArray } from '../utils/shuffle';
 
 const ROTATE_MS = 6000;
 const LESSON_ACCENT = '#f59e0b';
@@ -56,10 +57,32 @@ function buildSlides() {
     accent: '#22d3ee',
   };
 
-  return [...lessonSlides, ...communitySlides, ...podcastSlides, handLoggerSlide];
-}
+  // שקופית וידאו מיוחדת — לא נשאבת ממקור תוכן קיים, מוזרקת ידנית לתוך הרצף
+  const specialVideoSlide = {
+    emoji: '🎥',
+    title: 'רגע עם חדשות פוקר 7',
+    subtitle: '🎥 סרטון',
+    to: '/communities',
+    accent: '#FF0000',
+    playEmbed: 'https://www.youtube.com/embed/OFDCapRBero?autoplay=1',
+    playLabel: 'צפייה',
+    embedTitleSuffix: 'YouTube',
+    // קרדיט ליוצרים — תג קטן שלא מפריע לצפייה, לא מוחלף בשקופיות אחרות
+    creditLabel: '👍 חדשות פוקר 7 · Subscribe',
+    creditUrl: 'https://www.youtube.com/@Poker7.Israel',
+  };
 
-const SLIDES = buildSlides();
+  // סדר אקראי בכל טעינת דף (כמו בעמודי פודקאסטים/קהילות/לימודים) — והסרטון המיוחד
+  // מוזרק במיקום קבוע, כל חמישית שקופית, כדי שיופיע בתדירות ידועה ולא רק בהזדמנות
+  const pool = shuffleArray([...lessonSlides, ...communitySlides, ...podcastSlides, handLoggerSlide]);
+  const withVideo = [];
+  pool.forEach((slide, i) => {
+    withVideo.push(slide);
+    if ((i + 1) % 4 === 0) withVideo.push(specialVideoSlide);
+  });
+
+  return withVideo;
+}
 
 function SlideImage({ slide }) {
   const [failed, setFailed] = useState(false);
@@ -83,6 +106,8 @@ function SlideImage({ slide }) {
 }
 
 export default function ServiceShowcase() {
+  // מחושב פעם אחת בכל טעינת הרכיב — לא ברמת המודול — כדי שהסדר האקראי יתחדש בכל ביקור
+  const [SLIDES] = useState(() => buildSlides());
   const [index, setIndex] = useState(0);
   const [playingEmbed, setPlayingEmbed] = useState(false);
   const pausedRef = useRef(false);
@@ -128,8 +153,19 @@ export default function ServiceShowcase() {
             className="absolute top-2 left-2 z-30 w-7 h-7 rounded-full bg-slate-800 hover:bg-slate-700 text-white flex items-center justify-center text-sm">
             ✕
           </button>
+          {current.creditLabel && current.creditUrl && (
+            <a
+              href={current.creditUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="absolute top-2 right-2 z-30 max-w-[75%] truncate rounded-full bg-slate-950/70 hover:bg-slate-950/90 backdrop-blur-sm px-3 py-1.5 text-[11px] font-bold text-white transition-colors"
+            >
+              {current.creditLabel}
+            </a>
+          )}
           <iframe
-            title={`${current.title} — Spotify`}
+            title={`${current.title} — ${current.embedTitleSuffix || 'Spotify'}`}
             src={current.playEmbed}
             width="100%"
             height="100%"
