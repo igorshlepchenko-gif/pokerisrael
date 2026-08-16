@@ -43,8 +43,9 @@ export default function Navbar() {
             <img src={logoSvg} alt="PokerIsrael.org" className="h-10 w-auto transition-opacity group-hover:opacity-90" />
           </Link>
 
-          {/* Center nav links — desktop only */}
-          <div className="hidden md:flex items-center gap-1">
+          {/* Center nav links — desktop only (lg: the full row + right-side clock/buttons
+              don't fit at md/768px with every nav link present, see Navbar tablet-overflow fix) */}
+          <div className="hidden lg:flex items-center gap-1">
             {navLinks.map(({ to, label, amber }) => (
               <Link key={to} to={to} className={linkClass(to, amber)}>{label}</Link>
             ))}
@@ -53,7 +54,7 @@ export default function Navbar() {
           {/* Right side */}
           <div className="flex items-center gap-2">
             {/* שעון ישראל — חי */}
-            <div className="hidden sm:block"><IsraelClock /></div>
+            <div className="hidden lg:block"><IsraelClock /></div>
 
             {/* Theme toggle */}
             <button onClick={toggleTheme} title={isDark ? 'מצב יום' : 'מצב לילה'}
@@ -71,12 +72,12 @@ export default function Navbar() {
                 </div>
                 {/* Logout — desktop */}
                 <button onClick={handleLogout}
-                  className="hidden md:block text-xs text-slate-500 hover:text-red-400 transition-colors px-2 py-1 rounded-lg hover:bg-red-500/10">
+                  className="hidden lg:block text-xs text-slate-500 hover:text-red-400 transition-colors px-2 py-1 rounded-lg hover:bg-red-500/10">
                   יציאה
                 </button>
               </>
             ) : (
-              <div className="hidden md:flex items-center gap-2">
+              <div className="hidden lg:flex items-center gap-2">
                 <Link to="/login"
                   className="px-4 py-1.5 rounded-lg border text-sm font-semibold text-slate-300 hover:text-white transition-all"
                   style={{ borderColor: 'rgba(29,78,216,0.4)' }}>
@@ -93,7 +94,7 @@ export default function Navbar() {
             {/* Hamburger button — mobile only */}
             <button
               onClick={() => setMenuOpen(o => !o)}
-              className="md:hidden w-9 h-9 flex flex-col items-center justify-center gap-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-white/5 transition-all"
+              className="lg:hidden w-9 h-9 flex flex-col items-center justify-center gap-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-white/5 transition-all"
               aria-label="תפריט">
               <span className={`block w-5 h-0.5 bg-current transition-all duration-200 ${menuOpen ? 'rotate-45 translate-y-2' : ''}`} />
               <span className={`block w-5 h-0.5 bg-current transition-all duration-200 ${menuOpen ? 'opacity-0' : ''}`} />
@@ -105,7 +106,7 @@ export default function Navbar() {
 
       {/* Mobile dropdown menu */}
       {menuOpen && (
-        <div className="md:hidden border-t px-4 py-3 flex flex-col gap-1"
+        <div className="lg:hidden border-t px-4 py-3 flex flex-col gap-1"
           style={{ background: 'rgba(6,9,26,0.98)', borderColor: 'rgba(29,78,216,0.2)' }}>
 
           {/* Nav links */}
