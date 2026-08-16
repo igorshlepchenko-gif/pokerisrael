@@ -58,16 +58,24 @@ function buildSlides() {
   };
 
   // שקופית וידאו מיוחדת — לא נשאבת ממקור תוכן קיים, מוזרקת ידנית לתוך הרצף
+  //
+  // זמני: אמור להיות playEmbed (ניגון מוטמע מיידי, ראה גרסה קודמת), אבל YouTube
+  // מחזיר "Error 153 — Video player configuration error" על הטמעה של הסרטון הזה
+  // בכל אתר חיצוני, לא רק אצלנו (אומת ישירות דרך youtube.com/embed/... בבידוד).
+  // כבר נבדק ונשלל: הטמעה מופעלת, ציבורי, לא מוגבל-גיל, בלי תביעת זכויות יוצרים,
+  // לא מנויים-בלבד. נופל בינתיים לפתיחה חיצונית עד שתמיכת יוטיוב תפתור את זה —
+  // להחזיר ל-playEmbed (עם creditLabel/creditUrl למטה, כבר מוכנים) זה שינוי שורה אחת.
   const specialVideoSlide = {
     emoji: '🎥',
     title: 'רגע עם חדשות פוקר 7',
     subtitle: '🎥 סרטון',
     to: '/communities',
     accent: '#FF0000',
-    playEmbed: 'https://www.youtube.com/embed/OFDCapRBero?autoplay=1',
-    playLabel: 'צפייה',
+    playExternal: 'https://www.youtube.com/watch?v=OFDCapRBero',
+    playLabel: 'צפייה בסרטון',
+    // playEmbed: 'https://www.youtube.com/embed/OFDCapRBero?autoplay=1',
     embedTitleSuffix: 'YouTube',
-    // קרדיט ליוצרים — תג קטן שלא מפריע לצפייה, לא מוחלף בשקופיות אחרות
+    // קרדיט ליוצרים — רלוונטי רק כש-playEmbed פעיל (מוצג בתוך חלון הניגון עצמו)
     creditLabel: '👍 חדשות פוקר 7 · Subscribe',
     creditUrl: 'https://www.youtube.com/@Poker7.Israel',
   };
