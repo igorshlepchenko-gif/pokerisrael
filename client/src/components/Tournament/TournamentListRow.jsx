@@ -90,10 +90,44 @@ export default function TournamentListRow({ t, index, onClick }) {
             <span className="text-poker-gold">כל {DAYS_HE[t.day_of_week]}</span>
           )}
         </div>
-        {t.starting_stack && (
-          <span className="text-xs bg-slate-700 text-poker-gold px-2 py-0.5 rounded-full">
-            ערימה: <span className="font-mono tabular-nums">{t.starting_stack.toLocaleString()}</span>
-          </span>
+        {(t.starting_stack || t.level_duration || t.re_entry || t.late_reg_level || t.platform || t.game_type) && (
+          <div className="flex gap-1 flex-wrap">
+            {t.platform && (
+              <span className="text-[10px] bg-blue-500/15 text-blue-300 border border-blue-500/40 px-1.5 py-0.5 rounded-full font-bold">
+                {t.tournament_type === 'online' ? '💻' : '📍'} {t.platform}
+              </span>
+            )}
+            {t.game_type && (
+              <span className="text-[10px] bg-violet-500/15 text-violet-300 border border-violet-500/40 px-1.5 py-0.5 rounded-full font-bold">
+                🃏 {formatGames(t.game_type, t.secondary_games)}
+              </span>
+            )}
+            {t.cash_sb != null && t.cash_bb != null && (
+              <span className="text-[10px] bg-emerald-500/15 text-emerald-300 border border-emerald-500/40 px-1.5 py-0.5 rounded-full font-bold font-mono tabular-nums">
+                🎯 {Number(t.cash_sb).toLocaleString('he-IL')}/{Number(t.cash_bb).toLocaleString('he-IL')}
+              </span>
+            )}
+            {t.starting_stack && (
+              <span className="text-[10px] bg-slate-700/80 text-poker-gold px-1.5 py-0.5 rounded-full font-mono tabular-nums">
+                🎯 {t.starting_stack.toLocaleString()}
+              </span>
+            )}
+            {levelDur && (
+              <span className="text-[10px] bg-cyan-500/15 text-cyan-300 border border-cyan-500/40 px-1.5 py-0.5 rounded-full font-bold tracking-wide">
+                ⏱ <span className="font-mono tabular-nums">{levelDur}</span> דק׳
+              </span>
+            )}
+            {t.re_entry && (
+              <span className="text-[10px] bg-slate-700/80 text-emerald-400 px-1.5 py-0.5 rounded-full font-mono tabular-nums">
+                🔄 {t.re_entry}
+              </span>
+            )}
+            {t.late_reg_level && (
+              <span className="text-[10px] bg-indigo-900/60 text-indigo-300 px-1.5 py-0.5 rounded-full border border-indigo-700/30">
+                ⏳ Late Reg שלב <span className="font-mono tabular-nums">{t.late_reg_level}</span>
+              </span>
+            )}
+          </div>
         )}
         {isJokerClub ? (
           lateRegClosed ? (
