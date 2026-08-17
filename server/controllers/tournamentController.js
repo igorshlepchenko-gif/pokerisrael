@@ -11,6 +11,18 @@ function getGroq() {
 
 const DAYS_MAP_HE = { 'ראשון': 0, 'שני': 1, 'שלישי': 2, 'רביעי': 3, 'חמישי': 4, 'שישי': 5, 'שבת': 6 };
 
+// מנקה קואורדינטה שהגיעה מהטופס. מחזיר null על כל ערך לא תקין (ריק, לא-מספר,
+// מחוץ לטווח) — כך שמועדון בלי מיקום תקין פשוט לא ישתתף בחיפוש לפי מרחק,
+// במקום להיכנס למסד עם ערך שישבש חישוב מרחקים.
+function parseCoord(value, max) {
+  if (value === undefined || value === null || value === '') return null;
+  const n = Number(value);
+  if (!Number.isFinite(n) || Math.abs(n) > max) return null;
+  return n;
+}
+const parseLat = v => parseCoord(v, 90);
+const parseLng = v => parseCoord(v, 180);
+
 exports.getPublicVenues = async (req, res) => {
   try {
     const result = await pool.query(
@@ -23,12 +35,9 @@ exports.getPublicVenues = async (req, res) => {
   }
 };
 
-exports.getAll = async (req, res) => {
-  try {
-    const { city, day, search, sort, venue_ids, gtd_min, tournament_type } = req.query;
-    const hasFilters = city || day !== undefined || search || venue_ids || gtd_min || tournament_type;
-
-    const baseSelect = `
+// הועבר לרמת המודול כדי ש-getNearby ישתמש באותה רשימת שדות בדיוק כמו getAll,
+// ולא ייווצר מצב שבו שדה נוסף לרשימה הציבורית ונשכח בהצעות (או להפך)
+const TOURNAMENT_SELECT = `
       SELECT
         t.id, t.name, t.description, t.cost, t.start_time, t.estimated_end_time,
         t.stages, t.starting_stack, t.level_duration, t.is_recurring, t.day_of_week, t.status,
@@ -40,11 +49,48 @@ exports.getAll = async (req, res) => {
         COALESCE(t.city, v.city) AS venue_city,
         v.whatsapp_number, v.logo_url AS venue_logo,
         v.venue_type AS venue_type, v.club_number AS venue_club_number, v.website AS venue_website,
+        v.latitude AS venue_lat, v.longitude AS venue_lng,
         org.name AS organizer_name, org.whatsapp_number AS organizer_whatsapp, org.registration_url AS organizer_registration_url
       FROM tournaments t
       JOIN venues v ON t.venue_id = v.id
       LEFT JOIN venues org ON t.organizer_venue_id = org.id AND org.id <> t.venue_id
     `;
+
+/**
+ * מועמדים ל"מצא טורניר קרוב אליי".
+ *
+ * נדרש endpoint נפרד ולא getAll, כי getAll מסתיר בכוונה טורנירים שכבר התחילו
+ * (notPastClause) — וזה בדיוק מה שהפיצ'ר הזה צריך להציג: טורניר שרץ עכשיו,
+ * עם השלב שבו הוא נמצא. הסינון העדין (הרשמה מאוחרת עדיין פתוחה, חלון 6 שעות,
+ * מרחק) נעשה בצד הלקוח, שם יושבת לוגיקת מבנה הבליינדים ואזור הזמן.
+ */
+exports.getNearby = async (req, res) => {
+  try {
+    const result = await pool.query(`
+      ${TOURNAMENT_SELECT}
+      WHERE t.status = 'approved'
+        AND t.is_active = true
+        AND v.is_approved = true
+        AND t.tournament_type <> 'online'
+        AND v.latitude IS NOT NULL AND v.longitude IS NOT NULL
+        AND (
+          t.is_recurring = true
+          OR (t.start_time > NOW() - INTERVAL '12 hours' AND t.start_time < NOW() + INTERVAL '6 hours')
+        )
+    `);
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'שגיאת שרת' });
+  }
+};
+
+exports.getAll = async (req, res) => {
+  try {
+    const { city, day, search, sort, venue_ids, gtd_min, tournament_type } = req.query;
+    const hasFilters = city || day !== undefined || search || venue_ids || gtd_min || tournament_type;
+
+    const baseSelect = TOURNAMENT_SELECT;
 
     // מיון
     // לטורנירים חוזרים מחשבים את המופע הבא לפי day_of_week + שעה (בשעון ישראל)
@@ -733,7 +779,10 @@ exports.updateVenue = async (req, res) => {
   if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
   const { id } = req.params;
-  const { name, address, city, whatsapp_number, description, logo_url, venue_type, club_number, agent_number, website, registration_url } = req.body;
+  const { name, address, city, whatsapp_number, description, logo_url, venue_type, club_number, agent_number, website, registration_url, latitude, longitude } = req.body;
+  // "האם הלקוח בכלל שלח שדות מיקום" — שונה מ"שלח אותם ריקים" (שמשמעו ניקוי מכוון)
+  const coordsProvided = Object.prototype.hasOwnProperty.call(req.body, 'latitude')
+    || Object.prototype.hasOwnProperty.call(req.body, 'longitude');
 
   try {
     if (req.user.role !== 'admin') {
@@ -759,12 +808,20 @@ exports.updateVenue = async (req, res) => {
       `UPDATE venues SET
          name = $1, address = $2, city = $3,
          whatsapp_number = $4, description = $5, logo_url = $6,
-         venue_type = $7, club_number = $8, agent_number = $9, website = $10, registration_url = $11
-       WHERE id = $12 RETURNING *`,
+         venue_type = $7, club_number = $8, agent_number = $9, website = $10, registration_url = $11,
+         -- מעדכנים קואורדינטות רק כששדות המיקום נשלחו בפועל. לקוח ישן שנשמר
+         -- ב-cache ולא מכיר את השדות האלה היה מאפס אותם בכל עריכת מועדון,
+         -- ומוחק בשקט מידע שהוזן/יובא פעם אחת.
+         latitude  = CASE WHEN $12 THEN $13 ELSE latitude  END,
+         longitude = CASE WHEN $12 THEN $14 ELSE longitude END
+       WHERE id = $15 RETURNING *`,
       [name, isOnline ? null : address, isOnline ? null : city,
        whatsapp_number, description || null, logo_url || null,
        venue_type || 'physical', isOnline ? club_number : null, isOnline ? (agent_number || null) : null,
-       website || null, registration_url || null, id]
+       website || null, registration_url || null,
+       coordsProvided,
+       // למועדון אונליין אין מיקום פיזי — בדיוק כמו address/city למעלה
+       isOnline ? null : parseLat(latitude), isOnline ? null : parseLng(longitude), id]
     );
 
     const newData = result.rows[0];
@@ -1025,7 +1082,7 @@ exports.createVenue = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
-  const { name, address, city, whatsapp_number, description, logo_url, venue_type, club_number, agent_number, website, registration_url } = req.body;
+  const { name, address, city, whatsapp_number, description, logo_url, venue_type, club_number, agent_number, website, registration_url, latitude, longitude } = req.body;
 
   try {
     const isOnline = venue_type === 'online';
@@ -1034,12 +1091,13 @@ exports.createVenue = async (req, res) => {
     }
 
     const result = await pool.query(
-      `INSERT INTO venues (owner_id, name, address, city, whatsapp_number, description, logo_url, venue_type, club_number, agent_number, website, registration_url)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+      `INSERT INTO venues (owner_id, name, address, city, whatsapp_number, description, logo_url, venue_type, club_number, agent_number, website, registration_url, latitude, longitude)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
       [req.user.id, name, isOnline ? null : address, isOnline ? null : city,
        whatsapp_number, description, logo_url || null,
        venue_type || 'physical', isOnline ? club_number : null, isOnline ? (agent_number || null) : null,
-       website || null, registration_url || null]
+       website || null, registration_url || null,
+       isOnline ? null : parseLat(latitude), isOnline ? null : parseLng(longitude)]
     );
     const newVenue = result.rows[0];
 

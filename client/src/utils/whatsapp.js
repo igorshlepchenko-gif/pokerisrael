@@ -37,6 +37,14 @@ export function buildVenueContactLink(whatsappNumber, venueName) {
   return `https://api.whatsapp.com/send?phone=${clean}&text=${encodeURIComponent(msg)}`;
 }
 
+// פנייה למועדון מתוך "מצא טורניר קרוב אליי" — השאלה היחידה שמעניינת שחקן
+// שכבר בדרך: האם עדיין אפשר להיכנס בהרשמה מאוחרת.
+export function buildLateRegContactLink(whatsappNumber, tournamentName) {
+  const clean = String(whatsappNumber || '').replace(/\D/g, '').replace(/^0/, '972');
+  const msg = `שלום, אני רוצה להגיע לטורניר ${tournamentName} בהרשמה מאוחרת. האם ניתן להגיע?`;
+  return `https://api.whatsapp.com/send?phone=${clean}&text=${encodeURIComponent(msg)}`;
+}
+
 // Joker Club עברו להרשמה ישירה באתר שלהם במקום וואטסאפ. מזוהה לפי שם המועדון
 // ולא venue_id — ה-id של המועדון הזה בטבלת venues אינו קבוע/ידוע מראש
 export const JOKER_CLUB_REGISTRATION_URL = 'https://jokerclub.co.il/reg';
@@ -154,22 +162,64 @@ export function lateRegCloseTime(t) {
   const effectiveStart = eventDisplayDate(t);
   if (!effectiveStart) return null;
 
-  let base;
+  const base = startInstant(t, effectiveStart);
+  if (!base) return null;
+  return new Date(base.getTime() + totalMins * 60000);
+}
+
+// ממיר את שעת ההתחלה האפקטיבית לרגע UTC חד-משמעי.
+// הופרד מ-lateRegCloseTime כדי ש-tournamentProgress ישתמש באותה לוגיקה בדיוק
+// ולא ישכפל את טיפול אזור-הזמן העדין הזה (שכפול כזה נוטה להיפרד עם הזמן).
+export function startInstant(t, effectiveStart) {
+  if (!effectiveStart) return null;
   const str = String(effectiveStart);
   if (t.is_recurring || /Z$|[+-]\d{2}:?\d{2}$/.test(str)) {
     // כבר רגע UTC חד-משמעי: eventDisplayDate מחזיר ISO UTC אמיתי לחוזרים (דרך
     // nextOccurrence), וה-API עצמו לפעמים כבר ממיר start_time למחרוזת עם Z (תלוי
     // באזור הזמן של תהליך ה-Node של השרת) — בשני המקרים אין צורך בהמרה נוספת
-    base = new Date(str);
-  } else {
-    // מחרוזת נאיבית ללא אזור זמן — כמו ב-nextOccurrence, מניחים ששעון-הקיר שבה
-    // הוא ישראל, ומפרקים+ממירים ידנית במקום new Date ישיר (תלוי באזור הזמן של הדפדפן)
-    const m = str.match(/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
-    if (!m) return null;
-    const [y, mo, d, h, mi] = m.slice(1).map(Number);
-    base = zonedTimeToUTC(y, mo, d, h, mi, IL_TZ);
+    return new Date(str);
   }
-  return new Date(base.getTime() + totalMins * 60000);
+  // מחרוזת נאיבית ללא אזור זמן — כמו ב-nextOccurrence, מניחים ששעון-הקיר שבה
+  // הוא ישראל, ומפרקים+ממירים ידנית במקום new Date ישיר (תלוי באזור הזמן של הדפדפן)
+  const m = str.match(/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+  if (!m) return null;
+  const [y, mo, d, h, mi] = m.slice(1).map(Number);
+  return zonedTimeToUTC(y, mo, d, h, mi, IL_TZ);
+}
+
+// "מתי המופע הרלוונטי עכשיו" — להבדיל מ-eventDisplayDate שעונה "מתי בפעם הבאה".
+// nextOccurrence מקפיץ לשבוע הבא ברגע שהשעה של היום עברה (whatsapp.js, daysAhead=7),
+// ולכן טורניר שבועי שהתחיל לפני שעה מדווח כ"בעוד שבוע" — חסר תועלת ל"מה רץ עכשיו".
+// כאן: אם המופע של היום (או של אתמול, לטורניר שחוצה חצות) כבר התחיל ועדיין בתוך
+// חלון ה-lookback — מחזירים אותו. אחרת נופלים חזרה להתנהגות הרגילה.
+export function currentOccurrence(t, lookbackHours = 12) {
+  if (!t.is_recurring) return t.start_time;
+
+  const m = String(t.start_time).match(/T(\d{2}):(\d{2})/);
+  const baseHour = m ? Number(m[1]) : 0;
+  const baseMinute = m ? Number(m[2]) : 0;
+  const dow = (t.day_of_week === null || t.day_of_week === undefined)
+    ? new Date(t.start_time).getDay()
+    : Number(t.day_of_week);
+
+  const skipList = Array.isArray(t.skipped_dates)
+    ? t.skipped_dates
+    : (() => { try { return JSON.parse(t.skipped_dates || '[]'); } catch { return []; } })();
+
+  const now = new Date();
+  const nowParts = tzParts(now, IL_TZ);
+
+  // back=0 היום, back=1 אתמול (טורניר ערב שממשיך אחרי חצות)
+  for (let back = 0; back <= 1; back++) {
+    const d = new Date(Date.UTC(nowParts.year, nowParts.month - 1, nowParts.day - back));
+    if (d.getUTCDay() !== dow) continue;
+    const cand = zonedTimeToUTC(d.getUTCFullYear(), d.getUTCMonth() + 1, d.getUTCDate(), baseHour, baseMinute, IL_TZ);
+    const elapsed = now - cand;
+    if (elapsed >= 0 && elapsed <= lookbackHours * 3600000 && !skipList.includes(toDateStrInTZ(cand, IL_TZ))) {
+      return cand.toISOString();
+    }
+  }
+  return eventDisplayDate(t);
 }
 
 // האם ה-late registration כבר נסגרה כרגע. false גם כשאין מספיק מידע לחשב —

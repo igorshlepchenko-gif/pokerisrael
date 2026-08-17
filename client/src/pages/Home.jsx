@@ -3,6 +3,7 @@ import api from '../utils/api';
 import TournamentCard from '../components/Tournament/TournamentCard';
 import TournamentListRow from '../components/Tournament/TournamentListRow';
 import TournamentDetailModal from '../components/Tournament/TournamentDetailModal';
+import NearbyTournamentModal from '../components/Tournament/NearbyTournamentModal';
 import VenueMultiSelect from '../components/VenueMultiSelect';
 import { DAYS_HE } from '../utils/whatsapp';
 import HandLoggerSection from '../components/HandLogger/HandLoggerSection';
@@ -24,6 +25,7 @@ export default function Home() {
   const [viewMode, setViewMode] = useState(() => localStorage.getItem('pli_view') || 'list');
   const [sort, setSort] = useState('start_time');
   const [selectedTournament, setSelectedTournament] = useState(null);
+  const [showNearby, setShowNearby] = useState(false);
   const [allVenues, setAllVenues] = useState([]);
   const [selectedVenues, setSelectedVenues] = useState([]);
   const [stats, setStats] = useState({ tournaments: null, venues: null, users: null });
@@ -86,6 +88,12 @@ export default function Home() {
           brands={allBrands}
         />
       )}
+      {showNearby && (
+        <NearbyTournamentModal
+          onClose={() => setShowNearby(false)}
+          onShowDetails={(t) => { setShowNearby(false); setSelectedTournament(t); }}
+        />
+      )}
       {/* Hero */}
       <div className="hero-bg relative overflow-hidden py-20 px-4">
         {/* Animated background dots */}
@@ -142,6 +150,18 @@ export default function Home() {
                   <div className="text-xs text-slate-400 mt-0.5">{s.label}</div>
                 </div>
               ))}
+            </div>
+
+            {/* מציאת הטורניר הקרוב ביותר לפי מיקום המשתמש */}
+            <div className="flex justify-center mb-4">
+              <button
+                onClick={() => setShowNearby(true)}
+                className="inline-flex items-center gap-2 bg-gradient-to-l from-blue-600 to-cyan-500 text-white font-black py-3 px-7 rounded-2xl text-base
+                  shadow-[0_0_20px_rgba(34,211,238,0.45)] hover:shadow-[0_0_32px_rgba(34,211,238,0.8)]
+                  hover:scale-[1.03] active:scale-95 transition-all duration-200"
+              >
+                📍 מצא טורניר קרוב אליי
+              </button>
             </div>
           </div>
         </div>

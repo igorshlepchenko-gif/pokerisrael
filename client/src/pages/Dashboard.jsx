@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import api from '../utils/api';
 import TournamentForm from '../components/Tournament/TournamentForm';
 import VenueEditForm, { LogoUploader } from '../components/VenueEditForm';
+import VenueCoordsFields from '../components/VenueCoordsFields';
 import { formatDate, formatTime, formatCost, eventDisplayDate, DAYS_HE } from '../utils/whatsapp';
 import { useAuth } from '../context/AuthContext';
 
@@ -277,6 +278,7 @@ export default function Dashboard() {
   const [venueForm, setVenueForm] = useState({
     name: '', address: '', city: '', whatsapp_number: '', description: '', logo_url: '',
     venue_type: 'physical', club_number: '', agent_number: '', website: '',
+    latitude: '', longitude: '',
   });
   const [venueLoading, setVenueLoading] = useState(false);
   const [venueError, setVenueError] = useState('');
@@ -810,6 +812,10 @@ export default function Dashboard() {
                           onChange={e => setVenueForm(p => ({ ...p, address: e.target.value }))}
                           className="input-field text-sm" required />
                       </div>
+                      <VenueCoordsFields
+                        value={venueForm}
+                        onChange={patch => setVenueForm(p => ({ ...p, ...patch }))}
+                      />
                     </>
                   )}
 

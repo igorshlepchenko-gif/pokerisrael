@@ -20,6 +20,8 @@ const bulkUpload = multer({
 
 router.get('/', ctrl.getAll);
 router.get('/public-venues', ctrl.getPublicVenues);
+// מועמדים ל"מצא טורניר קרוב אליי" — כולל טורנירים שכבר התחילו, בניגוד ל-getAll
+router.get('/nearby', ctrl.getNearby);
 
 router.get('/my', authenticate, requireRole('venue_owner', 'admin'), ctrl.getMyTournaments);
 router.get('/template', authenticate, requireRole('venue_owner', 'admin'), ctrl.downloadTemplate);

@@ -19,6 +19,10 @@ async function ensureSchema() {
     // ── מיגרציות אוטומטיות — עמודות חדשות (idempotent, רץ בכל הפעלה) ──
     const MIGRATIONS = [
       `ALTER TABLE venues ADD COLUMN IF NOT EXISTS website VARCHAR(300)`,
+      // קואורדינטות למועדון — בסיס לפיצ'ר "מצא טורניר קרוב אליי".
+      // NUMERIC(9,6): עד 3 ספרות שלמות (מספיק ל-180±) ו-6 עשרוניות ≈ דיוק 0.1 מטר.
+      `ALTER TABLE venues ADD COLUMN IF NOT EXISTS latitude NUMERIC(9,6)`,
+      `ALTER TABLE venues ADD COLUMN IF NOT EXISTS longitude NUMERIC(9,6)`,
       `CREATE TABLE IF NOT EXISTS hand_histories (
         id SERIAL PRIMARY KEY,
         user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,

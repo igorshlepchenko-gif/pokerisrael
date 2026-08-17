@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import api from '../utils/api';
+import VenueCoordsFields from './VenueCoordsFields';
 
 export function LogoUploader({ value, onChange }) {
   const inputRef  = useRef();
@@ -193,6 +194,8 @@ export default function VenueEditForm({ venue, onSuccess, onCancel }) {
     agent_number:    venue.agent_number    || '',
     website:         venue.website         || '',
     registration_url: venue.registration_url || '',
+    latitude:        venue.latitude ?? '',
+    longitude:       venue.longitude ?? '',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState('');
@@ -279,6 +282,10 @@ export default function VenueEditForm({ venue, onSuccess, onCancel }) {
               <input type="text" value={form.address} onChange={e => set('address', e.target.value)}
                 className="input-field text-sm" required />
             </div>
+            <VenueCoordsFields
+              value={form}
+              onChange={patch => setForm(p => ({ ...p, ...patch }))}
+            />
           </>
         )}
 
