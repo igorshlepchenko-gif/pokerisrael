@@ -184,6 +184,15 @@ export function formatTime(dateStr) {
   return new Date(dateStr).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', timeZone: IL_TZ });
 }
 
+// ל-<input type="datetime-local"> בטפסי עריכה — "YYYY-MM-DDTHH:mm" לפי שעון ישראל,
+// באותה שיטה בדיוק כמו formatTime/formatDate למעלה (Intl עם Asia/Jerusalem)
+export function toIsraelDatetimeInput(dateStr) {
+  if (!dateStr) return '';
+  const p = tzParts(new Date(dateStr), IL_TZ);
+  const pad = n => String(n).padStart(2, '0');
+  return `${p.year}-${pad(p.month)}-${pad(p.day)}T${pad(p.hour)}:${pad(p.minute)}`;
+}
+
 export function formatDate(dateStr) {
   if (!dateStr) return '';
   return new Date(dateStr).toLocaleDateString('he-IL', { day: 'numeric', month: 'long', year: 'numeric', timeZone: IL_TZ });
