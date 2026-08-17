@@ -564,7 +564,7 @@ export default function Dashboard() {
     <div className="max-w-5xl mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-black text-white">
-          📅 האירועים שלך{user?.name ? ` · ${user.name}` : ''}
+          📅 {user?.role === 'admin' ? 'כל האירועים' : 'האירועים שלך'}{user?.name ? ` · ${user.name}` : ''}
         </h1>
         <button onClick={() => setShowForm(true)} className="btn-primary">
           + הוסף אירוע
@@ -661,6 +661,22 @@ export default function Dashboard() {
                     )}
                     {t.re_entry && (
                       <span className="text-[10px] bg-emerald-900/30 text-emerald-400 px-1.5 py-0.5 rounded-full">🔄 <span className="font-mono tabular-nums">{t.re_entry}</span></span>
+                    )}
+                    {user?.role === 'admin' && t.venue_owner_id !== user.id && (
+                      <span
+                        title={t.venue_owner_name ? `בעלי המקום: ${t.venue_owner_name}` : 'לא המקום שלך'}
+                        className="text-[10px] bg-purple-900/30 text-purple-400 px-1.5 py-0.5 rounded-full border border-purple-600/40"
+                      >
+                        👤 {t.venue_owner_name || 'לא שלך'}
+                      </span>
+                    )}
+                    {user?.role === 'admin' && !t.external_source && (
+                      <span
+                        title="לא סונכרן ממערכת אוטומטית — הוזן ידנית"
+                        className="text-[10px] bg-sky-900/30 text-sky-400 px-1.5 py-0.5 rounded-full border border-sky-600/40"
+                      >
+                        ✍️ ידני
+                      </span>
                     )}
                   </div>
                   <p className="text-sm text-slate-400 mt-1">
@@ -1118,6 +1134,14 @@ export default function Dashboard() {
                     <span className={`badge-status ${v.is_approved ? 'text-green-400 bg-green-900/20' : 'text-amber-400 bg-amber-900/20'}`}>
                       {v.is_approved ? '✅ מאושר' : '⏳ ממתין לאישור'}
                     </span>
+                    {user?.role === 'admin' && v.owner_id !== user.id && (
+                      <span
+                        title={v.owner_name ? `בעלים: ${v.owner_name}` : 'לא נוצר על ידך'}
+                        className="text-[10px] bg-purple-900/30 text-purple-400 px-1.5 py-0.5 rounded-full border border-purple-600/40"
+                      >
+                        👤 {v.owner_name || 'לא שלך'}
+                      </span>
+                    )}
                     <button
                       onClick={() => setEditingVenue(v)}
                       className="flex items-center gap-1 px-2.5 py-0.5 rounded-lg border border-slate-600 text-slate-400 hover:border-poker-green hover:text-poker-green-light text-xs font-semibold transition-all hover:scale-105 active:scale-95"

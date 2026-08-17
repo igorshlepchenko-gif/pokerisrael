@@ -121,15 +121,20 @@ exports.getMyTournaments = async (req, res) => {
   try {
     // טורנירים חוזרים נשארים תמיד (הם רלוונטיים לניהול שוטף בלי קשר לתאריך
     // ההתחלה המקורי שלהם) — רק אירועים חד-פעמיים שכבר עברו לפני יותר משבוע מוסתרים,
-    // אין ערך בגלילה דרך היסטוריה ישנה שאי אפשר יותר לערוך אותה בכל מקרה
+    // אין ערך בגלילה דרך היסטוריה ישנה שאי אפשר יותר לערוך אותה בכל מקרה.
+    // אדמין רואה את כל הטורנירים (לא רק את אלה שהוא הבעלים שלהם) — venue_owner_id/
+    // venue_owner_name וexternal_source (כבר כלול ב-t.*) מאפשרים ל-UI לסמן מה לא שלו
+    const isAdmin = req.user.role === 'admin';
     const result = await pool.query(
-      `SELECT t.*, v.name AS venue_name, v.address AS venue_address
+      `SELECT t.*, v.name AS venue_name, v.address AS venue_address,
+              v.owner_id AS venue_owner_id, u.name AS venue_owner_name
        FROM tournaments t
        JOIN venues v ON t.venue_id = v.id
-       WHERE v.owner_id = $1
+       LEFT JOIN users u ON v.owner_id = u.id
+       WHERE ($1 = true OR v.owner_id = $2)
          AND (t.is_recurring = true OR t.start_time > NOW() - INTERVAL '7 days')
        ORDER BY t.created_at DESC`,
-      [req.user.id]
+      [isAdmin, req.user.id]
     );
     res.json(result.rows);
   } catch (err) {
@@ -146,8 +151,8 @@ exports.create = async (req, res) => {
 
   try {
     const venueCheck = await pool.query(
-      'SELECT id FROM venues WHERE id = $1 AND owner_id = $2 AND is_approved = true',
-      [venue_id, req.user.id]
+      'SELECT id FROM venues WHERE id = $1 AND is_approved = true AND ($2 = true OR owner_id = $3)',
+      [venue_id, req.user.role === 'admin', req.user.id]
     );
     if (!venueCheck.rows[0]) {
       return res.status(403).json({ message: 'אין לך הרשאה להוסיף טורניר למקום זה' });
@@ -193,9 +198,16 @@ exports.create = async (req, res) => {
 
 exports.getVenuesByOwner = async (req, res) => {
   try {
+    // אדמין רואה את כל המועדונים (לא רק את אלה שהוא הבעלים שלהם) — owner_name
+    // מאפשר ל-UI לסמן איזה מועדון לא נוצר על ידי המשתמש המחובר
+    const isAdmin = req.user.role === 'admin';
     const result = await pool.query(
-      'SELECT * FROM venues WHERE owner_id = $1 ORDER BY created_at DESC',
-      [req.user.id]
+      `SELECT v.*, u.name AS owner_name
+       FROM venues v
+       LEFT JOIN users u ON v.owner_id = u.id
+       WHERE $1 = true OR v.owner_id = $2
+       ORDER BY v.created_at DESC`,
+      [isAdmin, req.user.id]
     );
     res.json(result.rows);
   } catch (err) {
@@ -647,8 +659,8 @@ exports.skipNextOccurrence = async (req, res) => {
     const check = await pool.query(
       `SELECT t.id, t.start_time, t.day_of_week, t.is_recurring, t.skipped_dates
        FROM tournaments t JOIN venues v ON t.venue_id = v.id
-       WHERE t.id = $1 AND v.owner_id = $2`,
-      [id, req.user.id]
+       WHERE t.id = $1 AND ($2 = true OR v.owner_id = $3)`,
+      [id, req.user.role === 'admin', req.user.id]
     );
     const t = check.rows[0];
     if (!t) return res.status(403).json({ message: 'אין לך הרשאה לערוך אירוע זה' });
@@ -674,8 +686,8 @@ exports.clearSkips = async (req, res) => {
   try {
     const check = await pool.query(
       `SELECT t.id FROM tournaments t JOIN venues v ON t.venue_id = v.id
-       WHERE t.id = $1 AND v.owner_id = $2`,
-      [id, req.user.id]
+       WHERE t.id = $1 AND ($2 = true OR v.owner_id = $3)`,
+      [id, req.user.role === 'admin', req.user.id]
     );
     if (!check.rows[0]) return res.status(403).json({ message: 'אין הרשאה' });
     await pool.query(`UPDATE tournaments SET skipped_dates = '[]'::jsonb WHERE id = $1`, [id]);
