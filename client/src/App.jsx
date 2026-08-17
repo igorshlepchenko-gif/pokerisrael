@@ -34,7 +34,9 @@ function AppRoutes() {
       <IsraeliBackground />
       <a href="#main-content" className="skip-link">דלג לתוכן הראשי</a>
       <Navbar />
-      <main id="main-content" className="flex-1 relative z-10">
+      {/* בלי z-index: `relative z-10` יצר stacking context שכלא מודלים (z-50/60) מתחת לנאבבר (z-50).
+          `relative` לבדו מספיק כדי להישאר מעל IsraeliBackground (fixed, zIndex:0) — הוא קודם ב-DOM. */}
+      <main id="main-content" className="flex-1 relative">
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />

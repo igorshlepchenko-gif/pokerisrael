@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { buildVenueContactLink, buildWhatsAppLink, formatTime, formatDate, formatCost, DAYS_HE, getStageDurations, formatGames, venueDisplayName, eventDisplayDate, isLateRegClosed, isJokerClubVenue, JOKER_CLUB_REGISTRATION_URL } from '../../utils/whatsapp';
 import { buildGoogleCalendarUrl, downloadICS } from '../../utils/calendar';
 import { useAuth } from '../../context/AuthContext';
@@ -81,12 +82,14 @@ export default function TournamentDetailModal({ tournament: t, onClose, brands =
   const lateRegClosed = isLateRegClosed(t);
   const isJokerClub = isJokerClubVenue(t.venue_name);
 
-  return (
+  // portal ל-body — כדי ש-z-[60] לא ייכלא ב-stacking context של אב כלשהו.
+  // בעבר <main> היה `relative z-10`, ולכן הנאבבר (z-50) צויר מעל המודל וחתך את שם הטורניר.
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
       aria-labelledby="tournament-detail-title"
-      className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center"
+      className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center sm:p-4"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       {/* Backdrop */}
@@ -96,7 +99,7 @@ export default function TournamentDetailModal({ tournament: t, onClose, brands =
       />
 
       {/* Panel */}
-      <div className="relative w-full sm:max-w-lg max-h-[92vh] flex flex-col bg-slate-800 border border-slate-700 rounded-t-3xl sm:rounded-2xl shadow-2xl animate-slide-up overflow-hidden">
+      <div className="relative w-full sm:max-w-lg max-h-[92vh] sm:max-h-full flex flex-col bg-slate-800 border border-slate-700 rounded-t-3xl sm:rounded-2xl shadow-2xl animate-slide-up overflow-hidden">
 
         {/* Header sticky */}
         <div className="sticky top-0 z-10 bg-slate-800/95 backdrop-blur border-b border-slate-700 px-5 py-4 flex items-center justify-between gap-3 shrink-0">
@@ -452,7 +455,8 @@ export default function TournamentDetailModal({ tournament: t, onClose, brands =
           />
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
