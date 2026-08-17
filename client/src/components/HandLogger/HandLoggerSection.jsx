@@ -98,7 +98,7 @@ function NoAccessModal({ user, onClose }) {
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+      className="modal-overlay fixed inset-0 z-[60] flex items-center justify-center p-4"
       style={{ background: 'rgba(0,0,0,0.75)' }}
       onClick={onClose}
     >

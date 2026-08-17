@@ -473,8 +473,8 @@ export default function AdminPanel() {
           {/* All venues */}
           {/* Edit venue modal */}
           {editingVenue && (
-            <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-              <div className="card p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="modal-overlay fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+              <div className="card p-6 w-full max-w-lg max-h-[min(90vh,100%)] overflow-y-auto">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-bold text-white">✏️ עריכת מועדון — {editingVenue.name}</h3>
                   <button onClick={() => setEditingVenue(null)}
@@ -1691,7 +1691,7 @@ export default function AdminPanel() {
 
       {/* Delete venue confirmation modal */}
       {deleteVenueModal && (
-        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+        <div className="modal-overlay fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
           <div className="card p-6 w-full max-w-md animate-slide-up">
             <div className="text-center mb-5">
               <div className="text-5xl mb-3">🗑️</div>
@@ -1731,7 +1731,7 @@ export default function AdminPanel() {
 
       {/* Reject modal */}
       {rejectModal && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+        <div className="modal-overlay fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
           <div className="card p-6 w-full max-w-md">
             <h3 className="font-bold text-white mb-3">סיבת הדחייה</h3>
             <textarea value={rejectReason} onChange={e => setRejectReason(e.target.value)}

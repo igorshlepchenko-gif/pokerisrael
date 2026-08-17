@@ -31,7 +31,7 @@ export default function AccessibilityWidget() {
         onClick={() => setOpen(o => !o)}
         aria-label="פתיחת תפריט נגישות"
         title="נגישות"
-        className="fixed bottom-4 left-4 z-[70] w-12 h-12 rounded-full bg-blue-600 hover:bg-blue-500 text-white text-2xl flex items-center justify-center shadow-2xl transition-all hover:scale-105 active:scale-95"
+        className="fixed bottom-4 left-4 z-[90] w-12 h-12 rounded-full bg-blue-600 hover:bg-blue-500 text-white text-2xl flex items-center justify-center shadow-2xl transition-all hover:scale-105 active:scale-95"
         style={{ boxShadow: '0 0 20px rgba(29,78,216,0.5)' }}
       >
         ♿
@@ -39,7 +39,7 @@ export default function AccessibilityWidget() {
 
       {/* פאנל */}
       {open && (
-        <div className="always-dark fixed bottom-20 left-4 z-[70] w-64 rounded-2xl border shadow-2xl p-4 animate-slide-up" dir="rtl"
+        <div className="always-dark fixed bottom-20 left-4 z-[90] w-64 rounded-2xl border shadow-2xl p-4 animate-slide-up" dir="rtl"
           style={{ background: 'rgba(13,21,38,0.98)', borderColor: 'rgba(29,78,216,0.4)' }}>
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-bold text-white text-sm">♿ נגישות</h3>

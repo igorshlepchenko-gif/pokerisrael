@@ -33,7 +33,7 @@ export default function RegistrationModal({ tournament, onClose, onSubmit }) {
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+    <div className="modal-overlay fixed inset-0 z-[60] flex items-center justify-center p-4"
          role="dialog" aria-modal="true" aria-labelledby="registration-modal-title"
          onClick={(e) => {
            // עוצר בועה — המודל הזה מקונן בתוך כרטיס/שורת טורניר שלמה עם onClick משלה

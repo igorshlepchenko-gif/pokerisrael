@@ -31,7 +31,7 @@ function LessonContactModal({ lesson, onClose, onSubmit }) {
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+    <div className="modal-overlay fixed inset-0 z-[60] flex items-center justify-center p-4"
          role="dialog" aria-modal="true" aria-labelledby="lesson-contact-modal-title"
          onClick={(e) => { e.stopPropagation(); if (e.target === e.currentTarget) onClose(); }}>
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />

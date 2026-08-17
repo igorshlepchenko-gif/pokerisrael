@@ -93,6 +93,22 @@ body.a11y-readable, body.a11y-readable * {
 .light ::-webkit-scrollbar-thumb { background: #94a3b8; }
 
 @layer components {
+  /* באנר העוגיות הוא z-[80] — מעל המודלים (z-50/60). כדי שהוא לא יחסום
+     כפתורים, ה-overlay של המודל מסתיים מעל הבאנר במקום בתחתית המסך.
+     --cookie-banner-h מתפרסם על ידי CookieConsent (גובה נמדד בפועל), 0 כשאין באנר.
+
+     הכפלת הסלקטור מכוונת: `inset-0` של Tailwind יושב ב-layer utilities שגובר על
+     layer components, אז .modal-overlay בודד (0,1,0) היה מפסיד ל-bottom:0 שלו.
+     .modal-overlay.modal-overlay נותן (0,2,0) ומנצח, בלי !important. */
+  .modal-overlay.modal-overlay {
+    bottom: var(--cookie-banner-h, 0px);
+  }
+
+  /* פאנל של מודל: לא לחרוג מהמסך ולא מהשטח שנותר מעל הבאנר */
+  .modal-panel-h {
+    max-height: min(92vh, 100%);
+  }
+
   .card {
     background: rgba(13,21,38,0.85);
     border: 1px solid rgba(29,78,216,0.18);

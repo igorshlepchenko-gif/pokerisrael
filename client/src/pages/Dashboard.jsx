@@ -589,8 +589,8 @@ export default function Dashboard() {
 
       {/* Tournament add modal */}
       {showForm && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <div className="card p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="modal-overlay fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+          <div className="card p-6 w-full max-w-2xl max-h-[min(90vh,100%)] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold text-white">הוספת אירוע חדש</h2>
               <button onClick={() => setShowForm(false)}
@@ -614,8 +614,8 @@ export default function Dashboard() {
 
       {/* Tournament edit modal */}
       {editingTournament && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <div className="card p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="modal-overlay fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+          <div className="card p-6 w-full max-w-2xl max-h-[min(90vh,100%)] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold text-white">✏️ עריכת אירוע</h2>
               <button onClick={() => setEditingTournament(null)}
@@ -846,8 +846,8 @@ export default function Dashboard() {
 
           {/* Venue edit modal */}
           {editingVenue && (
-            <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-              <div className="card p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="modal-overlay fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+              <div className="card p-6 w-full max-w-lg max-h-[min(90vh,100%)] overflow-y-auto">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-bold text-white">✏️ עריכת מועדון</h3>
                   <button onClick={() => setEditingVenue(null)}
@@ -866,8 +866,8 @@ export default function Dashboard() {
 
           {/* ── AI Image Import Modal ── */}
           {aiImportVenue && (
-            <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
-              <div className="card p-6 w-full max-w-2xl max-h-[92vh] overflow-y-auto space-y-4">
+            <div className="modal-overlay fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+              <div className="card p-6 w-full max-w-2xl max-h-[min(92vh,100%)] overflow-y-auto space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-black text-white">🤖 ייבוא טורנירים באמצעות AI — {aiImportVenue.name}</h3>
                   <button onClick={() => setAiImportVenue(null)} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-700 hover:bg-red-500/80 text-slate-300 hover:text-white transition-all text-sm">✕</button>
@@ -1062,8 +1062,8 @@ export default function Dashboard() {
 
           {/* ── Brand Management Modal ── */}
           {brandVenue && (
-            <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
-              <div className="card p-6 w-full max-w-lg max-h-[85vh] overflow-y-auto space-y-4">
+            <div className="modal-overlay fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+              <div className="card p-6 w-full max-w-lg max-h-[min(85vh,100%)] overflow-y-auto space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-black text-white">🏷️ לוגואי אירועים — {brandVenue.name}</h3>
                   <button onClick={() => setBrandVenue(null)} className="w-8 h-8 flex items-center justify-center rounded-full bg-slate-700 hover:bg-red-500/80 text-slate-300 hover:text-white transition-all text-sm">✕</button>

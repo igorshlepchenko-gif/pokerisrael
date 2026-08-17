@@ -1481,10 +1481,10 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4"
+    <div className="modal-overlay fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4"
       style={{ background: 'rgba(0,0,0,0.85)' }}
       onClick={onClose}>
-      <div className="always-dark w-full sm:max-w-lg max-h-[92vh] sm:max-h-[88vh] flex flex-col rounded-t-3xl sm:rounded-2xl overflow-hidden shadow-2xl bg-poker-felt border border-poker-green/25"
+      <div className="always-dark modal-panel-h sm:max-h-[min(88vh,100%)] w-full sm:max-w-lg flex flex-col rounded-t-3xl sm:rounded-2xl overflow-hidden shadow-2xl bg-poker-felt border border-poker-green/25"
         onClick={e => e.stopPropagation()}>
 
         {/* Header */}
