@@ -168,11 +168,11 @@ exports.create = async (req, res) => {
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27)
        RETURNING *`,
       [venue_id, name, description, cost, start_time, estimated_end_time,
-       JSON.stringify(stages || []), starting_stack || null, level_duration || null, is_recurring || false, day_of_week,
-       re_entry || null, late_reg_level || null, gtd || null, tournament_type || 'live',
+       JSON.stringify(stages || []), starting_stack ?? null, level_duration ?? null, is_recurring || false, day_of_week,
+       re_entry || null, late_reg_level ?? null, gtd ?? null, tournament_type || 'live',
        rake || null, rake_type || 'amount',
        platform || null, game_type || null, JSON.stringify(secondary_games || []),
-       cash_sb || null, cash_bb || null,
+       cash_sb ?? null, cash_bb ?? null,
        req.user.id, status, external_registration_url || null,
        address || null, city || null]
     );
@@ -606,12 +606,12 @@ exports.updateTournament = async (req, res) => {
       [
         name, description, cost, start_time, estimated_end_time || null,
         JSON.stringify(stages || []),
-        starting_stack || null, level_duration || null,
+        starting_stack ?? null, level_duration ?? null,
         is_recurring || false, day_of_week ?? null,
-        re_entry || null, late_reg_level || null, gtd || null,
+        re_entry || null, late_reg_level ?? null, gtd ?? null,
         rake || null, rake_type || 'amount',
         platform || null, game_type || null, JSON.stringify(secondary_games || []),
-        cash_sb || null, cash_bb || null, external_registration_url || null,
+        cash_sb ?? null, cash_bb ?? null, external_registration_url || null,
         address || null, city || null,
         id,
       ]

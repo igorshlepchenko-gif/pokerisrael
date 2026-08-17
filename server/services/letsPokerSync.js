@@ -140,8 +140,6 @@ function isChanged(existing, fresh) {
     Number(existing.late_reg_level ?? 0) !== Number(fresh.late_reg_level ?? 0) ||
     stableStringify(existing.stages) !== stableStringify(JSON.parse(fresh.stages)) ||
     (existing.external_registration_url || null) !== (fresh.external_registration_url || null) ||
-    // נכתב ב-UPDATE למטה אבל לא נבדק כאן — שינוי שמערב רק אותו היה מוחזר
-    // כ"אין שינוי" ונשאר תקוע עם הערך הישן לצמיתות
     Number(existing.level_duration ?? 0) !== Number(fresh.level_duration ?? 0)
   );
 }
@@ -162,7 +160,7 @@ async function syncLetsPoker(clubKey) {
 
   const existingRes = await pool.query(
     `SELECT id, external_id, name, cost, start_time, description, starting_stack, gtd,
-            re_entry, late_reg_level, stages, external_registration_url, manually_edited, level_duration
+            re_entry, late_reg_level, stages, external_registration_url, level_duration
      FROM tournaments WHERE external_source=$1 AND venue_id=$2`,
     [SOURCE_KEY, venueId]
   );
@@ -183,14 +181,12 @@ async function syncLetsPoker(clubKey) {
            ADMIN_USER_ID, SOURCE_KEY, t.external_id]
         );
         result.added++;
-      } else if (existing.manually_edited) {
-        result.skipped++;
       } else if (isChanged(existing, t)) {
         await pool.query(
           `UPDATE tournaments SET
              name=$1, description=$2, cost=$3, start_time=$4, stages=$5, starting_stack=$6,
              level_duration=$7, re_entry=$8, late_reg_level=$9, gtd=$10, external_registration_url=$11,
-             updated_at=NOW()
+             manually_edited=false, updated_at=NOW()
            WHERE id=$12`,
           [t.name, t.description, t.cost, t.start_time, t.stages, t.starting_stack,
            t.level_duration, t.re_entry, t.late_reg_level, t.gtd, t.external_registration_url, existing.id]
@@ -205,8 +201,9 @@ async function syncLetsPoker(clubKey) {
     }
   }
 
-  // מחיקה — טורנירים שירדו מהפיד (הסתיימו/בוטלו), עם אותה הגנה מפני ירידה חשודה
-  const toRemove = existingRes.rows.filter(r => !freshIds.has(r.external_id) && !r.manually_edited);
+  // מחיקה — טורנירים שירדו מהפיד (הסתיימו/בוטלו), עם אותה הגנה מפני ירידה חשודה.
+  // הפיד הוא תמיד מקור האמת (לא מקפיאים על עריכה ידנית) — עם הגנת ה-50% למטה
+  const toRemove = existingRes.rows.filter(r => !freshIds.has(r.external_id));
   const existingCount = existingRes.rows.length;
 
   if (normalized.length === 0) {
