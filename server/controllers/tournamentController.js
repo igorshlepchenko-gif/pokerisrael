@@ -119,11 +119,15 @@ exports.getAll = async (req, res) => {
 
 exports.getMyTournaments = async (req, res) => {
   try {
+    // טורנירים חוזרים נשארים תמיד (הם רלוונטיים לניהול שוטף בלי קשר לתאריך
+    // ההתחלה המקורי שלהם) — רק אירועים חד-פעמיים שכבר עברו לפני יותר משבוע מוסתרים,
+    // אין ערך בגלילה דרך היסטוריה ישנה שאי אפשר יותר לערוך אותה בכל מקרה
     const result = await pool.query(
       `SELECT t.*, v.name AS venue_name, v.address AS venue_address
        FROM tournaments t
        JOIN venues v ON t.venue_id = v.id
        WHERE v.owner_id = $1
+         AND (t.is_recurring = true OR t.start_time > NOW() - INTERVAL '7 days')
        ORDER BY t.created_at DESC`,
       [req.user.id]
     );
