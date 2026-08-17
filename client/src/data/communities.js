@@ -79,6 +79,14 @@ export const COMMUNITIES = [
   { id: 'wa-kidrurim-dream-with-me', name: 'Kidrurim - Dream With Me!', type: 'whatsapp', logo: '/communities/kidrurim.png', url: 'https://chat.whatsapp.com/LF4rfcplQtIEoWUukT5PDO?s=cl&p=i&mlu=4' },
   { id: 'wa-alon-eldar-channel', name: 'הערוץ של אלון אלדר', type: 'whatsapp', cta: 'עקבו אחרי הערוץ', logo: '', url: 'https://whatsapp.com/channel/0029VbAn27jJf05UsbUO451E' },
   {
+    id: 'wa-showdown',
+    name: 'ShowDown | The Moment Of Truth',
+    type: 'whatsapp',
+    logo: '/communities/showdown.jpeg',
+    description: 'Every hand has a story. Every story ends at ShowDown ♦️',
+    url: 'https://chat.whatsapp.com/L3tUwy7x4Vz2kbvM3tqvGv?mode=gi_t',
+  },
+  {
     id: 'wa-dama-club',
     name: 'Dama Club',
     type: 'whatsapp',
