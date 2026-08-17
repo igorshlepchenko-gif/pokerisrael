@@ -67,6 +67,8 @@ function buildSlides() {
   // להחזיר ל-playEmbed (עם creditLabel/creditUrl למטה, כבר מוכנים) זה שינוי שורה אחת.
   const specialVideoSlide = {
     emoji: '🎥',
+    image: 'https://img.youtube.com/vi/OFDCapRBero/hqdefault.jpg',
+    logoFit: 'cover',
     title: 'רגע עם חדשות פוקר 7',
     subtitle: '🎥 סרטון',
     to: '/communities',
