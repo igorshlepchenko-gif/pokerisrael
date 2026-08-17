@@ -87,6 +87,17 @@ export const COMMUNITIES = [
     url: 'https://chat.whatsapp.com/L3tUwy7x4Vz2kbvM3tqvGv?mode=gi_t',
   },
   {
+    id: 'wa-no-limit',
+    name: 'קהילת No Limit',
+    type: 'whatsapp',
+    logo: '/communities/no-limit.jpeg',
+    description: `קהילה שקטה של No Limit
+עדכונים מהשטח, רגעים אמיתיים, ומה שקורה עכשיו
+אם אתה משחק ואוהב פוקר - המקום שלך פה.
+כאן מתעדכנים בכל מה שקורה איתנו ועם עולם הפוקר באופן כללי`,
+    url: 'https://chat.whatsapp.com/G4tvarWDuAKDSJYaTHEAF3',
+  },
+  {
     id: 'wa-dama-club',
     name: 'Dama Club',
     type: 'whatsapp',
