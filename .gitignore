@@ -32,3 +32,6 @@ Thumbs.db
 # Editor
 .vscode/
 *.swp
+
+# נכסי מדיה של האתר חיים ב-Volume של Railway, לא בריפו
+client/public/video/
