@@ -139,7 +139,10 @@ router.post('/venue/:venueId/video',
 //
 // שם קובץ קבוע (ולא uuid) כי הממשק מפנה אליו ישירות — החלפה דורסת את הקובץ
 // הקיים ב-Volume, ולא צריך דפלוי כדי להחליף סרטון. אדמין בלבד.
-const SITE_ASSETS = { 'nearby-promo': 'nearby-promo.mp4' };
+const SITE_ASSETS = {
+  'nearby-promo': 'nearby-promo.mp4',
+  'nearby-promo-loop': 'nearby-promo-loop.mp4',
+};
 
 router.post('/site-asset/:key',
   authenticate, requireRole('admin'),

@@ -160,11 +160,12 @@ export default function Home() {
               ))}
             </div>
 
-            {/* מציאת הטורניר הקרוב ביותר לפי מיקום המשתמש */}
-            <div className="flex justify-center mb-4">
+            {/* מציאת הטורניר הקרוב ביותר לפי מיקום המשתמש — הסרטון רץ בלופ לצד הכפתור */}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-4">
+              <NearbyPromoVideo />
               <button
                 onClick={() => { trackAb('nearby_button', nearbyVariant, 'click'); setShowNearby(true); }}
-                className="inline-flex flex-col items-center gap-0.5 bg-gradient-to-l from-blue-600 to-cyan-500 text-white py-3 px-7 rounded-2xl
+                className="inline-flex flex-col items-center gap-0.5 shrink-0 bg-gradient-to-l from-blue-600 to-cyan-500 text-white py-3 px-7 rounded-2xl
                   shadow-[0_0_20px_rgba(34,211,238,0.45)] hover:shadow-[0_0_32px_rgba(34,211,238,0.8)]
                   hover:scale-[1.03] active:scale-95 transition-all duration-200"
               >
@@ -175,9 +176,6 @@ export default function Home() {
                   מצא טורניר קרוב אליי
                 </span>
               </button>
-            </div>
-            <div className="flex justify-center mb-4 -mt-2">
-              <NearbyPromoVideo />
             </div>
           </div>
         </div>

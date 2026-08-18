@@ -1,20 +1,20 @@
-import { useState, useRef, useEffect } from 'react';
-import { createPortal } from 'react-dom';
+import { useState, useEffect, useRef } from 'react';
 
 /**
- * סרטון הסבר קצר לפיצ'ר "מצא טורניר קרוב אליי".
+ * סרטון הסבר קצר לפיצ'ר "מצא טורניר קרוב אליי" — רץ בלופ ליד הכפתור.
  *
- * preload="none" בכוונה: הסרטון ~2MB, ורוב המבקרים לא ילחצו עליו. טעינה
- * אוטומטית בעמוד הבית הייתה עולה חבילת גלישה לכל כניסה במובייל בלי תמורה.
- * הבייטים יורדים רק אחרי לחיצה מפורשת.
+ * מושתק (חובה — דפדפנים חוסמים ניגון אוטומטי עם קול), loop, ו-playsInline
+ * כדי ש-iOS לא יפתח אותו במסך מלא.
+ *
+ * הסרטון יושב ב-Volume של Railway ולא בריפו, כלומר הוא לא מגיע עם הבנייה:
+ * סביבה חדשה או Volume שאותחל -> הקובץ חסר. לכן בודקים HEAD לפני שמרנדרים,
+ * אחרת היה נשאר כאן ריבוע שחור ריק.
  */
-export default function NearbyPromoVideo({ src = '/uploads/videos/nearby-promo.mp4' }) {
-  const [open, setOpen] = useState(false);
+export default function NearbyPromoVideo({ src = '/uploads/videos/nearby-promo-loop.mp4' }) {
   const [available, setAvailable] = useState(null);
+  const [reduceMotion, setReduceMotion] = useState(false);
+  const videoRef = useRef(null);
 
-  // הסרטון יושב ב-Volume של Railway ולא בריפו, כלומר הוא לא מגיע עם הבנייה.
-  // סביבה חדשה או Volume שאותחל -> הקובץ חסר. בדיקת HEAD זולה (בלי גוף) מוודאת
-  // שלא נציג כפתור שמוביל לשום מקום; עד שהתשובה חוזרת הכפתור פשוט לא מוצג.
   useEffect(() => {
     let cancelled = false;
     fetch(src, { method: 'HEAD' })
@@ -23,71 +23,31 @@ export default function NearbyPromoVideo({ src = '/uploads/videos/nearby-promo.m
     return () => { cancelled = true; };
   }, [src]);
 
+  // כיבוד prefers-reduced-motion — לאתר יש הצהרת נגישות, ווידאו שרץ בלולאה
+  // בלי הפסקה הוא בדיוק סוג התנועה שההעדפה הזו נועדה לעצור. במצב כזה הסרטון
+  // מוצג עם פקדים ולא מתנגן מעצמו.
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const apply = () => setReduceMotion(mq.matches);
+    apply();
+    mq.addEventListener('change', apply);
+    return () => mq.removeEventListener('change', apply);
+  }, []);
+
   if (!available) return null;
 
   return (
-    <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-1.5 text-slate-300 hover:text-white text-xs font-semibold
-          border border-slate-600 hover:border-slate-400 rounded-full px-3 min-h-[36px] transition-all"
-      >
-        ▶️ איך זה עובד
-      </button>
-      {open && <VideoModal src={src} onClose={() => setOpen(false)} />}
-    </>
-  );
-}
-
-function VideoModal({ src, onClose }) {
-  const videoRef = useRef(null);
-  const closeRef = useRef(null);
-
-  useEffect(() => {
-    const handler = e => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [onClose]);
-
-  useEffect(() => {
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = ''; };
-  }, []);
-
-  useEffect(() => { closeRef.current?.focus(); }, []);
-
-  return createPortal(
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="סרטון הסבר — מצא טורניר קרוב אליי"
-      className="modal-overlay fixed inset-0 z-[60] flex items-center justify-center p-4"
-      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
-    >
-      <div className="absolute inset-0 bg-black/85 backdrop-blur-sm" onClick={onClose} />
-
-      <div className="relative w-full max-w-2xl">
-        <button
-          ref={closeRef}
-          onClick={onClose}
-          aria-label="סגור"
-          className="absolute -top-11 left-0 flex items-center justify-center w-9 h-9 rounded-full bg-slate-700 hover:bg-red-500/80 text-slate-200 hover:text-white transition-all"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
-            <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
-          </svg>
-        </button>
-        <video
-          ref={videoRef}
-          src={src}
-          controls
-          autoPlay
-          playsInline
-          className="w-full rounded-2xl shadow-2xl bg-black max-h-[80vh]"
-        />
-      </div>
-    </div>,
-    document.body
+    <video
+      ref={videoRef}
+      src={src}
+      autoPlay={!reduceMotion}
+      loop
+      muted
+      playsInline
+      controls={reduceMotion}
+      preload="auto"
+      aria-label="סרטון הסבר קצר — מציאת טורניר קרוב"
+      className="w-full max-w-[320px] rounded-2xl shadow-2xl border border-slate-700/60 bg-black"
+    />
   );
 }

@@ -15,6 +15,9 @@ const path = require('path');
  */
 const ASSETS = [
   { name: 'nearby-promo.mp4', dir: 'videos' },
+  // גרסת הלופ — 640x360, בלי פס קול, ~197KB במקום 2MB. כשהסרטון רץ אוטומטית
+  // בעמוד הבית הוא יורד בכל כניסה, אז המשקל כאן משנה הרבה יותר מקודם.
+  { name: 'nearby-promo-loop.mp4', dir: 'videos' },
 ];
 
 function seedSiteAssets() {
