@@ -165,14 +165,15 @@ export default function Home() {
               <NearbyPromoVideo>
                 <button
                   onClick={() => { trackAb('nearby_button', nearbyVariant, 'click'); setShowNearby(true); }}
-                  className="inline-flex flex-col items-center gap-0.5 bg-gradient-to-l from-blue-600 to-cyan-500 text-white py-3 px-7 rounded-2xl
-                    shadow-[0_0_20px_rgba(34,211,238,0.55)] hover:shadow-[0_0_32px_rgba(34,211,238,0.9)]
+                  className="inline-flex flex-col items-start gap-0 min-h-[44px] justify-center
+                    bg-blue-600/55 hover:bg-blue-600/80 backdrop-blur-md border border-white/25
+                    text-white py-1.5 px-3 rounded-xl
                     hover:scale-[1.03] active:scale-95 transition-all duration-200"
                 >
-                  <span className="font-black text-lg leading-tight drop-shadow">
+                  <span className="font-black text-sm leading-tight drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">
                     {nearbyVariant === 'a' ? '🔥 מגרד לך?' : '⚡ אקשן בסביבה'}
                   </span>
-                  <span className="text-[11px] font-semibold text-white/90 leading-tight">
+                  <span className="text-[10px] font-semibold text-white/85 leading-tight drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
                     מצא טורניר קרוב אליי
                   </span>
                 </button>
