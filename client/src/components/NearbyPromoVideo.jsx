@@ -8,8 +8,22 @@ import { createPortal } from 'react-dom';
  * אוטומטית בעמוד הבית הייתה עולה חבילת גלישה לכל כניסה במובייל בלי תמורה.
  * הבייטים יורדים רק אחרי לחיצה מפורשת.
  */
-export default function NearbyPromoVideo({ src = '/video/nearby-promo.mp4' }) {
+export default function NearbyPromoVideo({ src = '/uploads/videos/nearby-promo.mp4' }) {
   const [open, setOpen] = useState(false);
+  const [available, setAvailable] = useState(null);
+
+  // הסרטון יושב ב-Volume של Railway ולא בריפו, כלומר הוא לא מגיע עם הבנייה.
+  // סביבה חדשה או Volume שאותחל -> הקובץ חסר. בדיקת HEAD זולה (בלי גוף) מוודאת
+  // שלא נציג כפתור שמוביל לשום מקום; עד שהתשובה חוזרת הכפתור פשוט לא מוצג.
+  useEffect(() => {
+    let cancelled = false;
+    fetch(src, { method: 'HEAD' })
+      .then(r => { if (!cancelled) setAvailable(r.ok); })
+      .catch(() => { if (!cancelled) setAvailable(false); });
+    return () => { cancelled = true; };
+  }, [src]);
+
+  if (!available) return null;
 
   return (
     <>

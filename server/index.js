@@ -24,6 +24,7 @@ const handHistoryRoutes    = require('./routes/handHistories');
 const importRoutes         = require('./routes/imports');
 const agentRoutes          = require('./routes/agent');
 const abRoutes = require('./routes/ab');
+const { seedSiteAssets } = require('./utils/seedSiteAssets');
 
 const app = express();
 
@@ -158,6 +159,7 @@ const PORT = process.env.PORT || 5000;
 // יצירת טבלאות אוטומטית בהפעלה הראשונה, ואז הפעלת השרת
 const ensureSchema = require('./database/ensureSchema');
 ensureSchema().then(() => {
+  seedSiteAssets();
   cleanOldLogs();
   setInterval(cleanOldLogs, 24 * 60 * 60 * 1000);
 

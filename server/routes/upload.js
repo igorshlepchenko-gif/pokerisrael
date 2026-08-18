@@ -135,6 +135,36 @@ router.post('/venue/:venueId/video',
   }
 );
 
+// ── נכס אתר קבוע: סרטון ההסבר של "מצא טורניר קרוב אליי" ──────────
+//
+// שם קובץ קבוע (ולא uuid) כי הממשק מפנה אליו ישירות — החלפה דורסת את הקובץ
+// הקיים ב-Volume, ולא צריך דפלוי כדי להחליף סרטון. אדמין בלבד.
+const SITE_ASSETS = { 'nearby-promo': 'nearby-promo.mp4' };
+
+router.post('/site-asset/:key',
+  authenticate, requireRole('admin'),
+  handleVideoUpload,
+  validateVideoMagicBytes,
+  async (req, res) => {
+    const target = SITE_ASSETS[req.params.key];
+    if (!target) {
+      if (req.file?.path) { try { fs.unlinkSync(req.file.path); } catch {} }
+      return res.status(400).json({ message: 'נכס לא מוכר' });
+    }
+    if (!req.file) return res.status(400).json({ message: 'קובץ וידאו לא תקין' });
+
+    try {
+      const dest = path.join(VIDEOS_DIR, target);
+      fs.renameSync(req.file.path, dest);
+      res.json({ message: 'הסרטון הוחלף', url: `/uploads/videos/${target}` });
+    } catch (err) {
+      console.error(err);
+      if (req.file?.path) { try { fs.unlinkSync(req.file.path); } catch {} }
+      res.status(500).json({ message: 'שגיאת שרת' });
+    }
+  }
+);
+
 // ── קבלת סרטוני מקום ──────────────────────────────────────────────
 router.get('/venue/:venueId/videos', authenticate, async (req, res) => {
   try {
