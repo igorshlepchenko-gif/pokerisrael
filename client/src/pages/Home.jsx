@@ -11,6 +11,7 @@ import ServiceShowcase from '../components/ServiceShowcase';
 import NextTournamentPill from '../components/NextTournamentPill';
 import { useAuth } from '../context/AuthContext';
 import { getVariant, trackAb } from '../utils/ab';
+import NearbyPromoVideo from '../components/NearbyPromoVideo';
 
 export default function Home() {
   const { user } = useAuth();
@@ -168,12 +169,15 @@ export default function Home() {
                   hover:scale-[1.03] active:scale-95 transition-all duration-200"
               >
                 <span className="font-black text-lg leading-tight">
-                  {nearbyVariant === 'a' ? '🔥 מגרד לך' : '⚡ אקשן בסביבה'}
+                  {nearbyVariant === 'a' ? '🔥 מגרד לך?' : '⚡ אקשן בסביבה'}
                 </span>
                 <span className="text-[11px] font-semibold text-white/80 leading-tight">
                   מצא טורניר קרוב אליי
                 </span>
               </button>
+            </div>
+            <div className="flex justify-center mb-4 -mt-2">
+              <NearbyPromoVideo />
             </div>
           </div>
         </div>

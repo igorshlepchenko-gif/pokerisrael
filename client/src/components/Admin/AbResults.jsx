@@ -5,7 +5,7 @@ import api from '../../utils/api';
 const LABELS = {
   nearby_button: {
     title: 'כפתור "מצא טורניר קרוב אליי" בעמוד הבית',
-    a: '🔥 מגרד לך',
+    a: '🔥 מגרד לך?',
     b: '⚡ אקשן בסביבה',
   },
 };
