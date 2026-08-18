@@ -45,7 +45,7 @@ function GlobeIcon(props) {
 
 const CATEGORY_META = {
   online: {
-    title: 'קהילות אונליין',
+    title: 'קהילות וואצאפ אונליין',
     Icon: GlobeIcon,
     color: '#a78bfa',
   },
@@ -53,7 +53,7 @@ const CATEGORY_META = {
 
 const TYPE_META = {
   whatsapp: {
-    title: 'קבוצות וואטסאפ',
+    title: 'קהילות וואצאפ',
     Icon: WhatsappIcon,
     color: '#25D366',
     cta: 'הצטרפות לקבוצה',
@@ -231,8 +231,8 @@ export default function Communities() {
           </div>
         ) : (
           <>
-            <CommunityCategorySection category="online" communities={shuffled} />
             <CommunitySection type="whatsapp" communities={shuffled} />
+            <CommunityCategorySection category="online" communities={shuffled} />
             <CommunitySection type="telegram" communities={shuffled} />
             <CommunitySection type="facebook" communities={shuffled} />
             <CommunitySection type="youtube" communities={shuffled} />
