@@ -49,7 +49,11 @@ const TOURNAMENT_SELECT = `
         COALESCE(t.city, v.city) AS venue_city,
         v.whatsapp_number, v.logo_url AS venue_logo,
         v.venue_type AS venue_type, v.club_number AS venue_club_number, v.website AS venue_website,
-        v.latitude AS venue_lat, v.longitude AS venue_lng,
+        -- מיקום הטורניר גובר על מיקום המועדון, באותה סמנטיקה בדיוק כמו
+        -- address/city למעלה: מארגן ארצי רשום בעיר אחת אך מפעיל טורנירים
+        -- בכמה ערים, ודירוג לפי מיקום המועדון היה שולח שחקן לעיר הלא נכונה.
+        COALESCE(t.latitude, v.latitude)   AS venue_lat,
+        COALESCE(t.longitude, v.longitude) AS venue_lng,
         org.name AS organizer_name, org.whatsapp_number AS organizer_whatsapp, org.registration_url AS organizer_registration_url
       FROM tournaments t
       JOIN venues v ON t.venue_id = v.id
@@ -61,7 +65,7 @@ const TOURNAMENT_SELECT = `
  *
  * נדרש endpoint נפרד ולא getAll, כי getAll מסתיר בכוונה טורנירים שכבר התחילו
  * (notPastClause) — וזה בדיוק מה שהפיצ'ר הזה צריך להציג: טורניר שרץ עכשיו,
- * עם השלב שבו הוא נמצא. הסינון העדין (הרשמה מאוחרת עדיין פתוחה, חלון 6 שעות,
+ * עם השלב שבו הוא נמצא. הסינון העדין (הרשמה מאוחרת עדיין פתוחה, חלון הזמן,
  * מרחק) נעשה בצד הלקוח, שם יושבת לוגיקת מבנה הבליינדים ואזור הזמן.
  */
 exports.getNearby = async (req, res) => {
@@ -72,10 +76,11 @@ exports.getNearby = async (req, res) => {
         AND t.is_active = true
         AND v.is_approved = true
         AND t.tournament_type <> 'online'
-        AND v.latitude IS NOT NULL AND v.longitude IS NOT NULL
+        AND COALESCE(t.latitude, v.latitude) IS NOT NULL
+        AND COALESCE(t.longitude, v.longitude) IS NOT NULL
         AND (
           t.is_recurring = true
-          OR (t.start_time > NOW() - INTERVAL '12 hours' AND t.start_time < NOW() + INTERVAL '6 hours')
+          OR (t.start_time > NOW() - INTERVAL '12 hours' AND t.start_time < NOW() + INTERVAL '30 hours')
         )
     `);
     res.json(result.rows);
@@ -193,7 +198,7 @@ exports.create = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
-  const { venue_id, name, description, cost, start_time, estimated_end_time, stages, starting_stack, level_duration, is_recurring, day_of_week, re_entry, late_reg_level, gtd, tournament_type, rake, rake_type, platform, game_type, secondary_games, cash_sb, cash_bb, external_registration_url, address, city } = req.body;
+  const { venue_id, name, description, cost, start_time, estimated_end_time, stages, starting_stack, level_duration, is_recurring, day_of_week, re_entry, late_reg_level, gtd, tournament_type, rake, rake_type, platform, game_type, secondary_games, cash_sb, cash_bb, external_registration_url, address, city, latitude, longitude } = req.body;
 
   try {
     const venueCheck = await pool.query(
@@ -210,8 +215,8 @@ exports.create = async (req, res) => {
 
     const result = await pool.query(
       `INSERT INTO tournaments
-        (venue_id, name, description, cost, start_time, estimated_end_time, stages, starting_stack, level_duration, is_recurring, day_of_week, re_entry, late_reg_level, gtd, tournament_type, rake, rake_type, platform, game_type, secondary_games, cash_sb, cash_bb, created_by, status, external_registration_url, address, city)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27)
+        (venue_id, name, description, cost, start_time, estimated_end_time, stages, starting_stack, level_duration, is_recurring, day_of_week, re_entry, late_reg_level, gtd, tournament_type, rake, rake_type, platform, game_type, secondary_games, cash_sb, cash_bb, created_by, status, external_registration_url, address, city, latitude, longitude)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29)
        RETURNING *`,
       [venue_id, name, description, cost, start_time, estimated_end_time,
        JSON.stringify(stages || []), starting_stack ?? null, level_duration ?? null, is_recurring || false, day_of_week,
@@ -220,7 +225,9 @@ exports.create = async (req, res) => {
        platform || null, game_type || null, JSON.stringify(secondary_games || []),
        cash_sb ?? null, cash_bb ?? null,
        req.user.id, status, external_registration_url || null,
-       address || null, city || null]
+       address || null, city || null,
+       // מיקום ברמת הטורניר — ריק פירושו "השתמש במיקום המועדון" (COALESCE בשליפה)
+       parseLat(latitude), parseLng(longitude)]
     );
 
     const newTournament = result.rows[0];
@@ -617,8 +624,11 @@ exports.updateTournament = async (req, res) => {
     stages, starting_stack, level_duration, is_recurring, day_of_week,
     re_entry, late_reg_level, gtd, rake, rake_type,
     platform, game_type, secondary_games, cash_sb, cash_bb,
-    external_registration_url, address, city,
+    external_registration_url, address, city, latitude, longitude,
   } = req.body;
+  // "האם נשלחו שדות מיקום" — להבדיל מ"נשלחו ריקים" (ניקוי מכוון)
+  const coordsProvided = Object.prototype.hasOwnProperty.call(req.body, 'latitude')
+    || Object.prototype.hasOwnProperty.call(req.body, 'longitude');
 
   try {
     // בדיקת בעלות — הטורניר שייך למקום המארח או למארגן (רישום כפול), או אדמין
@@ -646,8 +656,11 @@ exports.updateTournament = async (req, res) => {
          platform = $16, game_type = $17, secondary_games = $18,
          cash_sb = $19, cash_bb = $20, external_registration_url = $21,
          address = $22, city = $23,
+         -- כמו ב-updateVenue: לא מאפסים מיקום כשהבקשה כלל לא נשאה את השדות
+         latitude  = CASE WHEN $24 THEN $25 ELSE latitude  END,
+         longitude = CASE WHEN $24 THEN $26 ELSE longitude END,
          manually_edited = true, updated_at = NOW()
-       WHERE id = $24
+       WHERE id = $27
        RETURNING *`,
       [
         name, description, cost, start_time, estimated_end_time || null,
@@ -659,6 +672,7 @@ exports.updateTournament = async (req, res) => {
         platform || null, game_type || null, JSON.stringify(secondary_games || []),
         cash_sb ?? null, cash_bb ?? null, external_registration_url || null,
         address || null, city || null,
+        coordsProvided, parseLat(latitude), parseLng(longitude),
         id,
       ]
     );

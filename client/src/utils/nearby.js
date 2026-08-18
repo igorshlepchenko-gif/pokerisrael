@@ -1,4 +1,4 @@
-import { currentOccurrence, startInstant, lateRegCloseTime } from './whatsapp';
+import { currentOccurrence, startInstant, lateRegCloseTime, tzParts, zonedTimeToUTC, IL_TZ } from './whatsapp';
 
 // ── מרחק ──────────────────────────────────────────────────────────────────
 
@@ -122,13 +122,34 @@ export function tournamentProgress(t, now = new Date()) {
 
 // ── מי נכנס להצעות ────────────────────────────────────────────────────────
 
-const UPCOMING_WINDOW_HOURS = 6;
+const MIN_WINDOW_HOURS = 6;
+
+/**
+ * עד מתי קדימה מציעים טורנירים.
+ *
+ * חלון קבוע של 6 שעות נכשל בשימוש יומי: בשעה 11:43 טורנירי הערב (18:00, 23:00)
+ * נפלו מחוץ לחלון בהפרש של 17 דקות, ולמעשה לא הוצע כמעט כלום. שחקן ששואל
+ * בבוקר לאן ללכת מתכוון להערב, לא לשש השעות הקרובות.
+ *
+ * לכן: עד סוף היום בשעון ישראל, אבל לפחות 6 שעות קדימה — כדי שגם ב-23:30
+ * עדיין יוצעו הטורנירים של השעות שאחרי חצות.
+ */
+export function suggestionWindowEnd(now = new Date()) {
+  const p = tzParts(now, IL_TZ);
+  // חצות הלילה הקרוב = 00:00 של היום הבא בשעון ישראל.
+  // zonedTimeToUTC מנרמל גלישת חודש/שנה בעצמו דרך Date.UTC.
+  const endOfDay = zonedTimeToUTC(p.year, p.month, p.day + 1, 0, 0, IL_TZ);
+  const floor = new Date(now.getTime() + MIN_WINDOW_HOURS * 3600000);
+  return endOfDay > floor ? endOfDay : floor;
+}
 
 /**
  * האם הטורניר רלוונטי כהצעה "לאן ללכת עכשיו".
- * נכנס אם הוא מתחיל בתוך 6 שעות, או שכבר התחיל וההרשמה המאוחרת עדיין פתוחה.
- * כשאי אפשר לחשב סגירת הרשמה (אין duration) — נכנס, כדי שחוסר-נתונים לא
- * יסתיר טורניר אמיתי; הדיסקליימר והפנייה למועדון קיימים בדיוק בשביל זה.
+ *
+ * נכנס אם הוא מתחיל לפני סוף חלון ההצעות, או שכבר התחיל וההרשמה המאוחרת
+ * עדיין פתוחה. כשאי אפשר לחשב סגירת הרשמה (אין duration) — נכנס בכל זאת,
+ * כדי שחוסר-נתונים לא יסתיר טורניר אמיתי; הדיסקליימר והפנייה למועדון
+ * קיימים בדיוק בשביל המקרה הזה.
  */
 export function isSuggestable(t, now = new Date()) {
   if (t.tournament_type === 'online') return false;   // אין מיקום פיזי
@@ -136,7 +157,7 @@ export function isSuggestable(t, now = new Date()) {
 
   const prog = tournamentProgress(t, now);
   if (prog.status === 'ended') return false;
-  if (prog.status === 'before') return prog.minutesToStart <= UPCOMING_WINDOW_HOURS * 60;
+  if (prog.status === 'before') return prog.start <= suggestionWindowEnd(now);
 
   const close = lateRegCloseTime(t);
   return close ? now <= close : true;

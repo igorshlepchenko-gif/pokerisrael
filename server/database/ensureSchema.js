@@ -23,6 +23,11 @@ async function ensureSchema() {
       // NUMERIC(9,6): עד 3 ספרות שלמות (מספיק ל-180±) ו-6 עשרוניות ≈ דיוק 0.1 מטר.
       `ALTER TABLE venues ADD COLUMN IF NOT EXISTS latitude NUMERIC(9,6)`,
       `ALTER TABLE venues ADD COLUMN IF NOT EXISTS longitude NUMERIC(9,6)`,
+      // מיקום ברמת הטורניר — גובר על מיקום המועדון, בדיוק כמו address/city
+      // שכבר קיימים כאן. נחוץ למארגנים ארציים (למשל Runner Runner) שמפעילים
+      // טורנירים בכמה ערים תחת אותו מועדון רשום.
+      `ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS latitude NUMERIC(9,6)`,
+      `ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS longitude NUMERIC(9,6)`,
       `CREATE TABLE IF NOT EXISTS hand_histories (
         id SERIAL PRIMARY KEY,
         user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,

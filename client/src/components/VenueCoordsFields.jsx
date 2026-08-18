@@ -11,7 +11,7 @@ import { parsePastedCoords } from '../utils/nearby';
  * value: { latitude, longitude }
  * onChange: (patch) => void   // { latitude, longitude }
  */
-export default function VenueCoordsFields({ value, onChange }) {
+export default function VenueCoordsFields({ value, onChange, spanClass = 'sm:col-span-2', label = 'מיקום על המפה' }) {
   const [paste, setPaste] = useState('');
   const [pasteError, setPasteError] = useState('');
 
@@ -29,9 +29,9 @@ export default function VenueCoordsFields({ value, onChange }) {
 
   return (
     <>
-      <div className="sm:col-span-2">
+      <div className={spanClass}>
         <label className="block text-xs text-slate-400 mb-1">
-          מיקום על המפה <span className="text-slate-500">(לחיפוש "הכי קרוב אליי" ולניווט)</span>
+          {label} <span className="text-slate-500">(לחיפוש "הכי קרוב אליי")</span>
         </label>
         <input
           type="text"

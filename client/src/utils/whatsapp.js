@@ -56,11 +56,11 @@ export const DAYS_HE = ['ראשון', 'שני', 'שלישי', 'רביעי', 'ח�
 
 // כל הזמנים מחושבים לפי שעון ישראל — ללא תלות באזור הזמן של הדפדפן של הצופה.
 // (הועבר למעלה כי nextOccurrence צריך אותו)
-const IL_TZ = 'Asia/Jerusalem';
+export const IL_TZ = 'Asia/Jerusalem';
 
 // מפרק Date לרכיבי שעון-קיר (שנה/חודש/יום/שעה/דקה/יום-בשבוע) כפי שהם נראים
 // באזור זמן נתון, כמספרים פשוטים — לא כאובייקט Date נוסף שתלוי בפרשנות אזור זמן
-function tzParts(date, tz) {
+export function tzParts(date, tz) {
   const fmt = new Intl.DateTimeFormat('en-US', {
     timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit',
     hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23', weekday: 'short',
@@ -78,7 +78,7 @@ function tzParts(date, tz) {
 // דרך ישירה לכך ב-JS הרגיל (בניגוד ל-Date.UTC, שמקבל רק מספרים ב-UTC) — זה
 // הטריק המקובל: מנחשים UTC, בודקים איך הניחוש הזה היה *נראה* באזור היעד, ומתקנים
 // לפי ההפרש. מתכנס תמיד לתשובה הנכונה, כולל בימי מעבר שעון קיץ.
-function zonedTimeToUTC(year, month, day, hour, minute, tz) {
+export function zonedTimeToUTC(year, month, day, hour, minute, tz) {
   const guess = new Date(Date.UTC(year, month - 1, day, hour, minute, 0, 0));
   const shown = tzParts(guess, tz);
   const shownAsUTC = Date.UTC(shown.year, shown.month - 1, shown.day, shown.hour, shown.minute, shown.second);

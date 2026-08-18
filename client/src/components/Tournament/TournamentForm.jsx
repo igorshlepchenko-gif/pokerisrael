@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import VenueCoordsFields from '../VenueCoordsFields';
 import api from '../../utils/api';
 import { DAYS_HE, toIsraelDatetimeInput } from '../../utils/whatsapp';
 import clubggLogo from '../../assets/clubgg-logo.png';
@@ -157,6 +158,8 @@ export default function TournamentForm({ venues, tournament = null, onSuccess, o
     external_registration_url: tournament?.external_registration_url ?? '',
     address: tournament?.address ?? '',
     city:    tournament?.city    ?? '',
+    latitude:  tournament?.latitude  ?? '',
+    longitude: tournament?.longitude ?? '',
   });
 
   // ── משחקי קאש: בחירה מרובה + ראשי/משני ─────────────────────────
@@ -1300,6 +1303,12 @@ export default function TournamentForm({ venues, tournament = null, onSuccess, o
                 className="input-field text-sm"
               />
             </div>
+            <VenueCoordsFields
+              value={form}
+              onChange={patch => setForm(p => ({ ...p, ...patch }))}
+              spanClass="col-span-2"
+              label="מיקום האירוע על המפה"
+            />
           </div>
         </div>
       )}
