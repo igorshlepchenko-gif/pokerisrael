@@ -10,6 +10,7 @@ import HandLoggerSection from '../components/HandLogger/HandLoggerSection';
 import ServiceShowcase from '../components/ServiceShowcase';
 import NextTournamentPill from '../components/NextTournamentPill';
 import { useAuth } from '../context/AuthContext';
+import { getVariant, trackAb } from '../utils/ab';
 
 export default function Home() {
   const { user } = useAuth();
@@ -26,6 +27,12 @@ export default function Home() {
   const [sort, setSort] = useState('start_time');
   const [selectedTournament, setSelectedTournament] = useState(null);
   const [showNearby, setShowNearby] = useState(false);
+
+  // ניסוי A/B על הכיתוב של כפתור "מצא טורניר קרוב אליי".
+  // הווריאנט נקבע פעם אחת למבקר, וה-impression נרשם פעם אחת לטעינה — השרת
+  // ממילא מנטרל כפילויות לפי מבקר, כך שריענון לא מנפח את התוצאות.
+  const [nearbyVariant] = useState(() => getVariant('nearby_button'));
+  useEffect(() => { trackAb('nearby_button', nearbyVariant, 'impression'); }, [nearbyVariant]);
   const [allVenues, setAllVenues] = useState([]);
   const [selectedVenues, setSelectedVenues] = useState([]);
   const [stats, setStats] = useState({ tournaments: null, venues: null, users: null });
@@ -155,12 +162,17 @@ export default function Home() {
             {/* מציאת הטורניר הקרוב ביותר לפי מיקום המשתמש */}
             <div className="flex justify-center mb-4">
               <button
-                onClick={() => setShowNearby(true)}
-                className="inline-flex items-center gap-2 bg-gradient-to-l from-blue-600 to-cyan-500 text-white font-black py-3 px-7 rounded-2xl text-base
+                onClick={() => { trackAb('nearby_button', nearbyVariant, 'click'); setShowNearby(true); }}
+                className="inline-flex flex-col items-center gap-0.5 bg-gradient-to-l from-blue-600 to-cyan-500 text-white py-3 px-7 rounded-2xl
                   shadow-[0_0_20px_rgba(34,211,238,0.45)] hover:shadow-[0_0_32px_rgba(34,211,238,0.8)]
                   hover:scale-[1.03] active:scale-95 transition-all duration-200"
               >
-                📍 מצא טורניר קרוב אליי
+                <span className="font-black text-lg leading-tight">
+                  {nearbyVariant === 'a' ? '🔥 מגרד לך' : '⚡ אקשן בסביבה'}
+                </span>
+                <span className="text-[11px] font-semibold text-white/80 leading-tight">
+                  מצא טורניר קרוב אליי
+                </span>
               </button>
             </div>
           </div>

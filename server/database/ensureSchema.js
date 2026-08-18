@@ -55,6 +55,21 @@ async function ensureSchema() {
         updated_at TIMESTAMP DEFAULT NOW()
       )`,
       `CREATE UNIQUE INDEX IF NOT EXISTS locations_address_uniq ON locations(address)`,
+      // ── מדידת A/B ──────────────────────────────────────────────────────────
+      // visitor: מזהה אקראי מקומי (localStorage), לא מקושר למשתמש ולא לזיהוי אישי.
+      // האינדקס הייחודי הוא על (test_key, visitor, event) ולא כולל variant —
+      // מבקר שומר וריאנט אחד קבוע, וכך כל מבקר נספר פעם אחת בלבד לכל אירוע
+      // וריענוני עמוד לא מנפחים את התוצאות.
+      `CREATE TABLE IF NOT EXISTS ab_events (
+        id         SERIAL PRIMARY KEY,
+        test_key   VARCHAR(50) NOT NULL,
+        variant    VARCHAR(20) NOT NULL,
+        event      VARCHAR(20) NOT NULL,
+        visitor    VARCHAR(64) NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW()
+      )`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS ab_events_uniq ON ab_events(test_key, visitor, event)`,
+      `CREATE INDEX IF NOT EXISTS ab_events_test_idx ON ab_events(test_key, variant, event)`,
       // locations_seed — הכתובות הידועות היום. ON CONFLICT DO NOTHING שומר על
       // אידמפוטנטיות ולא דורס עריכה ידנית שנעשתה אחר כך במסד.
       `INSERT INTO locations (address, city, latitude, longitude) VALUES

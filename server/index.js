@@ -23,6 +23,7 @@ const eventTemplateRoutes  = require('./routes/eventTemplates');
 const handHistoryRoutes    = require('./routes/handHistories');
 const importRoutes         = require('./routes/imports');
 const agentRoutes          = require('./routes/agent');
+const abRoutes = require('./routes/ab');
 
 const app = express();
 
@@ -95,6 +96,7 @@ app.use('/api/event-templates', eventTemplateRoutes);
 app.use('/api/hand-histories', handHistoryRoutes);
 app.use('/api/imports',       importRoutes);
 app.use('/api/agent',         agentRoutes);
+app.use('/api/ab',            abRoutes);
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', message: 'Poker Live Israel API' }));
 

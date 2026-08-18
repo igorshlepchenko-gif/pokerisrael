@@ -26,4 +26,13 @@ router.post('/locations', ctrl.createLocation);
 router.put('/locations/:id', ctrl.updateLocation);
 router.delete('/locations/:id', ctrl.deleteLocation);
 
+// תוצאות ניסויי A/B
+router.get('/ab-results', require('../controllers/abController').results);
+
+// ניהול מיקומים — כתובת -> קואורדינטות, הבסיס ל"מצא טורניר קרוב אליי"
+router.get('/locations', ctrl.getLocations);
+router.post('/locations', ctrl.createLocation);
+router.put('/locations/:id', ctrl.updateLocation);
+router.delete('/locations/:id', ctrl.deleteLocation);
+
 module.exports = router;

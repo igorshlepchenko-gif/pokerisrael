@@ -3,6 +3,7 @@ import api from '../utils/api';
 import { formatDate, formatTime, formatCost } from '../utils/whatsapp';
 import VenueEditForm from '../components/VenueEditForm';
 import LocationsManager from '../components/Admin/LocationsManager';
+import AbResults from '../components/Admin/AbResults';
 import TournamentEditForm from '../components/TournamentEditForm';
 
 // ---- helpers for change log diff ----
@@ -389,6 +390,7 @@ export default function AdminPanel() {
           ['hand-logger', '🃏 רישום ידיים'],
           ['imports', '📥 ייבוא מפרסומים'],
           ['locations', '📍 מיקומים'],
+          ['ab', '🧪 A/B'],
         ].map(([id, label]) => (
           <button key={id} onClick={() => setTab(id)}
             className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${tab === id ? 'bg-poker-green text-white' : 'text-slate-400 hover:text-slate-200'}`}>
@@ -1631,6 +1633,8 @@ export default function AdminPanel() {
           })()}
 
           {tab === 'locations' && <LocationsManager />}
+
+          {tab === 'ab' && <AbResults />}
 
           {tab === 'users' && (
             <div className="space-y-2">
