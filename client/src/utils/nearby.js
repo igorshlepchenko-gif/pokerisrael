@@ -159,7 +159,9 @@ export function isSuggestable(t, now = new Date()) {
   if (prog.status === 'ended') return false;
   if (prog.status === 'before') return prog.start <= suggestionWindowEnd(now);
 
-  const close = lateRegCloseTime(t);
+  // המופע הנוכחי ולא הבא — אחרת טורניר חוזר שההרשמה אליו כבר נסגרה
+  // ייחשב פתוח, לפי מועד הסגירה של השבוע הבא
+  const close = lateRegCloseTime(t, currentOccurrence(t));
   return close ? now <= close : true;
 }
 

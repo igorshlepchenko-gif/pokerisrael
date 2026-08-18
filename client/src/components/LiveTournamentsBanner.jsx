@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../utils/api';
-import { formatCost, lateRegCloseTime, venueDisplayName, formatTime } from '../utils/whatsapp';
+import { formatCost, lateRegCloseTime, venueDisplayName, formatTime, currentOccurrence } from '../utils/whatsapp';
 import { tournamentProgress } from '../utils/nearby';
 
 /**
@@ -35,7 +35,7 @@ export default function LiveTournamentsBanner({ onSelect }) {
   }, []);
 
   const live = tournaments
-    .map(t => ({ t, prog: tournamentProgress(t, now), closeAt: lateRegCloseTime(t) }))
+    .map(t => ({ t, prog: tournamentProgress(t, now), closeAt: lateRegCloseTime(t, currentOccurrence(t)) }))
     .filter(({ prog }) => prog.status === 'running')
     // רק כאלה שעוד אפשר להצטרף אליהם — טורניר שההרשמה אליו נסגרה כבר לא
     // מועיל למי שמחפש לאן ללכת עכשיו

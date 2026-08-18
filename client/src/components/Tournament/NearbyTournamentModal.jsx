@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import api from '../../utils/api';
 import {
   formatTime, formatDate, formatCost, venueDisplayName,
-  buildLateRegContactLink, lateRegCloseTime,
+  buildLateRegContactLink, lateRegCloseTime, currentOccurrence,
 } from '../../utils/whatsapp';
 import {
   rankByDistance, tournamentCoords, formatDistance,
@@ -176,7 +176,7 @@ function Centered({ children }) {
 function Suggestion({ entry, onShowDetails }) {
   const { tournament: t, distanceKm } = entry;
   const prog = tournamentProgress(t);
-  const closeTime = lateRegCloseTime(t);
+  const closeTime = lateRegCloseTime(t, currentOccurrence(t));
 
   return (
     <div className="space-y-4">

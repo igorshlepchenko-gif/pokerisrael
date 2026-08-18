@@ -144,7 +144,11 @@ export function eventDisplayDate(t) {
 // מחשב את הרגע (UTC אמיתי) שבו נסגרת ה-late registration, לפי late_reg_level והבליינדים.
 // מחזיר null כשאין מספיק מידע לחשב (בלי duration לשלבים אי אפשר לדעת כמה זמן עבר) —
 // כך שחוסר-מידע לעולם לא חוסם הרשמה בטעות, רק היעדר-נתונים אמיתי גורם ל"לא לחסום".
-export function lateRegCloseTime(t) {
+// effectiveStart אופציונלי: ברירת המחדל היא "המופע הבא" — נכון לתצוגה של
+// טורניר עתידי. מי ששואל על טורניר שרץ *עכשיו* חייב להעביר את המופע הנוכחי,
+// אחרת לטורניר שבועי יחושב מועד הסגירה של השבוע הבא (ומתקבלת ספירה של 172 שעות
+// לצד שעת סגירה שנראית תקינה).
+export function lateRegCloseTime(t, effectiveStartOverride) {
   if (!t.late_reg_level) return null;
   const stages = Array.isArray(t.stages) ? t.stages : (typeof t.stages === 'string' ? JSON.parse(t.stages || '[]') : []);
   if (!stages.some(s => s.type !== 'break' && s.duration)) return null;
@@ -159,7 +163,7 @@ export function lateRegCloseTime(t) {
   let totalMins = 0;
   for (let i = 0; i < stageIdx; i++) totalMins += parseInt(stages[i].duration) || 0;
 
-  const effectiveStart = eventDisplayDate(t);
+  const effectiveStart = effectiveStartOverride ?? eventDisplayDate(t);
   if (!effectiveStart) return null;
 
   const base = startInstant(t, effectiveStart);
