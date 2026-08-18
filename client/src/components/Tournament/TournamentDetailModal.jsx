@@ -476,11 +476,11 @@ function NavigationButtons({ t }) {
   return (
     <div className="flex gap-2">
       <a href={waze} target="_blank" rel="noopener noreferrer"
-        className="flex-1 flex items-center justify-center gap-1.5 bg-[#33ccff]/15 hover:bg-[#33ccff]/30 border border-[#33ccff]/40 text-[#7fdcff] font-bold py-2 px-3 rounded-xl transition-all text-sm">
+        className="flex-1 flex items-center justify-center gap-1.5 min-h-[44px] bg-[#33ccff]/15 hover:bg-[#33ccff]/30 border border-[#33ccff]/40 text-[#7fdcff] font-bold py-2 px-3 rounded-xl transition-all text-sm">
         🚗 נווט ב-Waze
       </a>
       <a href={gmaps} target="_blank" rel="noopener noreferrer"
-        className="flex-1 flex items-center justify-center gap-1.5 bg-slate-700/60 hover:bg-slate-600 border border-slate-600 text-slate-200 font-bold py-2 px-3 rounded-xl transition-all text-sm">
+        className="flex-1 flex items-center justify-center gap-1.5 min-h-[44px] bg-slate-700/60 hover:bg-slate-600 border border-slate-600 text-slate-200 font-bold py-2 px-3 rounded-xl transition-all text-sm">
         🗺️ Google Maps
       </a>
     </div>
