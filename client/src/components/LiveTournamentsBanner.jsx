@@ -96,7 +96,7 @@ function LiveCard({ t, prog, closeAt, onSelect }) {
         ) : (
           <>
             <div className="font-black text-white text-lg leading-tight">
-              רמה {prog.level}
+              שלב {prog.level}
             </div>
             <div className="font-mono tabular-nums text-poker-gold text-sm">
               {Number(prog.smallBlind).toLocaleString()}/{Number(prog.bigBlind).toLocaleString()}

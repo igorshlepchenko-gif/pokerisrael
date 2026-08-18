@@ -77,8 +77,8 @@ function parseStages(stages) {
  * מצב הטורניר ברגע זה.
  * status:
  *   'before'  — טרם התחיל (minutesToStart)
- *   'running' — רץ, עם רמה/בליינדים נוכחיים
- *   'unknown' — התחיל אבל אין duration לשלבים, אי אפשר לדעת באיזו רמה
+ *   'running' — רץ, עם שלב/בליינדים נוכחיים
+ *   'unknown' — התחיל אבל אין duration לשלבים, אי אפשר לדעת באיזה שלב
  *   'ended'   — עבר את סוף מבנה הבליינדים
  *
  * כשאין נתוני duration מחזירים 'unknown' ולא מנחשים — אותה גישה בדיוק

@@ -255,7 +255,7 @@ function LiveStatus({ prog, closeTime }) {
   }
 
   if (prog.status === 'running') {
-    // שני הדברים שהמשתמש צריך כדי להחליט אם לצאת מהבית: באיזו רמה זה עכשיו,
+    // שני הדברים שהמשתמש צריך כדי להחליט אם לצאת מהבית: באיזה שלב זה עכשיו,
     // וכמה זמן נשאר להספיק להירשם. שניהם גדולים ובראש הכרטיס.
     return (
       <div className="space-y-2">
@@ -271,7 +271,7 @@ function LiveStatus({ prog, closeTime }) {
             <div className="font-black text-amber-400 text-2xl">☕ בהפסקה</div>
           ) : (
             <>
-              <div className="font-black text-white text-3xl leading-none">רמה {prog.level}</div>
+              <div className="font-black text-white text-3xl leading-none">שלב {prog.level}</div>
               <div className="font-mono tabular-nums text-poker-gold text-base mt-1">
                 {Number(prog.smallBlind).toLocaleString()}/{Number(prog.bigBlind).toLocaleString()}
                 {prog.ante > 0 && <span className="text-slate-400"> · אנטה {Number(prog.ante).toLocaleString()}</span>}
@@ -291,7 +291,7 @@ function LiveStatus({ prog, closeTime }) {
   return (
     <Box tone="slate">
       <span className="font-black">▶️ כנראה כבר התחיל</span>
-      <span className="text-xs opacity-80">אין מבנה בליינדים מלא, אז אי אפשר לדעת באיזו רמה — שווה לשאול את המועדון.</span>
+      <span className="text-xs opacity-80">אין מבנה בליינדים מלא, אז אי אפשר לדעת באיזה שלב — שווה לשאול את המועדון.</span>
     </Box>
   );
 }
