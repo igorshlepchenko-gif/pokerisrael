@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import LateRegCountdown from '../LateRegCountdown';
 import api from '../../utils/api';
 import {
   formatTime, formatDate, formatCost, venueDisplayName,
@@ -254,22 +255,36 @@ function LiveStatus({ prog, closeTime }) {
   }
 
   if (prog.status === 'running') {
+    // שני הדברים שהמשתמש צריך כדי להחליט אם לצאת מהבית: באיזו רמה זה עכשיו,
+    // וכמה זמן נשאר להספיק להירשם. שניהם גדולים ובראש הכרטיס.
     return (
-      <Box tone="green">
-        {prog.isBreak ? (
-          <span className="font-black">☕ בהפסקה כרגע</span>
-        ) : (
-          <>
-            <span className="font-black">▶️ רץ עכשיו — רמה {prog.level}</span>
-            <span className="font-mono tabular-nums">
-              בליינדים {Number(prog.smallBlind).toLocaleString()}/{Number(prog.bigBlind).toLocaleString()}
-              {prog.ante > 0 && ` · אנטה ${Number(prog.ante).toLocaleString()}`}
+      <div className="space-y-2">
+        <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-3">
+          <div className="flex items-center gap-2 text-emerald-300 text-xs font-black mb-1">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
             </span>
-          </>
-        )}
-        <span className="text-xs opacity-80">נותרו ~{prog.minutesLeftInLevel} דק׳ לשלב הנוכחי</span>
-        {closeTime && <span className="text-xs opacity-80">הרשמה מאוחרת עד {formatTime(closeTime)}</span>}
-      </Box>
+            רץ עכשיו
+          </div>
+          {prog.isBreak ? (
+            <div className="font-black text-amber-400 text-2xl">☕ בהפסקה</div>
+          ) : (
+            <>
+              <div className="font-black text-white text-3xl leading-none">רמה {prog.level}</div>
+              <div className="font-mono tabular-nums text-poker-gold text-base mt-1">
+                {Number(prog.smallBlind).toLocaleString()}/{Number(prog.bigBlind).toLocaleString()}
+                {prog.ante > 0 && <span className="text-slate-400"> · אנטה {Number(prog.ante).toLocaleString()}</span>}
+              </div>
+            </>
+          )}
+          <div className="text-[11px] text-slate-400 mt-1">
+            נותרו ~{prog.minutesLeftInLevel} דק׳ לשלב הנוכחי
+          </div>
+        </div>
+
+        <LateRegCountdown closeAt={closeTime} size="large" />
+      </div>
     );
   }
 

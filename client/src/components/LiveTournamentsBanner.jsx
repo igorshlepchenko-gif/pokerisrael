@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import api from '../utils/api';
-import { formatCost, lateRegCloseTime, venueDisplayName, formatTime, currentOccurrence } from '../utils/whatsapp';
+import { formatCost, lateRegCloseTime, venueDisplayName, currentOccurrence } from '../utils/whatsapp';
 import { tournamentProgress } from '../utils/nearby';
+import LateRegCountdown from './LateRegCountdown';
 
 /**
  * רצועת "רץ עכשיו" בעמוד הבית.
@@ -62,17 +63,14 @@ export default function LiveTournamentsBanner({ onSelect }) {
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {live.map(({ t, prog, closeAt }) => (
-          <LiveCard key={t.id} t={t} prog={prog} closeAt={closeAt} now={now} onSelect={onSelect} />
+          <LiveCard key={t.id} t={t} prog={prog} closeAt={closeAt} onSelect={onSelect} />
         ))}
       </div>
     </div>
   );
 }
 
-function LiveCard({ t, prog, closeAt, now, onSelect }) {
-  const msLeft = closeAt ? closeAt - now : null;
-  const closingSoon = msLeft !== null && msLeft <= 30 * 60 * 1000;
-
+function LiveCard({ t, prog, closeAt, onSelect }) {
   return (
     <button
       onClick={() => onSelect?.(t)}
@@ -112,48 +110,12 @@ function LiveCard({ t, prog, closeAt, now, onSelect }) {
       </div>
 
       {/* הזמן שנותר להרשמה מאוחרת — הסיבה היחידה שמישהו יזוז מהכיסא עכשיו */}
-      <LateRegCountdown msLeft={msLeft} closeAt={closeAt} closingSoon={closingSoon} />
+      <LateRegCountdown closeAt={closeAt} />
 
       <div className="text-[11px] text-slate-400 mt-2">
         כניסה {formatCost(t.cost)}
         {t.venue_city && <span> · {t.venue_city}</span>}
       </div>
     </button>
-  );
-}
-
-function LateRegCountdown({ msLeft, closeAt, closingSoon }) {
-  if (msLeft === null) {
-    // בלי נתוני משך שלבים אי אפשר לחשב מתי ההרשמה נסגרת — עדיף לומר זאת
-    // מאשר להציג מספר שאולי שגוי
-    return (
-      <div className="rounded-xl px-3 py-2 bg-slate-700/40 border border-slate-600">
-        <div className="text-slate-300 text-xs font-semibold">
-          ⏳ זמן ההרשמה המאוחרת לא ידוע — כדאי לברר מול המועדון
-        </div>
-      </div>
-    );
-  }
-
-  const total = Math.max(0, Math.floor(msLeft / 1000));
-  const h = Math.floor(total / 3600);
-  const m = Math.floor((total % 3600) / 60);
-  const s = total % 60;
-  const clock = h > 0
-    ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-    : `${m}:${String(s).padStart(2, '0')}`;
-
-  return (
-    <div className={`rounded-xl px-3 py-2 border ${closingSoon
-      ? 'bg-red-500/15 border-red-500/50'
-      : 'bg-emerald-500/10 border-emerald-500/40'}`}>
-      <div className={`text-[11px] font-semibold ${closingSoon ? 'text-red-300' : 'text-emerald-300'}`}>
-        {closingSoon ? '⚠️ נסגר בקרוב — הרשמה מאוחרת' : '⏱️ נותר להרשמה מאוחרת'}
-      </div>
-      <div className={`font-black font-mono tabular-nums text-2xl leading-tight ${closingSoon ? 'text-red-300' : 'text-emerald-300'}`}>
-        {clock}
-      </div>
-      <div className="text-[11px] text-slate-400">נסגרת ב-{formatTime(closeAt)}</div>
-    </div>
   );
 }
