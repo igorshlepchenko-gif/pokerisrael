@@ -9,6 +9,11 @@ import { useState, useEffect, useRef } from 'react';
  * הכפתור (children) מרונדר תמיד — גם לפני שידוע אם הסרטון קיים וגם אם הוא חסר.
  * הסרטון יושב ב-Volume ולא בריפו, כלומר Volume שאותחל או סביבה חדשה נשארים
  * בלעדיו; במצב כזה הבאנר נופל חזרה לכפתור על רקע מדורג, בלי חור בממשק.
+ *
+ * הרוחב מוגבל מול ה-viewport ולא מול ההורה בכוונה: עמודת הטקסט של ההירו היא
+ * flex item עם min-width:auto, ולכן היא מסרבת להצטמצם מתחת לרוחב התוכן שלה
+ * ויוצאת רחבה מהמסך במובייל (402px בתוך 343px). באנר ב-w-full היה יורש את
+ * הרוחב הזה ונחתך בקצוות.
  */
 export default function NearbyPromoVideo({ src = '/uploads/videos/nearby-promo-loop.mp4', children }) {
   const [available, setAvailable] = useState(false);
@@ -43,7 +48,7 @@ export default function NearbyPromoVideo({ src = '/uploads/videos/nearby-promo-l
   }
 
   return (
-    <div className="relative w-full max-w-[420px] mx-auto rounded-2xl overflow-hidden border border-slate-700/60 shadow-2xl">
+    <div className="relative w-full max-w-[min(420px,calc(100vw-2rem))] mx-auto rounded-2xl overflow-hidden border border-slate-700/60 shadow-2xl">
       <video
         ref={videoRef}
         src={src}
