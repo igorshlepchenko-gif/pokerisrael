@@ -28,6 +28,55 @@ async function ensureSchema() {
       // טורנירים בכמה ערים תחת אותו מועדון רשום.
       `ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS latitude NUMERIC(9,6)`,
       `ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS longitude NUMERIC(9,6)`,
+      // ── טבלת מיקומים: כתובת -> קואורדינטות ────────────────────────────────
+      // נועדה לפתור את המקרה של מארגן ארצי (Runner Runner) שמפעיל טורנירים
+      // בכמה ערים: הסוכן האוטומטי יוצר טורניר חדש עם כתובת בלבד, וללא הטבלה
+      // הזו הוא היה נופל למיקום המועדון — כלומר לעיר הלא נכונה.
+      //
+      // normalize_address מנטרל שוני חסר-משמעות בין כתובות (פיסוק, רווחים,
+      // "קומה 2", "בניין X") כדי שכתובת שנכתבה מעט אחרת עדיין תזוהה.
+      `CREATE OR REPLACE FUNCTION normalize_address(txt text) RETURNS text AS $$
+         SELECT NULLIF(
+           regexp_replace(
+             regexp_replace(lower(coalesce(txt, '')),
+               '(קומה|קומת|בניין|בנין|מגדל|כניסה|דירה|מתחם)[^,]*', ' ', 'g'),
+             '[^0-9a-zא-ת]+', '', 'g'
+           ), '')
+       $$ LANGUAGE sql IMMUTABLE`,
+      `CREATE TABLE IF NOT EXISTS locations (
+        id         SERIAL PRIMARY KEY,
+        address    TEXT NOT NULL,
+        city       VARCHAR(100),
+        latitude   NUMERIC(9,6) NOT NULL,
+        longitude  NUMERIC(9,6) NOT NULL,
+        source     VARCHAR(30) DEFAULT 'geocoded',
+        notes      TEXT,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      )`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS locations_address_uniq ON locations(address)`,
+      // locations_seed — הכתובות הידועות היום. ON CONFLICT DO NOTHING שומר על
+      // אידמפוטנטיות ולא דורס עריכה ידנית שנעשתה אחר כך במסד.
+      `INSERT INTO locations (address, city, latitude, longitude) VALUES
+        ('הלפיד 7 פתח תקווה', 'פתח תקווה', 32.0915004, 34.8541857),
+        ('תוצרת הארץ 3', 'פתח תקווה', 32.0900013, 34.8601803),
+        ('השר שפירא 16', 'ראשון לציון', 31.9915986, 34.7541049),
+        ('השר חיים שפירא 16', 'ראשון לציון', 31.9915986, 34.7541049),
+        ('בניין יוקה פארק, הכשרת היישוב 32 , ראשון לציון (קומה 4)', 'ראשון לציון', 31.9900961, 34.7676385),
+        ('בר כוכבא 23 בני ברק, מגדל VTower, קומה 2', 'בני ברק', 32.0940715, 34.823239),
+        ('מקלף 3, קומה 2', 'חיפה', 32.7836362, 35.0365687),
+        ('מקלף 3', 'חיפה', 32.7836362, 35.0365687),
+        ('שטנר 3, קומה 3', 'ירושלים', 31.7867314, 35.1893593),
+        ('המדע 8 רחובות בניין רוטמן קומה 2', 'רחובות', 31.9151816, 34.8150645),
+        ('הסדנא 13, קומה 1', 'רעננה', 32.1941328, 34.8784947),
+        ('הסדנא 13 רעננה', 'רעננה', 32.1941328, 34.8784947),
+        ('יהודה הנחתום 7, באר שבע', 'באר שבע', 31.2551128, 34.814862),
+        ('יהודה הנחתום 7', 'באר שבע', 31.2551128, 34.814862),
+        ('יוחנן הסנדלר 12', 'כפר סבא', 32.1758273, 34.9262972),
+        ('יגאל אלון 126', 'תל אביב', 32.0743922, 34.7955905),
+        ('עמק האלה 250', 'מודיעין', 31.9180088, 34.9976744)
+       ON CONFLICT (address) DO NOTHING`,
+
       `CREATE TABLE IF NOT EXISTS hand_histories (
         id SERIAL PRIMARY KEY,
         user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,

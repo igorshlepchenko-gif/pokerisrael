@@ -5,6 +5,7 @@ import { buildGoogleCalendarUrl, downloadICS } from '../../utils/calendar';
 import { useAuth } from '../../context/AuthContext';
 import { logRegistration } from '../../utils/api';
 import RegistrationModal from './RegistrationModal';
+import { wazeLink, googleMapsLink, tournamentCoords, navAddress } from '../../utils/nearby';
 
 export default function TournamentDetailModal({ tournament: t, onClose, brands = [] }) {
   const matchedBrand = brands.find(b =>
@@ -409,6 +410,9 @@ export default function TournamentDetailModal({ tournament: t, onClose, brands =
               🔗 הרשמה אונליין ({t.organizer_name})
             </a>
           )}
+          {/* ניווט — רק לאירוע פיזי שיש לו כתובת או מיקום */}
+          <NavigationButtons t={t} />
+
           {/* כפתור שניוני — פנייה ישירה למועדון */}
           <a
             href={venueLink}
@@ -457,6 +461,29 @@ export default function TournamentDetailModal({ tournament: t, onClose, brands =
       </div>
     </div>,
     document.body
+  );
+}
+
+// ניווט למקום האירוע. הכתובת מועדפת על הקואורדינטות — ל-Waze ולגוגל יש
+// נתוני כתובות מדויקים יותר משלנו (שלנו ברמת רחוב, מ-geocoding).
+function NavigationButtons({ t }) {
+  if (t.tournament_type === 'online') return null;
+  const address = navAddress(t);
+  const coords = tournamentCoords(t);
+  const waze = wazeLink(coords, address);
+  const gmaps = googleMapsLink(coords, address);
+  if (!waze && !gmaps) return null;
+  return (
+    <div className="flex gap-2">
+      <a href={waze} target="_blank" rel="noopener noreferrer"
+        className="flex-1 flex items-center justify-center gap-1.5 bg-[#33ccff]/15 hover:bg-[#33ccff]/30 border border-[#33ccff]/40 text-[#7fdcff] font-bold py-2 px-3 rounded-xl transition-all text-sm">
+        🚗 נווט ב-Waze
+      </a>
+      <a href={gmaps} target="_blank" rel="noopener noreferrer"
+        className="flex-1 flex items-center justify-center gap-1.5 bg-slate-700/60 hover:bg-slate-600 border border-slate-600 text-slate-200 font-bold py-2 px-3 rounded-xl transition-all text-sm">
+        🗺️ Google Maps
+      </a>
+    </div>
   );
 }
 

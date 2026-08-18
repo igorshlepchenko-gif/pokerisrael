@@ -178,6 +178,19 @@ export const FAR_AWAY_KM = 60;
 
 // ── ניווט ─────────────────────────────────────────────────────────────────
 
+// בונה את מחרוזת היעד לניווט מתוך כתובת + עיר.
+// לא מצרף את העיר כשהיא כבר מופיעה בכתובת ("הסדנא 13 רעננה" + "רעננה"),
+// וגם לא כשהיא ערך-דמה של מארגן ארצי ("ארצי") — מחרוזת מיותרת כזו רק
+// מבלבלת את מנוע החיפוש של Waze/גוגל.
+const PLACEHOLDER_CITIES = ['ארצי', 'כללי', 'משתנה'];
+export function navAddress(t) {
+  const addr = (t.venue_address || '').trim();
+  const city = (t.venue_city || '').trim();
+  if (!addr) return city && !PLACEHOLDER_CITIES.includes(city) ? city : '';
+  if (!city || PLACEHOLDER_CITIES.includes(city)) return addr;
+  return addr.includes(city) ? addr : `${addr}, ${city}`;
+}
+
 // לניווט מעדיפים דווקא את הכתובת הכתובה ולא את הקואורדינטות שלנו:
 // הקואורדינטות נועדו למיון לפי מרחק, והן ברמת רחוב (מקורן ב-geocoding) —
 // כלומר עלולות לנחות בקצה הלא נכון של הרחוב. ל-Waze ולגוגל יש נתוני כתובות

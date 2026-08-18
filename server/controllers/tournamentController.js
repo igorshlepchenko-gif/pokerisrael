@@ -35,6 +35,36 @@ exports.getPublicVenues = async (req, res) => {
   }
 };
 
+// ── פתרון מיקום לטורניר ────────────────────────────────────────────────────
+//
+// סדר העדיפויות:
+//   1. מיקום שהוזן ידנית לטורניר עצמו
+//   2. טבלת locations לפי הכתובת של הטורניר   ← זה מה שמכסה טורניר חדש שהסוכן יצר
+//   3. מיקום המועדון — אבל רק אם הטורניר לא מכריז על כתובת אחרת משלו
+//
+// שלב 3 מוגבל בכוונה: אם הטורניר אומר במפורש שהוא בכתובת אחרת ואנחנו לא יודעים
+// למפות אותה, מיקום המועדון הוא *ידוע כשגוי* — עדיף שהטורניר לא יקבל מרחק בכלל
+// מאשר שידורג לפי עיר אחרת. בדיוק הכשל שהציג טורניר בבאר שבע כ-82 ק"מ.
+const LOCATION_JOINS = `
+      LEFT JOIN LATERAL (
+        SELECT l.latitude, l.longitude FROM locations l
+        WHERE normalize_address(l.address) = normalize_address(t.address)
+        ORDER BY l.id LIMIT 1
+      ) tloc ON true
+      LEFT JOIN LATERAL (
+        SELECT l.latitude, l.longitude FROM locations l
+        WHERE normalize_address(l.address) = normalize_address(v.address)
+        ORDER BY l.id LIMIT 1
+      ) vloc ON true`;
+
+// LATERAL ... LIMIT 1 ולא JOIN רגיל: שתי שורות locations שמנורמלות לאותה כתובת
+// היו מכפילות את שורת הטורניר בתוצאה. כאן זה בלתי אפשרי מבנית.
+const venueOwnCoord = col => `CASE WHEN t.address IS NULL
+             OR normalize_address(t.address) = normalize_address(v.address)
+           THEN COALESCE(v.${col}, vloc.${col}) END`;
+const RESOLVED_LAT = `COALESCE(t.latitude, tloc.latitude, ${venueOwnCoord('latitude')})`;
+const RESOLVED_LNG = `COALESCE(t.longitude, tloc.longitude, ${venueOwnCoord('longitude')})`;
+
 // הועבר לרמת המודול כדי ש-getNearby ישתמש באותה רשימת שדות בדיוק כמו getAll,
 // ולא ייווצר מצב שבו שדה נוסף לרשימה הציבורית ונשכח בהצעות (או להפך)
 const TOURNAMENT_SELECT = `
@@ -49,15 +79,13 @@ const TOURNAMENT_SELECT = `
         COALESCE(t.city, v.city) AS venue_city,
         v.whatsapp_number, v.logo_url AS venue_logo,
         v.venue_type AS venue_type, v.club_number AS venue_club_number, v.website AS venue_website,
-        -- מיקום הטורניר גובר על מיקום המועדון, באותה סמנטיקה בדיוק כמו
-        -- address/city למעלה: מארגן ארצי רשום בעיר אחת אך מפעיל טורנירים
-        -- בכמה ערים, ודירוג לפי מיקום המועדון היה שולח שחקן לעיר הלא נכונה.
-        COALESCE(t.latitude, v.latitude)   AS venue_lat,
-        COALESCE(t.longitude, v.longitude) AS venue_lng,
+        ${RESOLVED_LAT} AS venue_lat,
+        ${RESOLVED_LNG} AS venue_lng,
         org.name AS organizer_name, org.whatsapp_number AS organizer_whatsapp, org.registration_url AS organizer_registration_url
       FROM tournaments t
       JOIN venues v ON t.venue_id = v.id
       LEFT JOIN venues org ON t.organizer_venue_id = org.id AND org.id <> t.venue_id
+      ${LOCATION_JOINS}
     `;
 
 /**
@@ -76,8 +104,8 @@ exports.getNearby = async (req, res) => {
         AND t.is_active = true
         AND v.is_approved = true
         AND t.tournament_type <> 'online'
-        AND COALESCE(t.latitude, v.latitude) IS NOT NULL
-        AND COALESCE(t.longitude, v.longitude) IS NOT NULL
+        AND ${RESOLVED_LAT} IS NOT NULL
+        AND ${RESOLVED_LNG} IS NOT NULL
         AND (
           t.is_recurring = true
           OR (t.start_time > NOW() - INTERVAL '12 hours' AND t.start_time < NOW() + INTERVAL '30 hours')

@@ -7,7 +7,7 @@ import {
 } from '../../utils/whatsapp';
 import {
   rankByDistance, tournamentCoords, formatDistance,
-  tournamentProgress, wazeLink, googleMapsLink, FAR_AWAY_KM,
+  tournamentProgress, wazeLink, googleMapsLink, FAR_AWAY_KM, navAddress,
 } from '../../utils/nearby';
 
 const GEO_OPTS = { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 };
@@ -305,7 +305,7 @@ function Fact({ label, value }) {
 
 function NavButtons({ t }) {
   const coords = tournamentCoords(t);
-  const address = [t.venue_address, t.venue_city].filter(Boolean).join(', ');
+  const address = navAddress(t);
   const waze = wazeLink(coords, address);
   const gmaps = googleMapsLink(coords, address);
   if (!waze && !gmaps) return null;
