@@ -31,9 +31,9 @@ export function buildWhatsAppLink(whatsappNumber, tournament, registrantName = '
   return `https://api.whatsapp.com/send?phone=${clean}&text=${encodeURIComponent(msg)}%F0%9F%99%8F`;
 }
 
-export function buildVenueContactLink(whatsappNumber, venueName) {
+export function buildVenueContactLink(whatsappNumber) {
   const clean = whatsappNumber.replace(/\D/g, '').replace(/^0/, '972');
-  const msg = `שלום ${venueName}, הגעתי אליכם מאתר פוקר ישראל. אשמח לקבל מידע נוסף על המועדון.`;
+  const msg = `שלום, הגעתי אליכם מאתר פוקר ישראל `;
   return `https://api.whatsapp.com/send?phone=${clean}&text=${encodeURIComponent(msg)}`;
 }
 

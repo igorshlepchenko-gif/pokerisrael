@@ -72,7 +72,7 @@ export default function TournamentDetailModal({ tournament: t, onClose, brands =
 
   if (!t) return null;
 
-  const venueLink = buildVenueContactLink(t.whatsapp_number, t.venue_name);
+  const venueLink = buildVenueContactLink(t.whatsapp_number);
 
   const stages = Array.isArray(t.stages)
     ? t.stages
