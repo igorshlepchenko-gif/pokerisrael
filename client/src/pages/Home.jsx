@@ -12,6 +12,7 @@ import NextTournamentPill from '../components/NextTournamentPill';
 import { useAuth } from '../context/AuthContext';
 import { getVariant, trackAb } from '../utils/ab';
 import NearbyPromoVideo from '../components/NearbyPromoVideo';
+import LiveTournamentsBanner from '../components/LiveTournamentsBanner';
 
 export default function Home() {
   const { user } = useAuth();
@@ -182,6 +183,9 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      {/* ── רץ עכשיו: שלב נוכחי + ספירה לסגירת הרשמה מאוחרת ── */}
+      <LiveTournamentsBanner onSelect={setSelectedTournament} />
 
       {/* ── Hand Logger Section ── */}
       <HandLoggerSection />
