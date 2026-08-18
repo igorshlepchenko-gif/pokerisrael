@@ -178,7 +178,11 @@ export default function TournamentListRow({ t, index, onClick }) {
       </div>
 
       {/* Desktop layout */}
-      <div className="hidden md:grid grid-cols-[2fr_1.5fr_1fr_1fr_auto] gap-4 items-start">
+      {/* רוחב קבוע לעמודה האחרונה, ולא auto. כל שורה היא grid נפרד — אין ביניהן
+          שיתוף עמודות — ולכן עמודה שנמדדת לפי התוכן שלה גרמה לכל שורה לפרוס את
+          שאר העמודות אחרת: כותרות הכפתור נעות בין "הרשמה" ל"הרשמה דרך Runner
+          Runner", והמקום/השעה/המחיר זזו עד 55px בין שורה לשורה. */}
+      <div className="hidden md:grid grid-cols-[2fr_1.5fr_1fr_1fr_150px] gap-4 items-start">
 
         {/* Name + venue */}
         <div className="min-w-0">
