@@ -160,22 +160,23 @@ export default function Home() {
               ))}
             </div>
 
-            {/* מציאת הטורניר הקרוב ביותר לפי מיקום המשתמש — הסרטון רץ בלופ לצד הכפתור */}
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-4">
-              <NearbyPromoVideo />
-              <button
-                onClick={() => { trackAb('nearby_button', nearbyVariant, 'click'); setShowNearby(true); }}
-                className="inline-flex flex-col items-center gap-0.5 shrink-0 bg-gradient-to-l from-blue-600 to-cyan-500 text-white py-3 px-7 rounded-2xl
-                  shadow-[0_0_20px_rgba(34,211,238,0.45)] hover:shadow-[0_0_32px_rgba(34,211,238,0.8)]
-                  hover:scale-[1.03] active:scale-95 transition-all duration-200"
-              >
-                <span className="font-black text-lg leading-tight">
-                  {nearbyVariant === 'a' ? '🔥 מגרד לך?' : '⚡ אקשן בסביבה'}
-                </span>
-                <span className="text-[11px] font-semibold text-white/80 leading-tight">
-                  מצא טורניר קרוב אליי
-                </span>
-              </button>
+            {/* מציאת הטורניר הקרוב ביותר — הכפתור מוטמע בתוך סרטון שרץ בלופ */}
+            <div className="mb-4">
+              <NearbyPromoVideo>
+                <button
+                  onClick={() => { trackAb('nearby_button', nearbyVariant, 'click'); setShowNearby(true); }}
+                  className="inline-flex flex-col items-center gap-0.5 bg-gradient-to-l from-blue-600 to-cyan-500 text-white py-3 px-7 rounded-2xl
+                    shadow-[0_0_20px_rgba(34,211,238,0.55)] hover:shadow-[0_0_32px_rgba(34,211,238,0.9)]
+                    hover:scale-[1.03] active:scale-95 transition-all duration-200"
+                >
+                  <span className="font-black text-lg leading-tight drop-shadow">
+                    {nearbyVariant === 'a' ? '🔥 מגרד לך?' : '⚡ אקשן בסביבה'}
+                  </span>
+                  <span className="text-[11px] font-semibold text-white/90 leading-tight">
+                    מצא טורניר קרוב אליי
+                  </span>
+                </button>
+              </NearbyPromoVideo>
             </div>
           </div>
         </div>
