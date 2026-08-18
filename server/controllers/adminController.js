@@ -263,3 +263,110 @@ exports.getChangeLogs = async (req, res) => {
     res.status(500).json({ message: 'שגיאת שרת' });
   }
 };
+
+// ── ניהול מיקומים (locations) ──────────────────────────────────────────────
+//
+// טבלת locations ממפה כתובת -> קואורדינטות, וזה מה שמאפשר לטורניר שנוצר
+// אוטומטית ע"י הסוכן לקבל מיקום נכון בלי התערבות. כתובת שאינה ממופה מקבלת
+// NULL בכוונה (ולא את מיקום המועדון, שנמצא בעיר אחרת) — ולכן הטורניר פשוט
+// לא מוצע ב"מצא טורניר קרוב אליי". השקט הזה הוא בדיוק מה שהמסך הזה חושף.
+
+const IL_BOUNDS = { latMin: 29.4, latMax: 33.4, lngMin: 34.2, lngMax: 35.95 };
+
+function validateCoords(latitude, longitude) {
+  const lat = Number(latitude), lng = Number(longitude);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return 'קואורדינטות חייבות להיות מספרים';
+  if (lat < IL_BOUNDS.latMin || lat > IL_BOUNDS.latMax || lng < IL_BOUNDS.lngMin || lng > IL_BOUNDS.lngMax) {
+    return `הקואורדינטות (${lat}, ${lng}) נמצאות מחוץ לגבולות ישראל — כנראה טעות הקלדה או סדר הפוך`;
+  }
+  return null;
+}
+
+exports.getLocations = async (req, res) => {
+  try {
+    const [locations, unmapped, venuesMissing] = await Promise.all([
+      pool.query(`
+        SELECT l.*,
+          (SELECT COUNT(*)::int FROM tournaments t
+            WHERE normalize_address(t.address) = normalize_address(l.address)) AS tournament_count,
+          (SELECT COUNT(*)::int FROM venues v
+            WHERE normalize_address(v.address) = normalize_address(l.address)) AS venue_count
+        FROM locations l ORDER BY l.city NULLS LAST, l.address`),
+      // כתובות של טורנירים פעילים שאין להן מיפוי — אלה שנופלים מההצעות
+      pool.query(`
+        SELECT t.address, COALESCE(t.city,'') AS city, v.name AS venue_name, COUNT(*)::int AS n
+        FROM tournaments t JOIN venues v ON t.venue_id = v.id
+        WHERE t.status='approved' AND t.is_active = true AND v.is_approved = true
+          AND t.tournament_type <> 'online'
+          AND t.address IS NOT NULL AND t.latitude IS NULL
+          AND normalize_address(t.address) <> normalize_address(v.address)
+          AND NOT EXISTS (SELECT 1 FROM locations l
+                          WHERE normalize_address(l.address) = normalize_address(t.address))
+        GROUP BY 1,2,3 ORDER BY n DESC`),
+      pool.query(`
+        SELECT id, name, address, city FROM venues
+        WHERE venue_type <> 'online' AND is_approved = true AND latitude IS NULL
+          AND NOT EXISTS (SELECT 1 FROM locations l
+                          WHERE normalize_address(l.address) = normalize_address(venues.address))
+        ORDER BY name`),
+    ]);
+    res.json({
+      locations: locations.rows,
+      unmapped: unmapped.rows,
+      venuesMissing: venuesMissing.rows,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'שגיאת שרת' });
+  }
+};
+
+exports.createLocation = async (req, res) => {
+  const { address, city, latitude, longitude, notes } = req.body;
+  if (!address || !String(address).trim()) return res.status(400).json({ message: 'כתובת היא שדה חובה' });
+  const bad = validateCoords(latitude, longitude);
+  if (bad) return res.status(400).json({ message: bad });
+  try {
+    const r = await pool.query(
+      `INSERT INTO locations (address, city, latitude, longitude, source, notes)
+       VALUES ($1,$2,$3,$4,'manual',$5)
+       ON CONFLICT (address) DO UPDATE
+         SET city=$2, latitude=$3, longitude=$4, notes=$5, updated_at=NOW()
+       RETURNING *`,
+      [String(address).trim(), city || null, Number(latitude), Number(longitude), notes || null]);
+    res.json({ message: 'המיקום נשמר', location: r.rows[0] });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'שגיאת שרת' });
+  }
+};
+
+exports.updateLocation = async (req, res) => {
+  const { address, city, latitude, longitude, notes } = req.body;
+  if (!address || !String(address).trim()) return res.status(400).json({ message: 'כתובת היא שדה חובה' });
+  const bad = validateCoords(latitude, longitude);
+  if (bad) return res.status(400).json({ message: bad });
+  try {
+    const r = await pool.query(
+      `UPDATE locations SET address=$1, city=$2, latitude=$3, longitude=$4, notes=$5, updated_at=NOW()
+       WHERE id=$6 RETURNING *`,
+      [String(address).trim(), city || null, Number(latitude), Number(longitude), notes || null, req.params.id]);
+    if (!r.rows[0]) return res.status(404).json({ message: 'מיקום לא נמצא' });
+    res.json({ message: 'המיקום עודכן', location: r.rows[0] });
+  } catch (err) {
+    if (err.code === '23505') return res.status(400).json({ message: 'כתובת זו כבר קיימת' });
+    console.error(err);
+    res.status(500).json({ message: 'שגיאת שרת' });
+  }
+};
+
+exports.deleteLocation = async (req, res) => {
+  try {
+    const r = await pool.query('DELETE FROM locations WHERE id=$1 RETURNING address', [req.params.id]);
+    if (!r.rows[0]) return res.status(404).json({ message: 'מיקום לא נמצא' });
+    res.json({ message: `המיקום "${r.rows[0].address}" נמחק` });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'שגיאת שרת' });
+  }
+};

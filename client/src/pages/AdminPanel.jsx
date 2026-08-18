@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import api from '../utils/api';
 import { formatDate, formatTime, formatCost } from '../utils/whatsapp';
 import VenueEditForm from '../components/VenueEditForm';
+import LocationsManager from '../components/Admin/LocationsManager';
 import TournamentEditForm from '../components/TournamentEditForm';
 
 // ---- helpers for change log diff ----
@@ -387,6 +388,7 @@ export default function AdminPanel() {
           ['inquiries', `📞 פניות למאמנים${inqTotal > 0 ? ` (${inqTotal})` : ''}`],
           ['hand-logger', '🃏 רישום ידיים'],
           ['imports', '📥 ייבוא מפרסומים'],
+          ['locations', '📍 מיקומים'],
         ].map(([id, label]) => (
           <button key={id} onClick={() => setTab(id)}
             className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${tab === id ? 'bg-poker-green text-white' : 'text-slate-400 hover:text-slate-200'}`}>
@@ -1627,6 +1629,8 @@ export default function AdminPanel() {
               </div>
             );
           })()}
+
+          {tab === 'locations' && <LocationsManager />}
 
           {tab === 'users' && (
             <div className="space-y-2">
