@@ -14,8 +14,23 @@
 const cron = require('node-cron');
 const https = require('https');
 const http = require('http');
+const { execSync } = require('child_process');
 const puppeteer = require('puppeteer');
 const { parseJokerClubText } = require('./parse');
+
+// ב-Railway (בילדר Railpack) מזהים את התלות ב-puppeteer אוטומטית ומתקינים את כל
+// חבילות המערכת הדרושות ל-Chromium המובנה שלו — לא היה צריך nixpacks.toml בפועל
+// (נבדק). ה-fallback הזה נשאר ליתר ביטחון: אם אי-פעם כן יהיה chromium נפרד
+// במערכת, נשתמש בו. מקומית (Windows) `which` נכשל בשקט ופאפטיר ממשיך כרגיל.
+function resolveChromiumPath() {
+  try {
+    return execSync('which chromium', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim() || undefined;
+  } catch {
+    return undefined;
+  }
+}
+const CHROMIUM_PATH = resolveChromiumPath();
+if (CHROMIUM_PATH) console.log(`   Chromium (מערכת): ${CHROMIUM_PATH}`);
 
 const BASE_URL = process.env.BASE_URL || 'https://www.pokerisrael.org';
 const SYNC_URL = process.env.SYNC_URL || `${BASE_URL}/api/agent/jokerclub-sync`;
@@ -53,7 +68,11 @@ async function scrapeOnce() {
   console.log(`\n[${new Date().toLocaleString('he-IL')}] 🔍 סורק את ${TARGET_URL}...`);
   let browser;
   try {
-    browser = await puppeteer.launch({ headless: true });
+    browser = await puppeteer.launch({
+      headless: true,
+      ...(CHROMIUM_PATH && { executablePath: CHROMIUM_PATH }),
+      ...(process.platform === 'linux' && { args: ['--no-sandbox', '--disable-setuid-sandbox'] }),
+    });
     const page = await browser.newPage();
     await page.setUserAgent(
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
