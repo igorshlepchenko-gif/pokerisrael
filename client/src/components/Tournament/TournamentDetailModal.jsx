@@ -117,7 +117,7 @@ export default function TournamentDetailModal({ tournament: t, onClose, brands =
           <button
             ref={closeButtonRef}
             onClick={onClose}
-            className="shrink-0 flex items-center justify-center w-9 h-9 rounded-full bg-slate-700 hover:bg-red-500/80 text-slate-300 hover:text-white transition-all duration-200 hover:scale-110 active:scale-95 shadow-md"
+            className="shrink-0 flex items-center justify-center w-11 h-11 rounded-full bg-slate-700 hover:bg-red-500/80 text-slate-300 hover:text-white transition-all duration-200 hover:scale-110 active:scale-95 shadow-md"
             aria-label="סגור"
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
@@ -364,7 +364,7 @@ export default function TournamentDetailModal({ tournament: t, onClose, brands =
           <div className="relative">
             <button
               onClick={() => setShowCalendarOptions(p => !p)}
-              className="flex items-center justify-center gap-2 w-full border border-slate-600 hover:border-slate-500 hover:bg-slate-700/40 text-slate-300 font-semibold py-2 px-4 rounded-xl transition-all text-sm"
+              className="flex items-center justify-center gap-2 w-full border border-slate-600 hover:border-slate-500 hover:bg-slate-700/40 text-slate-300 font-semibold py-2 px-4 min-h-[44px] rounded-xl transition-all text-sm"
             >
               📅 הוסף ליומן שלי
             </button>
@@ -418,7 +418,7 @@ export default function TournamentDetailModal({ tournament: t, onClose, brands =
             href={venueLink}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center justify-center gap-2 w-full border border-[#25D366]/40 hover:border-[#25D366] hover:bg-[#25D366]/10 text-[#4ade80] font-semibold py-2 px-4 rounded-xl transition-all duration-200 text-sm"
+            className="flex items-center justify-center gap-2 w-full border border-[#25D366]/40 hover:border-[#25D366] hover:bg-[#25D366]/10 text-[#4ade80] font-semibold py-2 px-4 min-h-[44px] rounded-xl transition-all duration-200 text-sm"
           >
             <WaIcon small />
             💬 פנייה ישירה למועדון
@@ -444,7 +444,7 @@ export default function TournamentDetailModal({ tournament: t, onClose, brands =
               href={/^https?:\/\//i.test(t.venue_website) ? t.venue_website : `https://${t.venue_website}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center justify-center gap-1.5 w-full text-slate-400 hover:text-blue-400 font-semibold py-1.5 px-4 rounded-xl transition-colors text-sm"
+              className="flex items-center justify-center gap-1.5 w-full text-slate-400 hover:text-blue-400 font-semibold py-1.5 px-4 min-h-[44px] rounded-xl transition-colors text-sm"
             >
               🌐 לאתר המקום
             </a>
