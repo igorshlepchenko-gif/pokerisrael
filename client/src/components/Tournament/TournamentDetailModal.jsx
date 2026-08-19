@@ -313,6 +313,60 @@ export default function TournamentDetailModal({ tournament: t, onClose, brands =
             </div>
           )}
 
+          {/* פעולות משניות — הועברו לכאן מהפוטר הדביק. הפוטר תפס 265px מתוך 747
+              (כ-35% מהמודל) ודחק את אזור התוכן. בפוטר נשארו רק ההרשמה והניווט,
+              שתי הפעולות שבגללן פותחים את המודל מלכתחילה. */}
+          <div className="pt-3 mt-1 border-t border-slate-700/50 space-y-2">
+            {/* הוספה ליומן האישי */}
+            <div className="relative">
+              <button
+                onClick={() => setShowCalendarOptions(p => !p)}
+                className="flex items-center justify-center gap-2 w-full border border-slate-600 hover:border-slate-500 hover:bg-slate-700/40 text-slate-300 font-semibold py-2 px-4 min-h-[44px] rounded-xl transition-all text-sm"
+              >
+                📅 הוסף ליומן שלי
+              </button>
+              {showCalendarOptions && (
+                <div className="absolute bottom-full mb-2 left-0 right-0 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl overflow-hidden z-10">
+                  <a
+                    href={buildGoogleCalendarUrl(t)}
+                    target="_blank" rel="noopener noreferrer"
+                    onClick={() => setShowCalendarOptions(false)}
+                    className="flex items-center gap-2.5 px-4 py-3 text-sm font-semibold text-slate-200 hover:bg-slate-800 transition-colors"
+                  >
+                    <GoogleCalIcon /> Google Calendar
+                  </a>
+                  <button
+                    onClick={() => { downloadICS(t); setShowCalendarOptions(false); }}
+                    className="flex items-center gap-2.5 w-full px-4 py-3 text-sm font-semibold text-slate-200 hover:bg-slate-800 transition-colors border-t border-slate-800"
+                  >
+                    <span className="w-4 text-center shrink-0">🍎</span> Apple / Outlook (.ics)
+                  </button>
+                </div>
+              )}
+            </div>
+            {/* כפתור שניוני — פנייה ישירה למועדון */}
+            <a
+              href={venueLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 w-full border border-[#25D366]/40 hover:border-[#25D366] hover:bg-[#25D366]/10 text-[#4ade80] font-semibold py-2 px-4 min-h-[44px] rounded-xl transition-all duration-200 text-sm"
+            >
+              <WaIcon small />
+              💬 פנייה ישירה למועדון
+            </a>
+            {/* קישור לאתר המקום */}
+            {t.venue_website && (
+              <a
+                href={/^https?:\/\//i.test(t.venue_website) ? t.venue_website : `https://${t.venue_website}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-1.5 w-full text-slate-400 hover:text-blue-400 font-semibold py-1.5 px-4 min-h-[44px] rounded-xl transition-colors text-sm"
+              >
+                🌐 לאתר המקום
+              </a>
+            )}
+          </div>
+
           {/* Bottom padding so footer doesn't cover content */}
           <div className="h-2" />
         </div>
@@ -360,33 +414,6 @@ export default function TournamentDetailModal({ tournament: t, onClose, brands =
             </button>
           )}
 
-          {/* הוספה ליומן האישי */}
-          <div className="relative">
-            <button
-              onClick={() => setShowCalendarOptions(p => !p)}
-              className="flex items-center justify-center gap-2 w-full border border-slate-600 hover:border-slate-500 hover:bg-slate-700/40 text-slate-300 font-semibold py-2 px-4 min-h-[44px] rounded-xl transition-all text-sm"
-            >
-              📅 הוסף ליומן שלי
-            </button>
-            {showCalendarOptions && (
-              <div className="absolute bottom-full mb-2 left-0 right-0 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl overflow-hidden z-10">
-                <a
-                  href={buildGoogleCalendarUrl(t)}
-                  target="_blank" rel="noopener noreferrer"
-                  onClick={() => setShowCalendarOptions(false)}
-                  className="flex items-center gap-2.5 px-4 py-3 text-sm font-semibold text-slate-200 hover:bg-slate-800 transition-colors"
-                >
-                  <GoogleCalIcon /> Google Calendar
-                </a>
-                <button
-                  onClick={() => { downloadICS(t); setShowCalendarOptions(false); }}
-                  className="flex items-center gap-2.5 w-full px-4 py-3 text-sm font-semibold text-slate-200 hover:bg-slate-800 transition-colors border-t border-slate-800"
-                >
-                  <span className="w-4 text-center shrink-0">🍎</span> Apple / Outlook (.ics)
-                </button>
-              </div>
-            )}
-          </div>
 
           {/* רישום כפול — דרך המארגן */}
           {hasOrganizer && t.organizer_whatsapp && (
@@ -413,16 +440,6 @@ export default function TournamentDetailModal({ tournament: t, onClose, brands =
           {/* ניווט — רק לאירוע פיזי שיש לו כתובת או מיקום */}
           <NavigationButtons t={t} />
 
-          {/* כפתור שניוני — פנייה ישירה למועדון */}
-          <a
-            href={venueLink}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-center gap-2 w-full border border-[#25D366]/40 hover:border-[#25D366] hover:bg-[#25D366]/10 text-[#4ade80] font-semibold py-2 px-4 min-h-[44px] rounded-xl transition-all duration-200 text-sm"
-          >
-            <WaIcon small />
-            💬 פנייה ישירה למועדון
-          </a>
           {/* קישור חיצוני להרשמה */}
           {t.external_registration_url && (
             <a
@@ -438,17 +455,6 @@ export default function TournamentDetailModal({ tournament: t, onClose, brands =
             </a>
           )}
 
-          {/* קישור לאתר המקום */}
-          {t.venue_website && (
-            <a
-              href={/^https?:\/\//i.test(t.venue_website) ? t.venue_website : `https://${t.venue_website}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-center gap-1.5 w-full text-slate-400 hover:text-blue-400 font-semibold py-1.5 px-4 min-h-[44px] rounded-xl transition-colors text-sm"
-            >
-              🌐 לאתר המקום
-            </a>
-          )}
         </div>
 
         {showRegModal && (
