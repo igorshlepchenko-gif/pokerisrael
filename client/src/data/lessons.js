@@ -87,4 +87,16 @@ export const LESSONS = [
     cta: 'לפרטים והרשמה',
     url: 'https://api.whatsapp.com/send?phone=972542582826&text=שלום,+הגעתי+אליכם+בנושא+קורס+חגורה+שחורה+מאתר+פוקר+ישראל',
   },
+  {
+    id: 'pokerlife',
+    name: 'PokerLife - בהובלת אורי אלברג',
+    description: 'מדריכי פוקר מקצועיים, תרגולי קאש מודרכים ואימונים אישיים.\n\nסנטימטר אחד של לימוד מעשי שווה יותר מקילומטר של תיאוריה!\n\nבואו לקבל כלים פרקטיים שיקחו אתכם לרמה הבאה, ולבנות אסטרטגיית-משחק מרסקת!',
+    logo: '/lessons/pokerlife.jpeg',
+    logoFit: 'cover',
+    badge: '15% הנחה למגיעים מאתר פוקר ישראל',
+    cta: 'לפרטים והרשמה',
+    url: 'https://api.whatsapp.com/send?phone=972542080038&text=שלום,+הגעתי+מאתר+פוקר+ישראל+ואני+מתעניין+בקורס+PokerLife',
+    secondaryCta: 'לאתר PokerLife',
+    secondaryUrl: 'https://uri-80-hands-cash.netlify.app/',
+  },
 ];
