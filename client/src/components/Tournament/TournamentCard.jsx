@@ -295,7 +295,7 @@ export default function TournamentCard({ t, onClick, brands = [] }) {
       {/* הרשמה — Joker Club עברו לקישור ישיר לאתר שלהם במקום וואטסאפ; שאר המועדונים ממשיכים בוואטסאפ */}
       {isJokerClub ? (
         lateRegClosed ? (
-          <span className="flex items-center justify-center gap-2 w-full font-bold py-2.5 px-4 rounded-xl text-sm shadow-lg bg-slate-700 text-slate-400 cursor-not-allowed">
+          <span className="flex items-center justify-center gap-2 w-full min-h-[44px] font-bold py-2.5 px-4 rounded-xl text-sm shadow-lg bg-slate-700 text-slate-400 cursor-not-allowed">
             ⏳ ההרשמה נסגרה
           </span>
         ) : (
@@ -306,7 +306,7 @@ export default function TournamentCard({ t, onClick, brands = [] }) {
               target="_blank"
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
-              className="flex items-center justify-center gap-2 w-full font-bold py-2.5 px-4 rounded-xl transition-all duration-200 text-sm
+              className="flex items-center justify-center gap-2 w-full min-h-[44px] font-bold py-2.5 px-4 rounded-xl transition-all duration-200 text-sm
                 text-white bg-gradient-to-l from-blue-600 to-indigo-600
                 shadow-[0_0_14px_rgba(99,102,241,0.6)] hover:shadow-[0_0_22px_rgba(99,102,241,0.9)]
                 hover:scale-105 active:scale-95 animate-pulse-slow"
@@ -319,7 +319,7 @@ export default function TournamentCard({ t, onClick, brands = [] }) {
         <button
           onClick={handleRegister}
           disabled={lateRegClosed}
-          className={`wa-btn flex items-center justify-center gap-2 w-full font-bold py-2.5 px-4 rounded-xl transition-all duration-200 text-sm shadow-lg ${
+          className={`wa-btn flex items-center justify-center gap-2 w-full min-h-[44px] font-bold py-2.5 px-4 rounded-xl transition-all duration-200 text-sm shadow-lg ${
             lateRegClosed
               ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
               : 'bg-[#25D366] hover:bg-[#1da851] text-white hover:scale-105 active:scale-95'
@@ -341,7 +341,7 @@ export default function TournamentCard({ t, onClick, brands = [] }) {
           {t.organizer_whatsapp && (
             <button
               onClick={openOrganizerWhatsApp}
-              className="flex items-center justify-center gap-2 w-full bg-[#25D366]/15 hover:bg-[#25D366]/30 border border-[#25D366]/40 text-[#4ade80] font-bold py-2 px-4 rounded-xl transition-all text-sm"
+              className="flex items-center justify-center gap-2 w-full min-h-[44px] bg-[#25D366]/15 hover:bg-[#25D366]/30 border border-[#25D366]/40 text-[#4ade80] font-bold py-2 px-4 rounded-xl transition-all text-sm"
             >
               <WaIcon small />
               הרשמה דרך {t.organizer_name}
@@ -352,7 +352,7 @@ export default function TournamentCard({ t, onClick, brands = [] }) {
               href={t.organizer_registration_url}
               target="_blank" rel="noopener noreferrer"
               onClick={e => e.stopPropagation()}
-              className="flex items-center justify-center gap-2 w-full font-bold py-2 px-4 rounded-xl text-sm
+              className="flex items-center justify-center gap-2 w-full min-h-[44px] font-bold py-2 px-4 rounded-xl text-sm
                 text-white bg-gradient-to-l from-blue-600 to-indigo-600
                 shadow-[0_0_14px_rgba(99,102,241,0.6)] hover:shadow-[0_0_22px_rgba(99,102,241,0.9)]
                 hover:scale-105 active:scale-95 transition-all duration-200"
@@ -369,7 +369,7 @@ export default function TournamentCard({ t, onClick, brands = [] }) {
           href={t.external_registration_url}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center justify-center gap-2 w-full font-bold py-2.5 px-4 rounded-xl text-sm
+          className="flex items-center justify-center gap-2 w-full min-h-[44px] font-bold py-2.5 px-4 rounded-xl text-sm
             text-white bg-gradient-to-l from-blue-600 to-indigo-600
             shadow-[0_0_14px_rgba(99,102,241,0.6)] hover:shadow-[0_0_22px_rgba(99,102,241,0.9)]
             hover:scale-105 active:scale-95 transition-all duration-200 animate-pulse-slow"
@@ -384,7 +384,7 @@ export default function TournamentCard({ t, onClick, brands = [] }) {
           href={/^https?:\/\//i.test(t.venue_website) ? t.venue_website : `https://${t.venue_website}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="mt-2 flex items-center justify-center gap-1.5 text-xs text-slate-400 hover:text-blue-400 transition-colors"
+          className="mt-2 flex items-center justify-center gap-1.5 min-h-[44px] text-xs text-slate-400 hover:text-blue-400 transition-colors"
         >
           <span>🌐</span>
           <span>לאתר המקום</span>
