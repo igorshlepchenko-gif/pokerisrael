@@ -99,4 +99,13 @@ export const LESSONS = [
     secondaryCta: 'לאתר PokerLife',
     secondaryUrl: 'https://uri-80-hands-cash.netlify.app/',
   },
+  {
+    id: 'or-nezzer',
+    name: 'אור נצר - איך לרסק את המשחק',
+    logo: '/lessons/or-nezzer.jpeg',
+    logoFit: 'cover',
+    badge: '10% הנחה לנרשמים דרך האתר',
+    cta: 'לפרטים והרשמה',
+    url: 'https://api.whatsapp.com/send?phone=972546308161&text=שלום,+הגעתי+מאתר+פוקר+ישראל+ואני+מאוד+מעניין+ללמוד+איך+לרסק+את+המשחק!',
+  },
 ];
