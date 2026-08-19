@@ -311,7 +311,7 @@ export default function Home() {
             {viewMode === 'list' && (
               <div className="card overflow-hidden">
                 {/* Table header */}
-                <div className="hidden md:grid grid-cols-[2fr_1.5fr_1fr_1fr_auto] gap-4 px-5 py-3 border-b border-slate-700 text-xs font-bold text-slate-400 uppercase tracking-wider">
+                <div className="hidden md:grid tournament-list-grid gap-4 px-5 py-3 border-b border-slate-700 text-xs font-bold text-slate-400 uppercase tracking-wider">
                   <span>טורניר / מועדון</span>
                   <span>כתובת</span>
                   <span>התחלה</span>

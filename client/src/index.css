@@ -93,6 +93,16 @@ body.a11y-readable, body.a11y-readable * {
 .light ::-webkit-scrollbar-thumb { background: #94a3b8; }
 
 @layer components {
+  /* פריסת העמודות של רשימת הטורנירים.
+     מוגדרת פעם אחת כי הכותרת יושבת ב-Home.jsx והשורות ב-TournamentListRow.jsx —
+     שני קבצים שכבר נפרדו זה מזה פעם אחת, והתוצאה הייתה כותרת "עלות" שמרחפת
+     150px מהעמודה שהיא מתארת.
+     העמודה האחרונה קבועה ולא auto: כל שורה היא grid נפרד, ועמודה שנמדדת לפי
+     תוכן הכפתור שלה גורמת לכל שורה לפרוס את שאר העמודות אחרת. */
+  .tournament-list-grid {
+    grid-template-columns: 2fr 1.5fr 1fr 1fr 150px;
+  }
+
   /* באנר העוגיות הוא z-[80] — מעל המודלים (z-50/60). כדי שהוא לא יחסום
      כפתורים, ה-overlay של המודל מסתיים מעל הבאנר במקום בתחתית המסך.
      --cookie-banner-h מתפרסם על ידי CookieConsent (גובה נמדד בפועל), 0 כשאין באנר.

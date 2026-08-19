@@ -78,7 +78,7 @@ export default function TournamentCard({ t, onClick, brands = [] }) {
   return (
     <div
       onClick={onClick}
-      className={`card p-5 hover:border-poker-green/50 transition-all duration-300 hover:shadow-poker-green/10 hover:shadow-2xl animate-slide-up group relative overflow-hidden cursor-pointer ${t.is_boosted ? 'border-amber-500/40 shadow-amber-500/5 shadow-xl' : ''}`}
+      className={`card p-5 flex flex-col h-full hover:border-poker-green/50 transition-all duration-300 hover:shadow-poker-green/10 hover:shadow-2xl animate-slide-up group relative overflow-hidden cursor-pointer ${t.is_boosted ? 'border-amber-500/40 shadow-amber-500/5 shadow-xl' : ''}`}
     >
 
       {/* Boost badge */}
@@ -284,6 +284,9 @@ export default function TournamentCard({ t, onClick, brands = [] }) {
         );
       })()}
 
+      {/* אזור הפעולה — mt-auto מצמיד אותו לתחתית כדי שכפתורי ההרשמה יהיו
+          על אותו קו בכל הכרטיסים בשורה, בלי קשר לאורך התיאור שמעליהם */}
+      <div className="mt-auto pt-1">
       {/* הרשמה — Joker Club עברו לקישור ישיר לאתר שלהם במקום וואטסאפ; שאר המועדונים ממשיכים בוואטסאפ */}
       {isJokerClub ? (
         lateRegClosed ? (
@@ -382,6 +385,8 @@ export default function TournamentCard({ t, onClick, brands = [] }) {
           <span>לאתר המקום</span>
         </a>
       )}
+
+      </div>
 
       {showRegModal && (
         <RegistrationModal
