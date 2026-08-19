@@ -105,10 +105,15 @@ export default function TournamentCard({ t, onClick, brands = [] }) {
         </div>
       </div>
 
-      {/* Venue info */}
-      <div className="text-xs text-slate-400 flex items-center gap-1 mb-3">
-        <span>📍</span>
-        <span>{t.venue_address}, {t.venue_city}</span>
+      {/* Venue info — שורה אחת קבועה. כתובת ארוכה ("בניין יוקה פארק, הכשרת
+          היישוב 32 , ראשון לציון (קומה 4)") נשברה לשתי שורות ודחפה את השעה
+          והמחיר 16px למטה, כך שהם לא היו על אותו קו בין כרטיסים באותה שורה.
+          הכתובת המלאה נשארת ב-title ובמודל הטורניר. */}
+      <div className="text-xs text-slate-400 flex items-center gap-1 mb-3 min-w-0">
+        <span className="shrink-0">📍</span>
+        <span className="truncate" title={`${t.venue_address}, ${t.venue_city}`}>
+          {t.venue_address}, {t.venue_city}
+        </span>
       </div>
 
       {/* סוג משחק קאש / פלטפורמה אונליין */}
