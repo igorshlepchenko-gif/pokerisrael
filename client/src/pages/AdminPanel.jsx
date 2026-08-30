@@ -115,10 +115,28 @@ function ChangeLogRow({ log }) {
 const isPast = (t) =>
   !t.is_recurring && new Date(t.estimated_end_time || t.start_time) < new Date();
 
+// yyyy-mm-dd בזמן מקומי — toISOString מחזיר UTC ומזיז יום אחורה בשעון ישראל
+const toDateInput = (d) => {
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
+const daysAgoInput = (n) => {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return toDateInput(d);
+};
+const countSince = (users, days) => {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+  return users.filter(u => u.created_at && new Date(u.created_at) >= cutoff).length;
+};
+
 export default function AdminPanel() {
   const [tab, setTab] = useState('pending');
   const [pending, setPending] = useState({ venues: [], tournaments: [] });
   const [users, setUsers] = useState([]);
+  const [usrDateFrom, setUsrDateFrom] = useState('');
+  const [usrDateTo, setUsrDateTo] = useState('');
   const [hlSearch, setHlSearch] = useState('');
   const [allTournaments, setAllTournaments] = useState([]);
   const [allVenues, setAllVenues] = useState([]);
@@ -365,6 +383,19 @@ export default function AdminPanel() {
 
   const totalPending = pending.venues.length + pending.tournaments.length;
   const lockedCount = users.filter(u => u.is_locked).length;
+  const newUsers7 = countSince(users, 7);
+  const newUsers30 = countSince(users, 30);
+  // סינון בצד הלקוח — /admin/users כבר מחזיר את כל המשתמשים עם created_at
+  const filteredUsers = users.filter(u => {
+    if (!usrDateFrom && !usrDateTo) return true;
+    if (!u.created_at) return false;
+    const created = new Date(u.created_at);
+    if (usrDateFrom && created < new Date(`${usrDateFrom}T00:00:00`)) return false;
+    if (usrDateTo && created > new Date(`${usrDateTo}T23:59:59.999`)) return false;
+    return true;
+  });
+  const usrQuickRange = (days) => { setUsrDateFrom(daysAgoInput(days)); setUsrDateTo(''); };
+  const usrActiveRange = (days) => !usrDateTo && usrDateFrom === daysAgoInput(days);
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
@@ -1646,7 +1677,57 @@ export default function AdminPanel() {
                   </span>
                 </div>
               )}
-              {users.map(u => (
+
+              {/* סטטיסטיקת הרשמות */}
+              <div className="flex gap-2 flex-wrap mb-4">
+                {[['סה״כ משתמשים', users.length], ['נרשמו ב-7 הימים האחרונים', newUsers7], ['נרשמו ב-30 הימים האחרונים', newUsers30]].map(([label, value]) => (
+                  <div key={label} className="card px-4 py-3 flex-1 min-w-[9rem]">
+                    <div className="text-xs text-slate-500">{label}</div>
+                    <div className="text-xl font-black text-slate-100 font-mono tabular-nums">{value}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* סינון לפי תאריך הרשמה */}
+              <div className="card p-4 mb-5 space-y-3">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs text-slate-500 w-20 shrink-0">נרשמו ב:</span>
+                  {[[7, '7 ימים'], [30, '30 ימים'], [90, '90 ימים']].map(([days, label]) => (
+                    <button key={days} onClick={() => usrQuickRange(days)}
+                      className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${usrActiveRange(days) ? 'bg-poker-green text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>
+                      {label} אחרונים
+                    </button>
+                  ))}
+                </div>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <span className="text-xs text-slate-500 w-20 shrink-0">תאריכים:</span>
+                  <input type="date" value={usrDateFrom} onChange={e => setUsrDateFrom(e.target.value)}
+                    className="input-field text-xs py-1.5 w-36" dir="ltr" />
+                  <span className="text-slate-500 text-xs">עד</span>
+                  <input type="date" value={usrDateTo} onChange={e => setUsrDateTo(e.target.value)}
+                    className="input-field text-xs py-1.5 w-36" dir="ltr" />
+                  {(usrDateFrom || usrDateTo) && (
+                    <button onClick={() => { setUsrDateFrom(''); setUsrDateTo(''); }}
+                      className="text-xs text-slate-400 hover:text-slate-200">✕ נקה</button>
+                  )}
+                </div>
+              </div>
+
+              {(usrDateFrom || usrDateTo) && (
+                <div className="text-xs text-slate-500 mb-3">
+                  <span className="font-mono tabular-nums">{filteredUsers.length}</span> משתמשים בטווח · מתוך <span className="font-mono tabular-nums">{users.length}</span> סה״כ
+                </div>
+              )}
+
+              {filteredUsers.length === 0 ? (
+                <div className="card p-16 text-center">
+                  <div className="text-5xl mb-3">👥</div>
+                  <p className="text-slate-400 font-semibold">לא נמצאו משתמשים</p>
+                  {(usrDateFrom || usrDateTo) && (
+                    <p className="text-slate-600 text-sm mt-1">נסה לשנות את טווח התאריכים</p>
+                  )}
+                </div>
+              ) : filteredUsers.map(u => (
                 <div key={u.id} className={`card p-4 flex items-center justify-between flex-wrap gap-3
                   ${u.is_locked ? 'border-red-700/50 bg-red-900/10' : !u.is_active ? 'opacity-50' : ''}`}>
                   <div>
@@ -1665,6 +1746,11 @@ export default function AdminPanel() {
                       )}
                     </div>
                     <p className="text-sm text-slate-400">{u.email} · <span className="font-mono tabular-nums">{u.phone}</span></p>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      נרשם ב־{u.created_at
+                        ? <span className="font-mono tabular-nums">{new Date(u.created_at).toLocaleDateString('he-IL')}</span>
+                        : '—'}
+                    </p>
                     {u.is_locked && u.locked_at && (
                       <p className="text-xs text-red-400/70 mt-0.5">
                         ננעל ב־<span className="font-mono tabular-nums">{new Date(u.locked_at).toLocaleString('he-IL')}</span> · <span className="font-mono tabular-nums">{u.failed_login_attempts}</span> ניסיונות כושלים
