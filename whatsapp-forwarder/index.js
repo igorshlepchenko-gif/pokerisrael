@@ -125,10 +125,13 @@ async function start() {
       else
         console.log('👂 מאזין לכל הקבוצות');
 
-      // Send heartbeat immediately and every 30s so the admin panel shows "connected"
+      // Send heartbeat immediately, then every 12h — nothing currently depends on this
+      // connection (both SUITS and HOUSE moved to LetsPoker sync), so a near-real-time
+      // heartbeat is no longer needed; keep it just frequent enough to notice if it dies.
+      // Must stay in lockstep with the alive-threshold in server/routes/agent.js.
       const beat = () => postJSON(HEARTBEAT_URL, { pushname, number, groups: GROUP_FILTER });
       beat();
-      heartbeatTimer = setInterval(beat, 30_000);
+      heartbeatTimer = setInterval(beat, 12 * 60 * 60 * 1000);
     }
     if (connection === 'close') {
       clearInterval(heartbeatTimer);
