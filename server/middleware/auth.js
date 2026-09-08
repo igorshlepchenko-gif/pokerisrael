@@ -10,7 +10,7 @@ const authenticate = async (req, res, next) => {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const result = await pool.query(
-      'SELECT id, name, email, phone, role, is_active, hand_logger_access, token_version FROM users WHERE id = $1',
+      'SELECT id, name, email, phone, role, is_active, hand_logger_access, hand_narration_pilot_access, token_version FROM users WHERE id = $1',
       [decoded.id]
     );
     const user = result.rows[0];

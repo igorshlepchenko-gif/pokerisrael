@@ -1,6 +1,9 @@
-const ALL_POSITIONS = ['UTG', 'UTG+1', 'MP', 'HJ', 'CO', 'BTN', 'SB', 'BB'];
+import { seatsFor } from '../../utils/pokerPositions';
 
-export default function OpponentManager({ opponents, onChange, heroPosition, unit = 'BB', heroStack }) {
+export default function OpponentManager({ opponents, onChange, heroPosition, unit = 'BB', heroStack, playersCount = 9 }) {
+  // Seats that exist at THIS table — offering UTG+1 at a 6-handed table is how
+  // impossible seats got recorded (see utils/pokerPositions.js).
+  const ALL_POSITIONS = seatsFor(playersCount);
   const usedPositions = new Set([heroPosition, ...opponents.map(o => o.position)]);
 
   const addOpponent = () => {

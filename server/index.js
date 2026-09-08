@@ -21,6 +21,7 @@ const inquiryRoutes        = require('./routes/inquiries');
 const blindTemplateRoutes  = require('./routes/blindTemplates');
 const eventTemplateRoutes  = require('./routes/eventTemplates');
 const handHistoryRoutes    = require('./routes/handHistories');
+const handNarrationRoutes    = require('./routes/handNarration');
 const importRoutes         = require('./routes/imports');
 const agentRoutes          = require('./routes/agent');
 const abRoutes = require('./routes/ab');
@@ -95,6 +96,7 @@ app.use('/api/inquiries', inquiryRoutes);
 app.use('/api/blind-templates', blindTemplateRoutes); // rate limit רק על POST — מוגדר בתוך הנתיב
 app.use('/api/event-templates', eventTemplateRoutes);
 app.use('/api/hand-histories', handHistoryRoutes);
+app.use('/api/hand-narration', handNarrationRoutes);
 app.use('/api/imports',       importRoutes);
 app.use('/api/agent',         agentRoutes);
 app.use('/api/ab',            abRoutes);

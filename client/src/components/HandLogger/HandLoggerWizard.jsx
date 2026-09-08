@@ -9,12 +9,14 @@ import { bestHandEval, compareEvals, describeHandHe } from '../../utils/handEval
 import { HAND_LOGGER_DRAFT_KEY, clearHandLoggerDraft } from '../../utils/handLoggerDraft';
 import { getContributions, computeSidePots, resolvePotWinners, getAllInLockStreet } from '../../utils/handPots';
 
-const PREFLOP_ORDER  = ['UTG', 'UTG+1', 'MP', 'HJ', 'CO', 'BTN', 'SB', 'BB'];
-const POSTFLOP_ORDER = ['SB', 'BB', 'UTG', 'UTG+1', 'MP', 'HJ', 'CO', 'BTN'];
+import { preflopOrder, postflopOrder } from '../../utils/pokerPositions';
 const STREET_SEQUENCE = ['preflop', 'flop', 'turn', 'river'];
 
-function sortedPlayers(heroPos, opponents, street) {
-  const order = street === 'preflop' ? PREFLOP_ORDER : POSTFLOP_ORDER;
+function sortedPlayers(heroPos, opponents, street, playersCount) {
+  // Acting order depends on the table size — a 6-handed table has no LJ to sit
+  // between UTG and HJ, and the blinds always act last preflop, first after it.
+  const n = playersCount || opponents.length + 1;
+  const order = street === 'preflop' ? preflopOrder(n) : postflopOrder(n);
   const all = [
     { actor: 'hero', position: heroPos, label: '🦸 הירו' },
     ...opponents.map(o => ({ actor: o.id, position: o.position, label: `😈 ${o.label || 'יריב'}` })),
@@ -167,7 +169,7 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
 
   const getShowdownPlayers = () => {
     const folded = getFoldedAll();
-    return sortedPlayers(heroPosition, opponents, 'preflop').filter(p => !folded.has(p.actor));
+    return sortedPlayers(heroPosition, opponents, 'preflop', playersCount).filter(p => !folded.has(p.actor));
   };
 
   const getRevealedCards = (actor) => {
@@ -418,7 +420,7 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
       ...(handData.streets[street]?.actions || [])
         .filter(a => a.action === 'fold').map(a => a.actor),
     ]);
-    return sortedPlayers(heroPosition, opponents, street)
+    return sortedPlayers(heroPosition, opponents, street, playersCount)
       .filter(p => !allFolded.has(p.actor)).length < 2;
   };
 
@@ -427,7 +429,7 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
     const actions = handData.streets[street]?.actions || [];
     if (!actions.length) return false;
     const prevFolded = getFoldedBefore(street);
-    const allPlayers = sortedPlayers(heroPosition, opponents, street)
+    const allPlayers = sortedPlayers(heroPosition, opponents, street, playersCount)
       .filter(p => !prevFolded.has(p.actor));
     return playersWhoNeedToAct(actions, allPlayers).length === 0;
   };
@@ -446,7 +448,7 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
   const actablePlayers = (street) => {
     if (lockStreet && STREET_SEQUENCE.indexOf(street) > STREET_SEQUENCE.indexOf(lockStreet)) return [];
     const prevFolded = getFoldedBefore(street);
-    const allPlayers = sortedPlayers(heroPosition, opponents, street).filter(p => !prevFolded.has(p.actor));
+    const allPlayers = sortedPlayers(heroPosition, opponents, street, playersCount).filter(p => !prevFolded.has(p.actor));
     return playersWhoNeedToAct(handData.streets[street]?.actions || [], allPlayers);
   };
 
@@ -527,7 +529,7 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
     if (step === 5) {
       const actions = handData.streets.preflop.actions || [];
       if (!actions.length) return false;
-      return playersWhoNeedToAct(actions, sortedPlayers(heroPosition, opponents, 'preflop')).length === 0;
+      return playersWhoNeedToAct(actions, sortedPlayers(heroPosition, opponents, 'preflop', playersCount)).length === 0;
     }
     if (step === 10) {
       if (isMultiPot) {
@@ -1040,7 +1042,7 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
         </div>
         <div>
           <label className="block text-sm font-bold text-slate-300 mb-2 text-right">יריב\ים</label>
-          <OpponentManager opponents={opponents} onChange={setOpponents} heroPosition={heroPosition} unit={unit} heroStack={heroStack} />
+          <OpponentManager opponents={opponents} onChange={setOpponents} heroPosition={heroPosition} unit={unit} heroStack={heroStack} playersCount={playersCount} />
         </div>
       </div>
     );
@@ -1072,7 +1074,7 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
         <StackDisplay street="preflop" />
         {playersWhoNeedToAct(
           handData.streets.preflop.actions,
-          sortedPlayers(heroPosition, opponents, 'preflop')
+          sortedPlayers(heroPosition, opponents, 'preflop', playersCount)
         ).map(p => (
           <ActionSelector key={`preflop-${p.actor}-${handData.streets.preflop.actions.length}`}
             actor={p.actor} label={p.label} unit={unit} street="preflop"

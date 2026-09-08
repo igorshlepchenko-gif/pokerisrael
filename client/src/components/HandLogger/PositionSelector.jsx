@@ -1,9 +1,8 @@
-const ALL_POSITIONS = ['BTN', 'SB', 'BB', 'UTG', 'UTG+1', 'MP', 'HJ', 'CO'];
+import { seatsFor } from '../../utils/pokerPositions';
 
-const SEAT_ANGLES = {
-  BTN: 0, SB: 45, BB: 90, UTG: 135,
-  'UTG+1': 180, MP: 225, HJ: 270, CO: 315,
-};
+// Angles are derived from how many seats are actually at the table rather than
+// held in a fixed map. A fixed map only works for one table size, and the seats
+// themselves change with size — a 6-handed table has HJ and CO but no UTG+1.
 
 function polarToXY(angleDeg, rx, ry, cx, cy) {
   const rad = ((angleDeg - 90) * Math.PI) / 180;
@@ -11,7 +10,12 @@ function polarToXY(angleDeg, rx, ry, cx, cy) {
 }
 
 export default function PositionSelector({ selected, onChange, playersCount = 9 }) {
-  const visiblePositions = ALL_POSITIONS.slice(0, Math.max(2, Math.min(playersCount, 8)));
+  const visiblePositions = seatsFor(playersCount);
+  // The button sits at the bottom of the table, where the hero would be, and the
+  // rest run clockwise from there. seatsFor() starts at the small blind, so the
+  // button is last — rotate so it lands at 180°.
+  const angleFor = (i) =>
+    (180 + ((i + 1) / visiblePositions.length) * 360) % 360;
   const cx = 170, cy = 108;
   const feltRx = 128, feltRy = 76;
   const railRx = feltRx + 10, railRy = feltRy + 10;
@@ -81,8 +85,8 @@ export default function PositionSelector({ selected, onChange, playersCount = 9 
         </text>
 
         {/* ── Seats ── */}
-        {visiblePositions.map(pos => {
-          const angle = SEAT_ANGLES[pos];
+        {visiblePositions.map((pos, i) => {
+          const angle = angleFor(i);
           const { x, y } = polarToXY(angle, feltRx + 28, feltRy + 24, cx, cy);
           const isSel = selected === pos;
           return (

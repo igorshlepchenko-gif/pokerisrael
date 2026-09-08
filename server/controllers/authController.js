@@ -205,7 +205,7 @@ exports.login = async (req, res) => {
     const result = await pool.query(
       `SELECT id, name, email, password, phone, role, is_active,
               email_verified, is_locked, failed_login_attempts, locked_at,
-              hand_logger_access, token_version
+              hand_logger_access, hand_narration_pilot_access, token_version
        FROM users WHERE email = $1`,
       [email]
     );

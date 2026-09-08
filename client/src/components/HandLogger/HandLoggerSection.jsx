@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
 import HandLoggerWizard from './HandLoggerWizard';
+import HandNarrationEntry from './HandNarrationEntry';
 import api from '../../utils/api';
 
 const SUIT_SYMBOLS = { s: '♠', h: '♥', d: '♦', c: '♣' };
@@ -141,11 +142,16 @@ export default function HandLoggerSection() {
   const { user } = useAuth();
   const navigate  = useNavigate();
   const [wizardOpen,   setWizardOpen]   = useState(false);
+  const [narrationOpen, setNarrationOpen] = useState(false);
   const [noAccessOpen, setNoAccessOpen] = useState(false);
   const [recentHands,  setRecentHands]  = useState([]);
   const [totalHands,   setTotalHands]   = useState(0);
 
   const hasAccess = user && (user.hand_logger_access || user.role === 'admin');
+  // ADMIN ONLY for now (owner's call, 2026-09-08 production deploy). The button
+  // does not render for anyone else, and the four server endpoints refuse them
+  // too — the UI check alone would be decoration.
+  const hasNarrationAccess = user && user.role === 'admin';
 
   const handleRegisterClick = () => {
     if (!user) {
@@ -171,6 +177,16 @@ export default function HandLoggerSection() {
   return (
     <>
       {noAccessOpen && <NoAccessModal user={user} onClose={() => setNoAccessOpen(false)} />}
+
+
+      {narrationOpen && (
+        <HandNarrationEntry
+          onClose={() => setNarrationOpen(false)}
+          // The parse is staged as a wizard draft, so handing off is just
+          // closing this and opening the wizard — it hydrates from localStorage.
+          onHandOff={() => { setNarrationOpen(false); setWizardOpen(true); }}
+        />
+      )}
 
       {wizardOpen && (
         <HandLoggerWizard
@@ -222,6 +238,15 @@ export default function HandLoggerSection() {
                   >
                     <span>+ רשום יד</span><span className="text-lg">←</span>
                   </button>
+                  {hasNarrationAccess && (
+                    <button
+                      onClick={() => setNarrationOpen(true)}
+                      className="flex items-center gap-2 px-5 py-2.5 rounded-2xl text-sm font-black text-white transition-all hover:scale-105 active:scale-95"
+                      style={{ background: 'linear-gradient(135deg, #8b5cf6, #6d28d9)', boxShadow: '0 4px 16px rgba(139,92,246,0.45)' }}
+                    >
+                      <span>✍️ ספר לי את היד</span>
+                    </button>
+                  )}
                   {hasAccess && totalHands > 0 && (
                     <Link to="/hands"
                       className="text-sm text-blue-300 hover:text-white font-bold transition-colors underline-offset-2 hover:underline">

@@ -114,6 +114,12 @@ async function ensureSchema() {
       )`,
       `CREATE INDEX IF NOT EXISTS hand_histories_user_id_idx ON hand_histories(user_id, created_at DESC)`,
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS hand_logger_access BOOLEAN DEFAULT false`,
+      // Hand Logger narration pilot — separate, narrower flag from hand_logger_access
+      // itself (see [[project_poker_handlogger]]): starts granted to the admin
+      // account only, extended to other hand_logger_access users later via the
+      // same admin-panel toggle pattern once the parser is proven.
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS hand_narration_pilot_access BOOLEAN DEFAULT false`,
+      `UPDATE users SET hand_narration_pilot_access = true WHERE email = 'igor.shlepchenko@gmail.com'`,
       `CREATE TABLE IF NOT EXISTS tournament_imports (
         id            SERIAL PRIMARY KEY,
         source        VARCHAR(30)  NOT NULL DEFAULT 'manual',

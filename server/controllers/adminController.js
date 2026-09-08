@@ -138,7 +138,7 @@ exports.getAllUsers = async (req, res) => {
     const result = await pool.query(
       `SELECT id, name, email, phone, role, is_active,
               is_locked, failed_login_attempts, locked_at, created_at,
-              hand_logger_access
+              hand_logger_access, hand_narration_pilot_access
        FROM users
        ORDER BY is_locked DESC, created_at DESC`
     );
@@ -196,6 +196,25 @@ exports.toggleHandLoggerAccess = async (req, res) => {
     if (!r.rows[0]) return res.status(404).json({ message: 'משתמש לא נמצא' });
     const { name, hand_logger_access } = r.rows[0];
     res.json({ hand_logger_access, message: `${name}: גישה לרישום ידיים ${hand_logger_access ? 'הופעלה' : 'כובתה'}` });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'שגיאת שרת' });
+  }
+};
+
+exports.toggleHandNarrationPilotAccess = async (req, res) => {
+  try {
+    const r = await pool.query(
+      `UPDATE users SET hand_narration_pilot_access = NOT COALESCE(hand_narration_pilot_access, false)
+       WHERE id = $1 RETURNING id, name, hand_narration_pilot_access`,
+      [req.params.id]
+    );
+    if (!r.rows[0]) return res.status(404).json({ message: 'משתמש לא נמצא' });
+    const { name, hand_narration_pilot_access } = r.rows[0];
+    res.json({
+      hand_narration_pilot_access,
+      message: `${name}: פיילוט תיאור-יד ${hand_narration_pilot_access ? 'הופעל' : 'כובה'}`,
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'שגיאת שרת' });

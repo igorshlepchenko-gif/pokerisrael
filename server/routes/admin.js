@@ -18,6 +18,7 @@ router.get('/users', ctrl.getAllUsers);
 router.patch('/users/:id/toggle', ctrl.toggleUser);
 router.patch('/users/:id/unlock', ctrl.unlockUser);
 router.patch('/users/:id/hand-logger-access', ctrl.toggleHandLoggerAccess);
+router.patch('/users/:id/hand-narration-pilot-access', ctrl.toggleHandNarrationPilotAccess);
 router.get('/change-logs', ctrl.getChangeLogs);
 
 // ניהול מיקומים — כתובת -> קואורדינטות, הבסיס ל"מצא טורניר קרוב אליי"
@@ -28,11 +29,5 @@ router.delete('/locations/:id', ctrl.deleteLocation);
 
 // תוצאות ניסויי A/B
 router.get('/ab-results', require('../controllers/abController').results);
-
-// ניהול מיקומים — כתובת -> קואורדינטות, הבסיס ל"מצא טורניר קרוב אליי"
-router.get('/locations', ctrl.getLocations);
-router.post('/locations', ctrl.createLocation);
-router.put('/locations/:id', ctrl.updateLocation);
-router.delete('/locations/:id', ctrl.deleteLocation);
 
 module.exports = router;
