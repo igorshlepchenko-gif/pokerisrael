@@ -13,6 +13,8 @@ const TelegramBot = require('node-telegram-bot-api');
 const cron        = require('node-cron');
 const Groq        = require('groq-sdk');
 const pool        = require('../config/db');
+const { TEXT_MODEL, TEXT_REASONING_EFFORT, VISION_MODELS, stripToJson } = require('../config/aiModels');
+const { resolveScheduleYear } = require('../utils/scheduleDates');
 
 // ── Lazy singletons ──────────────────────────────────────────────────────────
 let _bot  = null;
@@ -59,9 +61,10 @@ async function parseWithAI(text) {
   if (!groq) return null;
   try {
     const r = await groq.chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
+      model: TEXT_MODEL,
       temperature: 0.1,
-      max_tokens: 800,
+      max_tokens: 2000,
+      reasoning_effort: TEXT_REASONING_EFFORT,
       response_format: { type: 'json_object' },
       messages: [
         { role: 'system', content: PARSE_SYSTEM },
@@ -263,9 +266,10 @@ async function parseWeeklyScheduleText(text) {
   if (!groq) return [];
   try {
     const r = await groq.chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
+      model: TEXT_MODEL,
       temperature: 0.1,
       max_tokens: 2000,
+      reasoning_effort: TEXT_REASONING_EFFORT,
       response_format: { type: 'json_object' },
       messages: [
         { role: 'system', content: WEEKLY_SCHEDULE_TEXT_SYSTEM },
@@ -285,8 +289,7 @@ async function parseWeeklyScheduleText(text) {
       ],
     });
     const raw   = r.choices[0]?.message?.content || '{}';
-    const clean = raw.replace(/```json\n?|\n?```/g, '').trim();
-    const obj   = JSON.parse(clean);
+    const obj   = JSON.parse(stripToJson(raw));
     console.log(`[Agent] Parsed ${obj.tournaments?.length || 0} tournaments from weekly schedule text`);
     return obj.tournaments || [];
   } catch (e) {
@@ -528,12 +531,8 @@ async function parseScheduleImage(imageBase64, mimeType = 'image/jpeg', captionT
   const groq = getGroq();
   if (!groq) throw new Error('GROQ_API_KEY not configured');
 
-  // meta-llama/llama-4-scout-17b-16e-instruct (deprecated 2026-07-17) and the llama-3.2-*-vision-preview
-  // pair (decommissioned earlier) all stopped working — qwen/qwen3.6-27b is Groq's current vision model
-  // per console.groq.com/docs/vision. No verified second vision model exists to fall back to right now.
-  const VISION_MODELS = [
-    'qwen/qwen3.6-27b',
-  ];
+  // Vision model ids live in config/aiModels.js — qwen3.8 primary, qwen3.6 fallback
+  // (both verified vision-capable against a real schedule image on 2026-09-03).
 
   // If caption text is provided (e.g. full Hebrew schedule), use it to get exact times
   const prompt = captionText
@@ -568,15 +567,9 @@ async function parseScheduleImage(imageBase64, mimeType = 'image/jpeg', captionT
 
     // A truncated/malformed response shouldn't kill the whole image — fall through to the next model.
     try {
-      // qwen/qwen3.6-27b (and other thinking-mode models) prefix the real answer with a
-      // <think>...</think> reasoning block — sometimes containing its own draft ```json fences
-      // before the final one, so this must strip the whole block, not just the outer fences.
-      // Fence regex intentionally does NOT also consume adjacent newlines in the same pattern —
-      // trying to match "```json\n?" as one alternative let a separate "\n?```" alternative win at
-      // an earlier position when the model left multiple blank lines before the fence, stranding
-      // the literal word "json" in front of the JSON (hit for real testing this exact model).
-      const clean = raw.replace(/<think>[\s\S]*?<\/think>/gi, '').replace(/```(?:json)?/gi, '').trim();
-      const obj   = JSON.parse(clean);
+      // stripToJson handles the <think>...</think> preamble thinking models emit plus any
+      // markdown fences — see config/aiModels.js for why it is written the way it is.
+      const obj = JSON.parse(stripToJson(raw));
       console.log(`[Agent] Vision model ${model} parsed ${obj.tournaments?.length || 0} tournaments`);
       return obj.tournaments || [];
     } catch (parseErr) {
@@ -593,10 +586,16 @@ function parseDateStr(dateStr, year) {
   // Multi-day announcements sometimes give a range ("05/07-13/07") — anchor on the start date.
   const first = String(dateStr).split('-')[0].trim();
   // Model sometimes includes the year ("04.07.2026"), sometimes not ("21.6") — accept both.
+  // NOTE day comes FIRST here (DD.MM), unlike the ISO string this returns.
   const m = first.match(/^(\d{1,2})[./](\d{1,2})(?:[./](\d{4}))?$/);
   if (!m) return null;
-  const yr = m[3] || year;
-  return `${yr}-${String(m[2]).padStart(2,'0')}-${String(m[1]).padStart(2,'0')}`;
+  const iso = `${m[3] || year}-${String(m[2]).padStart(2,'0')}-${String(m[1]).padStart(2,'0')}`;
+  // `year` is only a seed. Seeding with the current year is wrong every December —
+  // a schedule row reading "5.1" means January of the NEXT year, and the flat seed
+  // used to date it eleven months into the past. resolveScheduleYear re-derives it.
+  const resolved = resolveScheduleYear(iso);
+  if (resolved !== iso) console.log(`[Agent] schedule year resolved: ${dateStr} → ${resolved}`);
+  return resolved;
 }
 
 function guessStartTime(timeHint) {

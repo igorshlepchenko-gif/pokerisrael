@@ -3,6 +3,8 @@ const { validationResult } = require('express-validator');
 const ExcelJS = require('exceljs');
 const { BLIND_PRESETS, presetToStages } = require('../config/blindPresets');
 const Groq = require('groq-sdk');
+const { VISION_MODELS, stripToJson } = require('../config/aiModels');
+const { todayInIsrael, resolveScheduleYear } = require('../utils/scheduleDates');
 
 function getGroq() {
   if (!process.env.GROQ_API_KEY) return null;
@@ -1015,6 +1017,7 @@ exports.syncFeedNow = async (req, res) => {
 };
 
 // ── ייבוא מתמונה עם AI ─────────────────────────────────────────────────────
+
 exports.importFromImage = async (req, res) => {
   if (!req.file) return res.status(400).json({ message: 'לא נשלחה תמונה' });
   const groq = getGroq();
@@ -1027,8 +1030,12 @@ exports.importFromImage = async (req, res) => {
     const venuesRes = await pool.query('SELECT id, name, city FROM venues WHERE is_approved=true ORDER BY name');
     const venueList = venuesRes.rows.map(v => `${v.id}: ${v.name}${v.city ? ` (${v.city})` : ''}`).join('\n');
 
+    const todayIso = todayInIsrael();
     const prompt = `You are an expert at parsing Hebrew poker tournament schedules from images.
 Extract ALL tournaments visible in this image and return ONLY a valid JSON array.
+
+Today's date is ${todayIso} (Asia/Jerusalem). You have no other way to know the current
+date — never assume one, and never copy a year from your training data.
 
 Registered venues:
 ${venueList}
@@ -1041,26 +1048,63 @@ Rules:
 - Extract EVERY tournament shown.
 - If weekly schedule image: set is_recurring=true, set day_of_week per event.
 - Match venue_id from registered venues list if possible.
-- Return ONLY the JSON array, no markdown, no explanation.`;
+- Return ONLY the JSON array, no markdown, no explanation.
 
-    const response = await groq.chat.completions.create({
-      model: 'meta-llama/llama-4-scout-17b-16e-instruct',
-      messages: [{ role: 'user', content: [
-        { type: 'text', text: prompt },
-        { type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64}` } },
-      ]}],
-      max_tokens: 2000,
-      temperature: 0.1,
-    });
+Dates — these images print day and month only ("14.9" = 14 September), almost never a year:
+- Resolve every date against today's date above. A schedule advertises upcoming events,
+  so the date is today or later — never in the past.
+- If a day+month has already gone by this year, it belongs to NEXT year. In late December
+  a row reading "5.1" is 5 January of the following year, not this one.
+- Use a different year ONLY when the image itself prints one. Otherwise derive it from
+  today's date.
+- Unreadable or absent date → "date": null. Never guess one.`;
 
-    let raw = (response.choices[0]?.message?.content || '[]').trim();
-    raw = raw.replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
+    // Try each configured vision model in turn: a retired/unavailable model (404) or a
+    // reply we cannot parse falls through to the next instead of failing the whole upload.
+    // max_tokens is generous because thinking models spend part of the budget on their
+    // <think> preamble before emitting any JSON.
+    let tournaments, lastRaw = '', lastErr = null;
+    for (const model of VISION_MODELS) {
+      let raw;
+      try {
+        const response = await groq.chat.completions.create({
+          model,
+          messages: [{ role: 'user', content: [
+            { type: 'text', text: prompt },
+            { type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64}` } },
+          ]}],
+          max_tokens: 4000,
+          temperature: 0.1,
+        });
+        raw = response.choices[0]?.message?.content || '[]';
+      } catch (e) {
+        lastErr = e;
+        if (e?.status === 429) throw e;   // rate limit is not a model problem — surface it as-is
+        console.warn(`[importFromImage] vision model ${model} unavailable (${e?.status}), trying next…`);
+        continue;
+      }
 
-    let tournaments;
-    try { tournaments = JSON.parse(raw); }
-    catch { return res.status(422).json({ message: 'לא ניתן לנתח תגובת AI', raw }); }
+      lastRaw = raw;
+      try {
+        const parsed = JSON.parse(stripToJson(raw));
+        tournaments = (Array.isArray(parsed) ? parsed : [parsed]).map(t => {
+          const fixed = resolveScheduleYear(t?.date, todayIso);
+          if (fixed !== t?.date) console.warn(`[importFromImage] year corrected: ${t?.date} → ${fixed} (${t?.name})`);
+          return { ...t, date: fixed };
+        });
+        console.log(`[importFromImage] ${model} parsed ${tournaments.length} tournaments`);
+        break;
+      } catch (parseErr) {
+        lastErr = parseErr;
+        console.warn(`[importFromImage] ${model} returned invalid JSON (${parseErr.message}), trying next…`);
+      }
+    }
 
-    if (!Array.isArray(tournaments)) tournaments = [tournaments];
+    if (!tournaments) {
+      console.error('[importFromImage] all vision models failed:', lastErr?.message);
+      return res.status(422).json({ message: 'לא ניתן לנתח תגובת AI', raw: lastRaw.slice(0, 400) });
+    }
+
     res.json({ tournaments, count: tournaments.length });
   } catch (err) {
     console.error('[importFromImage]', err?.message);

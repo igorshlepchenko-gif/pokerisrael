@@ -1,9 +1,10 @@
 // Tournament Import Controller
 // Parses Hebrew poker announcements → structured data via Groq (free tier)
-// Model: llama-3.3-70b-versatile — 14,400 requests/day free
+// Model id comes from config/aiModels.js — never hard-code it here.
 
 const Groq = require('groq-sdk');
 const pool = require('../config/db');
+const { TEXT_MODEL, TEXT_REASONING_EFFORT } = require('../config/aiModels');
 
 function getGroq() {
   if (!process.env.GROQ_API_KEY) return null;
@@ -109,9 +110,10 @@ exports.parseText = async (req, res) => {
 
   try {
     const completion = await groq.chat.completions.create({
-      model: 'llama-3.3-70b-versatile',  // best free Groq model
+      model: TEXT_MODEL,
       temperature: 0.1,
-      max_tokens: 1024,
+      max_tokens: 2000,
+      reasoning_effort: TEXT_REASONING_EFFORT,
       response_format: { type: 'json_object' },
       messages: [
         { role: 'system', content: SYSTEM_PROMPT },
