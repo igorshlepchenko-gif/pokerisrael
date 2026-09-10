@@ -61,7 +61,7 @@ const VOCAB_PROMPT =
  */
 async function transcribeHandAudio(buffer, filename) {
   const groq = getGroq();
-  if (!groq) return null;
+  if (!groq) return { error: 'not_configured', detail: 'GROQ_API_KEY' };
 
   // The SDK uploads a stream, so the bytes need a real file for the moment of
   // the call. Written to the OS temp dir and removed straight afterwards —
@@ -83,8 +83,11 @@ async function transcribeHandAudio(buffer, filename) {
     if (looksEmpty(text)) return { error: 'no_speech' };
     return { text };
   } catch (e) {
-    console.error('[HandAudio] transcription error:', e?.message);
-    return null;
+    console.error('[HandAudio] transcription error:', e?.status || '', e?.message);
+    return {
+      error: 'upstream',
+      detail: `${e?.status ? e.status + ' ' : ''}${(e?.message || '').replace(/\s+/g, ' ').slice(0, 160)}`,
+    };
   } finally {
     try { fs.unlinkSync(tmp); } catch { /* already gone */ }
   }

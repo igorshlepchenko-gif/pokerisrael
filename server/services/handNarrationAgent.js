@@ -286,6 +286,20 @@ function buildUserContent(message, priorState = null, history = []) {
  * @param {Array<{question:string, answer:string}>} history - prior Q&A turns, for context
  * @returns {Promise<object|null>} {extracted, contradiction}, or null if unavailable/unparseable
  */
+/**
+ * A one-line reason an admin can act on, with anything sensitive left out.
+ * Anthropic's errors carry a status and a message; the key itself never appears
+ * in them, but the message is truncated anyway so a surprise payload cannot
+ * become a leak.
+ */
+function shortReason(e) {
+  const msg = (e?.message || 'שגיאה לא ידועה').replace(/\s+/g, ' ').trim();
+  // The SDK already puts the status at the front of its message, so only add it
+  // when it is actually missing — otherwise the reason reads "401 401 {...}".
+  const status = e?.status && !msg.startsWith(String(e.status)) ? `${e.status} ` : '';
+  return `${status}${msg}`.slice(0, 180);
+}
+
 /** Strips markdown fences a model sometimes adds despite being told not to. */
 function extractJson(text) {
   const t = text.trim();
@@ -320,7 +334,7 @@ ${nudge}` : userContent },
  */
 async function parseHandNarration(message, priorState = null, history = []) {
   const client = getClient();
-  if (!client) return null;
+  if (!client) return { error: 'not_configured', detail: 'ANTHROPIC_API_KEY' };
 
   const userContent = buildUserContent(message, priorState, history);
 
@@ -339,8 +353,13 @@ async function parseHandNarration(message, priorState = null, history = []) {
       return JSON.parse(retry);
     }
   } catch (e) {
-    console.error('[HandNarration] parse error:', e?.message);
-    return null;
+    // The reason travels back to the caller rather than being flattened into a
+    // bare failure. An admin-only screen saying "the key is missing" and one
+    // saying "Anthropic rejected the request" send you to completely different
+    // places, and collapsing them into one message cost a debugging round trip
+    // on the first production deploy.
+    console.error('[HandNarration] parse error:', e?.status || '', e?.message);
+    return { error: 'upstream', detail: shortReason(e) };
   }
 }
 
@@ -420,7 +439,7 @@ Return only the description itself — no preamble and no internal or system XML
  */
 async function readHandImage(buffer, mimeType) {
   const client = getClient();
-  if (!client) return null;
+  if (!client) return { error: 'not_configured', detail: 'ANTHROPIC_API_KEY' };
 
   try {
     const r = await client.messages.create({
@@ -444,12 +463,12 @@ async function readHandImage(buffer, mimeType) {
     if (!text || text === 'NO_HAND') return { error: 'no_hand' };
     return { text };
   } catch (e) {
-    console.error('[HandNarration] image read error:', e?.message);
-    return null;
+    console.error('[HandNarration] image read error:', e?.status || '', e?.message);
+    return { error: 'upstream', detail: shortReason(e) };
   }
 }
 
 module.exports = {
-  parseHandNarration, readHandImage, getClient, buildUserContent,
+  parseHandNarration, readHandImage, getClient, buildUserContent, shortReason,
   HAND_SCHEMA_SYSTEM, IMAGE_READ_SYSTEM, DEFAULT_MODEL, VISION_MODEL,
 };

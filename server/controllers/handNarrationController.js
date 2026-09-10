@@ -2,6 +2,23 @@ const { parseHandNarration, readHandImage } = require('../services/handNarration
 const { analyze, toWizardState, applyContradictionFix } = require('../services/narrationGaps');
 const { transcribeHandAudio } = require('../services/handAudioTranscriber');
 
+/**
+ * Turns a service failure into a message that says what to go and fix. These
+ * endpoints are admin-only, so the real reason can be shown — a generic
+ * "unavailable" reads the same whether a key is missing, a key is wrong, or the
+ * provider is down, and those need three different responses.
+ */
+function sendFailure(res, result, what) {
+  if (result?.error === 'not_configured') {
+    return res.status(503).json({
+      message: `${what} לא מוגדר בשרת — חסר משתנה הסביבה ${result.detail}`,
+    });
+  }
+  return res.status(502).json({
+    message: `${what} נכשל: ${result?.detail || 'סיבה לא ידועה'}`,
+  });
+}
+
 // ADMIN ONLY for now, by the owner's decision on first production deploy
 // (2026-09-08). The `hand_narration_pilot_access` column and its admin-panel
 // toggle stay in place unused — widening this to pilot users later is a matter
@@ -28,9 +45,7 @@ exports.parse = async (req, res) => {
 
   try {
     const parsed = await parseHandNarration(message.trim(), priorState || null, history || []);
-    if (!parsed) {
-      return res.status(503).json({ message: 'שירות הפירוש לא זמין כרגע' });
-    }
+    if (!parsed || parsed.error) return sendFailure(res, parsed, 'שירות הפירוש');
 
     // The model only extracts. What is missing, what gets a default, and
     // whether the hand can be saved are all decided here, deterministically —
@@ -77,7 +92,9 @@ exports.readImage = async (req, res) => {
 
   try {
     const result = await readHandImage(req.file.buffer, req.file.mimetype);
-    if (!result) return res.status(503).json({ message: 'שירות קריאת התמונות לא זמין כרגע' });
+    if (!result || (result.error && result.error !== 'no_hand')) {
+      return sendFailure(res, result, 'שירות קריאת התמונות');
+    }
     if (result.error === 'no_hand') {
       return res.status(422).json({ message: 'לא זיהינו יד פוקר בתמונה. אפשר לכתוב אותה ידנית.' });
     }
@@ -134,7 +151,9 @@ exports.transcribe = async (req, res) => {
 
   try {
     const result = await transcribeHandAudio(req.file.buffer, req.file.originalname);
-    if (!result) return res.status(503).json({ message: 'שירות התמלול לא זמין כרגע' });
+    if (!result || (result.error && result.error !== 'no_speech')) {
+      return sendFailure(res, result, 'שירות התמלול');
+    }
     if (result.error === 'no_speech') {
       return res.status(422).json({ message: 'לא שמענו כלום בהקלטה. נסה שוב, קרוב יותר למיקרופון.' });
     }
