@@ -239,3 +239,83 @@ select option:hover {
 .tournament-row:hover {
   background: rgba(29,78,216,0.07);
 }
+
+/* ===== ברכת חג (HolidayGreeting) ===== */
+.holiday-panel {
+  background: linear-gradient(160deg, #0b1531 0%, #131f42 55%, #0b1531 100%);
+  border: 1px solid rgba(245,158,11,0.45);
+  box-shadow: 0 0 40px rgba(245,158,11,0.22), 0 20px 60px rgba(0,0,0,0.6);
+}
+.light .holiday-panel { color: #fef3c7; }
+
+.holiday-title {
+  background: linear-gradient(90deg, #fde68a, #f59e0b, #fde68a);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: gradientText 5s ease infinite;
+}
+.light .holiday-title { color: transparent !important; }
+
+.holiday-footer {
+  background: linear-gradient(180deg, rgba(11,21,49,0) 0%, rgba(11,21,49,0.85) 25%, rgba(11,21,49,1) 100%);
+}
+
+/* זום/תזוזה איטיים של התמונה — "Ken Burns" */
+@keyframes holidayKenBurns {
+  0%   { transform: scale(1)    translate3d(0, 0, 0); }
+  50%  { transform: scale(1.07) translate3d(1%, -1.2%, 0); }
+  100% { transform: scale(1)    translate3d(0, 0, 0); }
+}
+.holiday-kenburns {
+  animation: holidayKenBurns 20s ease-in-out infinite;
+  /* נקודת העוגן והזום מכוילים כך שהברכה שכתובה בתמונה (מימין־למעלה ועד
+     "PokerIsrael" בצד שמאל) נשארת שלמה גם בשיא הזום; החיתוך נופל על השוליים
+     הריקים בלבד. שינוי אחד מהשלושה מחייב בדיקה חוזרת של קצה הטקסט. */
+  transform-origin: 25% 50%;
+}
+
+/* הבזק אור שחולף על התמונה כמו ניצנוץ על הדבש */
+@keyframes holidayShine {
+  0%        { transform: translateX(-130%) skewX(-18deg); }
+  55%, 100% { transform: translateX(260%)  skewX(-18deg); }
+}
+.holiday-shine::after {
+  content: '';
+  position: absolute;
+  top: -20%;
+  bottom: -20%;
+  left: 0; /* מפורש: הדף כולו RTL, ובלי זה המיקום ההתחלתי נקבע מצד ימין */
+  width: 32%;
+  background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,241,190,0.28) 50%, rgba(255,255,255,0) 100%);
+  pointer-events: none;
+  animation: holidayShine 7s ease-in-out infinite;
+}
+
+/* ניצוצות זהב מרחפים */
+@keyframes holidaySparkle {
+  0%       { transform: translateY(6px)   scale(0.5); opacity: 0; }
+  25%      { transform: translateY(-4px)  scale(1);   opacity: 0.95; }
+  60%      { transform: translateY(-16px) scale(0.8); opacity: 0.6; }
+  100%     { transform: translateY(-30px) scale(0.3); opacity: 0; }
+}
+.holiday-sparkle {
+  position: absolute;
+  border-radius: 9999px;
+  background: radial-gradient(circle, #fffbeb 0%, #fcd34d 45%, rgba(245,158,11,0) 72%);
+  filter: drop-shadow(0 0 5px rgba(253,224,71,0.85));
+  opacity: 0;
+  animation: holidaySparkle var(--sparkle-duration, 6s) ease-in-out var(--sparkle-delay, 0s) infinite;
+}
+
+/* כיבוד העדפת "פחות תנועה" — הברכה נשארת, התנועה נעצרת */
+@media (prefers-reduced-motion: reduce) {
+  .holiday-kenburns,
+  .holiday-shine::after,
+  .holiday-sparkle,
+  .holiday-title { animation: none !important; }
+  .holiday-kenburns { transform: scale(1.02); }
+  .holiday-shine::after { display: none; }
+  .holiday-sparkle { opacity: 0.55; }
+}
