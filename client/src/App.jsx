@@ -17,6 +17,7 @@ import Podcasts from './pages/Podcasts';
 import Communities from './pages/Communities';
 import Lessons from './pages/Lessons';
 import CookieConsent from './components/CookieConsent';
+import HolidayGreeting from './components/HolidayGreeting';
 import AccessibilityWidget from './components/AccessibilityWidget';
 import IsraeliBackground from './components/IsraeliBackground';
 
@@ -68,6 +69,7 @@ function AppRoutes() {
       </main>
       <Footer />
       <CookieConsent />
+      <HolidayGreeting />
       <AccessibilityWidget />
     </div>
   );
