@@ -44,8 +44,10 @@ function walkHand(handData, heroPosition, opponents, sbSize, bbSize, ante, isTou
     else if (positions[id] === 'SB') totalContributed[id] += (sbSize || 0);
   });
 
+  // Big blind ante: one ante in the pot (as in the wizard's pot and the
+  // narrative) — only affects the base a "75%" bet is measured against.
   let pot = Object.values(totalContributed).reduce((s, v) => s + v, 0)
-    + (isTournament ? (ante || 0) * actorIds.length : 0);
+    + (isTournament ? (ante || 0) : 0);
 
   const byStreet = [];
   STREET_ORDER.forEach(street => {

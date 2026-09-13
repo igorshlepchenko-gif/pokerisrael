@@ -99,7 +99,8 @@ function actorContribution(actorId, position, streets, sbSize, bbSize) {
 // נטו של הירו — נכון רק חד-על-חד, ומטעה בקופה עם 3+ שחקנים או בחלוקה)
 function computeTotalPot(streets, sbSize, bbSize, ante, heroPosition, opponents) {
   const actors = [{ id: 'hero', position: heroPosition }, ...opponents.map(o => ({ id: o.id, position: o.position }))];
-  let pot = (ante || 0) * actors.length;
+  // Big blind ante — one ante in the pot, not one per player (see "Antes" below)
+  let pot = ante || 0;
   actors.forEach(a => { pot += actorContribution(a.id, a.position, streets, sbSize, bbSize); });
   return Math.round(pot);
 }
@@ -186,8 +187,12 @@ export function generateNarrative(state) {
   });
 
   // ── Antes (tournament) ─────────────────────────────────────
+  // Big blind ante (BBA): ONE ante, posted by the big blind — the same rule the
+  // wizard's pot uses. Listing every player as posting it inflated the total
+  // pot by (players − 1) antes.
   if (!isCash && ante > 0) {
-    allPlayers.forEach(p => lines.push(`${p.name}: posts the ante ${ante}`));
+    const anteBy = allPlayers.find(p => p.position === 'BB');
+    if (anteBy) lines.push(`${anteBy.name}: posts the ante ${ante}`);
   }
 
   // ── Blinds ─────────────────────────────────────────────────
@@ -256,7 +261,7 @@ export function generateNarrative(state) {
   // The part of the last bet nobody matched goes back to its owner and was
   // never in the pot — PokerStars prints it as "Uncalled bet ... returned".
   const uncalled = getUncalledReturn(getContributions(hand_data, hero_position, opponents, sbSize, bbSize, ante, !isCash));
-  const totalPot = computeTotalPot(streets, sbSize, bbSize, ante, hero_position, opponents) - (uncalled?.amount || 0);
+  const totalPot = computeTotalPot(streets, sbSize, bbSize, isCash ? 0 : ante, hero_position, opponents) - (uncalled?.amount || 0);
   const totalPotFmt = totalPot > 0 ? `${isCash ? '$' : ''}${totalPot}` : 'the pot';
   const atShowdown = showdown?.reached || (result && allBoard.length > 0);
   // קופות-צד (main pot + side pot אחת או יותר) — pots נשמר ב-hand_data רק
@@ -327,7 +332,14 @@ export function generateNarrative(state) {
       lines.push(`Hero collected ${totalPotFmt} from pot`);
 
     } else if (result === 'lost') {
-      lines.push(`Hero: mucks hand`);
+      // Hero's cards are always known — show them. "mucks" hid the very hand the
+      // player is sharing, even at an all-in showdown where cards are tabled.
+      if (hero_cards?.length === 2) {
+        lines.push(`Hero: shows ${psCards(hero_cards)} (${handStrength(hero_cards, allBoard)})`);
+      } else {
+        lines.push(`Hero: mucks hand`);
+      }
+      let collected = false;
       (showdown?.opponent_cards || []).forEach((oc, i) => {
         const opp = opponents[i];
         const oppName = opp?.label || `Villain${i + 1}`;
@@ -335,8 +347,19 @@ export function generateNarrative(state) {
           const strength = handStrength(oc, allBoard);
           lines.push(`${oppName}: shows ${psCards(oc)} (${strength})`);
           lines.push(`${oppName} collected ${totalPotFmt} from pot`);
+          collected = true;
         }
       });
+      // Villain's cards weren't recorded — still say who took the pot when only
+      // one opponent is left in the hand, instead of a showdown with no winner.
+      if (!collected) {
+        const foldedIds = new Set(Object.values(streets)
+          .flatMap(s => (s?.actions || []).filter(a => a.action === 'fold').map(a => String(a.actor))));
+        const stillIn = opponents.filter(o => !foldedIds.has(String(o.id)));
+        if (stillIn.length === 1) {
+          lines.push(`${stillIn[0].label || 'Villain'} collected ${totalPotFmt} from pot`);
+        }
+      }
 
     } else if (result === 'split') {
       const strength = handStrength(hero_cards, allBoard);

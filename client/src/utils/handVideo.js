@@ -749,13 +749,15 @@ function computeInitialPot(hand_data,hero_position,opponents,sb,bb,ante){
     if(a.position==='BB') blindTotal+=(bb||0);
     else if(a.position==='SB') blindTotal+=(sb||0);
   });
-  return blindTotal+(ante||0)*actors.length;
+  // Big blind ante — one ante in the pot, not one per player (same as the
+  // wizard and the narrative). The caller passes 0 for cash games.
+  return blindTotal+(ante||0);
 }
 
 function buildEvents(hand_data,hero_stack,opponents,sb,bb,ante,hero_position,isTournament){
   const stacks={hero:hero_stack};
   opponents.forEach(o=>stacks[o.id]=o.stack||0);
-  let pot=computeInitialPot(hand_data,hero_position,opponents,sb,bb,ante);
+  let pot=computeInitialPot(hand_data,hero_position,opponents,sb,bb,isTournament?ante:0);
   const events=[];
   const streets=hand_data?.streets||{};
   // השלב שאחריו כבר אי-אפשר לבצע יותר פעולות הימור (כולם אול-אין/קיפלו) —
@@ -848,7 +850,7 @@ export function buildFrames(state){
     {label:'Hero',position:hero_position,stack:hero_stack,isHero:true,id:'hero'},
     ...opponents.map(o=>({...o,isHero:false})),
   ];
-  const initialPot=(sb||0)+(bb||0)+(ante||0)*(opponents.length+1);
+  const initialPot=(sb||0)+(bb||0)+(isCash?0:(ante||0)); // one big blind ante
   const initialStacks={hero:hero_stack};
   opponents.forEach(o=>initialStacks[o.id]=o.stack||0);
 
