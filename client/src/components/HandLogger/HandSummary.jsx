@@ -11,7 +11,9 @@ function buildWhatsAppText(narrative) {
   return `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
 }
 
-export default function HandSummary({ handState, narrative, onSaveSuccess, onReset }) {
+// editingHandId: set when this is a saved hand opened for editing — saving then
+// updates that hand instead of adding a new one, and the hand limit doesn't apply.
+export default function HandSummary({ handState, narrative, onSaveSuccess, onReset, editingHandId = null }) {
   const { user } = useAuth();
   const [saving, setSaving]     = useState(false);
   const [saved, setSaved]       = useState(false);
@@ -55,14 +57,20 @@ export default function HandSummary({ handState, narrative, onSaveSuccess, onRes
         narrative,
         notes:            handState.notes,
       };
-      await api.post('/hand-histories', payload);
+      if (editingHandId) {
+        await api.put(`/hand-histories/${editingHandId}`, payload);
+      } else {
+        await api.post('/hand-histories', payload);
+        setHandCount(c => (c ?? 0) + 1);
+      }
       setSaved(true);
-      setHandCount(c => (c ?? 0) + 1);
       onSaveSuccess?.();
     } catch (e) {
       const msg = e?.response?.data?.message || '';
       if (e?.response?.status === 403) {
         setLimitErr(msg || `הגעת למגבלת ${MAX_SAVED_HANDS} ידיים שמורות`);
+      } else if (editingHandId && e?.response?.status === 404) {
+        setLimitErr('היד המקורית כבר לא קיימת (אולי נמחקה) — לא ניתן לעדכן אותה');
       } else {
         alert('שגיאה בשמירת היד');
       }
@@ -80,7 +88,8 @@ export default function HandSummary({ handState, narrative, onSaveSuccess, onRes
     : handState.result === 'unknown' ? '🤔 מה היית עושה?'
     : '🤝 קופה מחולקת';
 
-  const atLimit = user && handCount !== null && handCount >= MAX_SAVED_HANDS;
+  // Editing replaces a hand rather than adding one, so the limit can't block it.
+  const atLimit = !editingHandId && user && handCount !== null && handCount >= MAX_SAVED_HANDS;
 
   return (
     <div className="space-y-4" dir="rtl">
@@ -146,7 +155,7 @@ export default function HandSummary({ handState, narrative, onSaveSuccess, onRes
       ) : saved ? (
         /* נשמר בהצלחה */
         <div className="flex-1 py-2.5 rounded-xl bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 font-bold text-sm text-center">
-          ✅ היד נשמרה! ({handCount}/{MAX_SAVED_HANDS})
+          {editingHandId ? '✅ היד עודכנה!' : `✅ היד נשמרה! (${handCount}/${MAX_SAVED_HANDS})`}
         </div>
       ) : (
         /* מחובר + יש מקום — כפתור שמירה */
@@ -157,7 +166,7 @@ export default function HandSummary({ handState, narrative, onSaveSuccess, onRes
           <div className="flex gap-2">
             <button onClick={saveHand} disabled={saving}
               className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-500 disabled:opacity-50 transition-all">
-              {saving ? 'שומר...' : `💾 שמור יד (${handCount ?? '…'}/${MAX_SAVED_HANDS})`}
+              {saving ? 'שומר...' : editingHandId ? '💾 עדכן יד' : `💾 שמור יד (${handCount ?? '…'}/${MAX_SAVED_HANDS})`}
             </button>
             <button onClick={onReset}
               className="px-4 py-2.5 rounded-xl border border-slate-600 text-slate-400 text-sm font-bold hover:border-slate-500 hover:text-slate-200 transition-all">

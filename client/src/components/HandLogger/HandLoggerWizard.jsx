@@ -54,15 +54,17 @@ function initHandData() {
   };
 }
 
-function StepIndicator({ steps, current }) {
+// A completed step is a button that jumps straight back to it (onJump).
+function StepIndicator({ steps, current, onJump }) {
   return (
     <div className="flex items-center gap-0.5 overflow-x-auto pb-1">
       {steps.map((s, i) => (
         <div key={s} className="flex items-center gap-0.5 flex-shrink-0">
-          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold transition-all
-            ${i < current ? 'bg-blue-600 text-white' : i === current ? 'bg-blue-500 text-white ring-2 ring-blue-400/40' : 'bg-slate-700 text-slate-500'}`}>
+          <button type="button" title={s} disabled={!onJump || i >= current} onClick={() => onJump(i)}
+            className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold transition-all disabled:cursor-default
+            ${i < current ? 'bg-blue-600 text-white hover:bg-blue-400' : i === current ? 'bg-blue-500 text-white ring-2 ring-blue-400/40' : 'bg-slate-700 text-slate-500'}`}>
             {i < current ? '✓' : i + 1}
-          </div>
+          </button>
           {i < steps.length - 1 && (
             <div className={`h-0.5 w-3 transition-all ${i < current ? 'bg-blue-600' : 'bg-slate-700'}`} />
           )}
@@ -126,6 +128,9 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
   // Narrative (generated at result step)
   const [narrative, setNarrative] = useState(_d?.narrative ?? '');
 
+  // id of a saved hand opened for editing (savedHandToDraft) — saving updates it
+  const [editingHandId, setEditingHandId] = useState(_d?.editingHandId ?? null);
+
   // Auto-save draft on every state change
   useEffect(() => {
     if (!gameType && step === 0) return; // don't save empty state
@@ -133,12 +138,12 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
       step, gameType, tournamentStage, blindPreset, customSb, customBb, ante,
       stakesPreset, customStakes, playersCount, opponents, heroPosition, heroStack,
       heroCards, handData, result, heroProfit, splitDist, notes, showShowdown, oppRevealedCards, narrative,
-      autoDecided, autoReason, revealedAtLock, potWinners,
+      autoDecided, autoReason, revealedAtLock, potWinners, editingHandId,
     }));
   }, [step, gameType, tournamentStage, blindPreset, customSb, customBb, ante,
       stakesPreset, customStakes, playersCount, opponents, heroPosition, heroStack,
       heroCards, handData, result, heroProfit, splitDist, notes, showShowdown, oppRevealedCards, narrative,
-      autoDecided, autoReason, revealedAtLock, potWinners]);
+      autoDecided, autoReason, revealedAtLock, potWinners, editingHandId]);
 
   // מניעת גלילה ברקע — "overflow: hidden" לבדו לא אמין ב-iOS Safari (גלילה עדיין
   // "בורחת" לדף שמאחורי ומזיזה את סרגל הכתובת). התרגיל האמין: מוציאים את ה-body
@@ -653,9 +658,13 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
       return next;
     });
   };
-  const goBack = () => {
+  // חזרה לכל שלב שכבר עבר — כפתור ← צעד אחד, ומחוון השלבים ישירות. יד שמורה
+  // נפתחת לעריכה בסיכום, ולהגיע משם לפלופ בשש לחיצות אחורה זה בדיוק מה שלא עבד.
+  const goBack = () => jumpToStep(Math.max(step - 1, 0));
+  const jumpToStep = (target) => {
+    if (target < 0 || target >= step) return;
     setEditingAction(null);
-    let prev = Math.max(step - 1, 0);
+    let prev = target;
     if (prev === 9 && revealedAtLock) prev = 8;
     // חזרה מ"קפוא" (result==='unknown', אחרי לחיצה על "?") לתוך שלבי העריכה
     // עצמם (9 ומטה) — זה לא רק הצצה בתוצאה, זה סימן שהמשתמש רוצה להמשיך
@@ -697,6 +706,7 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
   const discardAndRestart = () => {
     if (!confirm('למחוק את רישום היד הנוכחי ולהתחיל מחדש?')) return;
     clearDraft();
+    setEditingHandId(null);
     setStep(0);
     setGameType(null);
     setTournamentStage('');
@@ -1545,8 +1555,9 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
       <HandSummary
         handState={buildState()}
         narrative={narrative}
+        editingHandId={editingHandId}
         onSaveSuccess={() => { clearDraft(); onSaved?.(); }}
-        onReset={() => { clearDraft(); setStep(0); setGameType(null); setHandData(initHandData()); setHeroCards([]); setOpponents([]); setResult(''); setNarrative(''); setOppRevealedCards([]); setHeroProfit(''); setSplitDist({}); setNotes(''); setAutoDecided(false); setAutoReason(''); setRevealedAtLock(false); setPotWinners(null); }}
+        onReset={() => { clearDraft(); setEditingHandId(null); setStep(0); setGameType(null); setHandData(initHandData()); setHeroCards([]); setOpponents([]); setResult(''); setNarrative(''); setOppRevealedCards([]); setHeroProfit(''); setSplitDist({}); setNotes(''); setAutoDecided(false); setAutoReason(''); setRevealedAtLock(false); setPotWinners(null); }}
       />
     );
 
@@ -1577,10 +1588,15 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
           <h2 className="text-base font-black text-white">🃏 רישום יד פוקר</h2>
           <span className="text-xs text-slate-500">{step + 1}/{steps.length}</span>
         </div>
+        {editingHandId && (
+          <div className="px-5 py-1.5 text-xs font-bold text-amber-300 bg-amber-500/10 border-b border-amber-500/20 text-right flex-shrink-0">
+            ✏️ עריכת יד שמורה — השמירה תעדכן את היד המקורית
+          </div>
+        )}
 
         {/* Step indicator */}
         <div className="px-5 pt-3 pb-2 flex-shrink-0">
-          <StepIndicator steps={steps} current={step} />
+          <StepIndicator steps={steps} current={step} onJump={jumpToStep} />
           <div className="text-xs font-bold text-blue-400 text-right mt-1">{stepLabel}</div>
         </div>
 

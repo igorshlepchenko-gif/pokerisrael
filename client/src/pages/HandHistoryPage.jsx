@@ -3,6 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
 import HandVideoCanvas from '../components/HandLogger/HandVideoCanvas';
+import HandLoggerWizard from '../components/HandLogger/HandLoggerWizard';
+import { stageSavedHandDraft } from '../utils/savedHandToDraft';
+import { HAND_LOGGER_DRAFT_KEY } from '../utils/handLoggerDraft';
 
 const SUIT_SYMBOLS = { s: '♠', h: '♥', d: '♦', c: '♣' };
 const SUIT_COLORS  = { s: '#e2e8f0', h: '#f87171', d: '#f87171', c: '#e2e8f0' };
@@ -16,7 +19,7 @@ function CardDisplay({ card }) {
   );
 }
 
-function HandCard({ hand, onDelete }) {
+function HandCard({ hand, onDelete, onEdit }) {
   const [expanded, setExpanded] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const cards = hand.hero_cards || [];
@@ -82,6 +85,12 @@ function HandCard({ hand, onDelete }) {
             className="text-[10px] text-red-400/50 hover:text-red-400 transition-colors px-1 py-0.5 rounded hover:bg-red-500/10">
             {deleting ? '...' : 'מחק'}
           </button>
+          {onEdit && (
+            <button onClick={e => { e.stopPropagation(); onEdit(hand); }}
+              className="text-[10px] text-blue-400/60 hover:text-blue-300 transition-colors px-1 py-0.5 rounded hover:bg-blue-500/10">
+              ערוך
+            </button>
+          )}
         </div>
       </div>
 
@@ -137,10 +146,29 @@ export default function HandHistoryPage() {
 
   const deleteHand = (id) => setHands(prev => { const n = prev.filter(h => h.id !== id); setTotal(t => t - 1); return n; });
 
+  // עריכת יד שמורה — אדמין בלבד בשלב הזה, כמו פיצ'ר המלל החופשי. השרת עצמו
+  // מתיר לכל בעל גישה לעדכן רק את הידיים שלו; ההרחבה = להסיר את התנאי כאן.
+  const canEdit = user?.role === 'admin';
+  const [editOpen, setEditOpen] = useState(false);
+  const editHand = (hand) => {
+    let pending = null;
+    try { pending = JSON.parse(localStorage.getItem(HAND_LOGGER_DRAFT_KEY)); } catch { /* corrupt draft */ }
+    const otherWork = pending && (pending.step > 0 || pending.gameType) && pending.editingHandId !== hand.id;
+    if (otherWork && !confirm('יש רישום יד שעדיין לא נשמר. לפתוח את היד הזו לעריכה במקומו?')) return;
+    stageSavedHandDraft(hand);
+    setEditOpen(true);
+  };
+
   if (loading || !user) return null;
 
   return (
     <div className="min-h-screen py-8 px-4">
+      {editOpen && (
+        <HandLoggerWizard
+          onClose={() => setEditOpen(false)}
+          onSaved={() => fetchHands(offset)}
+        />
+      )}
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-6" dir="rtl">
@@ -174,7 +202,7 @@ export default function HandHistoryPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            {hands.map(h => <HandCard key={h.id} hand={h} onDelete={deleteHand} />)}
+            {hands.map(h => <HandCard key={h.id} hand={h} onDelete={deleteHand} onEdit={canEdit ? editHand : null} />)}
           </div>
         )}
 
