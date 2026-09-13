@@ -1,5 +1,6 @@
 // PokerStars-style hand history generator for PokerIsrael
 import { bestHandEval, describeHandEn } from './handEvaluator';
+import { getContributions, getUncalledReturn } from './handPots';
 
 const POSITION_ORDER = ['UTG', 'UTG+1', 'MP', 'HJ', 'CO', 'BTN', 'SB', 'BB'];
 
@@ -252,7 +253,10 @@ export function generateNarrative(state) {
   }
 
   // ── Showdown ───────────────────────────────────────────────
-  const totalPot = computeTotalPot(streets, sbSize, bbSize, ante, hero_position, opponents);
+  // The part of the last bet nobody matched goes back to its owner and was
+  // never in the pot — PokerStars prints it as "Uncalled bet ... returned".
+  const uncalled = getUncalledReturn(getContributions(hand_data, hero_position, opponents, sbSize, bbSize, ante, !isCash));
+  const totalPot = computeTotalPot(streets, sbSize, bbSize, ante, hero_position, opponents) - (uncalled?.amount || 0);
   const totalPotFmt = totalPot > 0 ? `${isCash ? '$' : ''}${totalPot}` : 'the pot';
   const atShowdown = showdown?.reached || (result && allBoard.length > 0);
   // קופות-צד (main pot + side pot אחת או יותר) — pots נשמר ב-hand_data רק
@@ -271,6 +275,11 @@ export function generateNarrative(state) {
   // לשתף ולקבל פידבק בלי לחשוף את התוצאה. אין SHOW DOWN, אין "collected",
   // אין תוצאה בכלל — הנרטיב פשוט נעצר איפה שהפעולות שנרשמו נעצרות.
   const isQuiz = result === 'unknown';
+
+  if (uncalled && !isQuiz) {
+    const name = uncalled.actor === 'hero' ? 'Hero' : actorLabel(uncalled.actor, opponents);
+    lines.push(`Uncalled bet (${isCash ? '$' : ''}${uncalled.amount}) returned to ${name}`);
+  }
 
   if (isQuiz) {
     lines.push('*** DECISION POINT — what should Hero do? ***');

@@ -7,7 +7,7 @@ import HandSummary from './HandSummary';
 import { generateNarrative } from '../../utils/handNarrative';
 import { bestHandEval, compareEvals, describeHandHe } from '../../utils/handEvaluator';
 import { HAND_LOGGER_DRAFT_KEY, clearHandLoggerDraft } from '../../utils/handLoggerDraft';
-import { getContributions, computeSidePots, resolvePotWinners, getAllInLockStreet } from '../../utils/handPots';
+import { getContributions, computeSidePots, resolvePotWinners, getAllInLockStreet, getUncalledReturn } from '../../utils/handPots';
 
 import { preflopOrder, postflopOrder } from '../../utils/pokerPositions';
 const STREET_SEQUENCE = ['preflop', 'flop', 'turn', 'river'];
@@ -242,11 +242,11 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
   };
 
   const applyAutoResult = (auto) => {
-    const finalPot = calculatePot('river');
+    const finalPot = potAfterUncalledReturn();
     // heroProfit הוא רווח/הפסד נטו — לא חלק הירו הגולמי מהקופה, שכולל גם את הכסף
     // שהירו עצמו הכניס אליה. בלי החיסור: זכייה מוצגת כקופה כולה, והפסד כמינוס
     // הקופה כולה במקום מינוס מה שהירו באמת שם.
-    const heroContribution = playerContribution('hero', 'river');
+    const heroContribution = playerContribution('hero', 'river') - returnedTo('hero');
     if (result !== auto.result) setResult(auto.result);
     if (auto.result === 'won') {
       const net = String(finalPot - heroContribution);
@@ -570,7 +570,12 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
     handData, heroPosition, opponents,
     getBlindSbBb().sb, getBlindSbBb().bb, ante, isTournament
   );
-  const pots = computeSidePots(contributions);
+  // האנטה היא כסף מת בקופה הראשית. החלק של ההימור הגדול ביותר שאף אחד לא
+  // השווה חוזר לבעליו — הוא לא קופה, לא נוצח ולא הופסד (ראה handPots.js)
+  const pots = computeSidePots(contributions, isTournament ? (ante || 0) : 0);
+  const uncalled = getUncalledReturn(contributions);
+  const returnedTo = (actor) => (uncalled && uncalled.actor === String(actor) ? uncalled.amount : 0);
+  const potAfterUncalledReturn = () => calculatePot('river') - (uncalled?.amount || 0);
   const isMultiPot = pots.length > 1;
 
   // זיהוי אוטומטי של מנצח/ים לכל קופה בנפרד — קופה עם זכאי יחיד (כל השאר
@@ -588,7 +593,7 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
 
   const applyPotWinners = (winnersPerPot) => {
     setPotWinners(winnersPerPot);
-    const heroTotal = contributions.find(c => c.actor === 'hero')?.contributed || 0;
+    const heroTotal = (contributions.find(c => c.actor === 'hero')?.contributed || 0) - returnedTo('hero');
     let heroGross = 0;
     pots.forEach((pot, i) => {
       const winners = winnersPerPot[i] || [];
@@ -1350,9 +1355,9 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
           </div>
         );
       }
-      const finalPot = calculatePot('river');
+      const finalPot = potAfterUncalledReturn();
       // רווח/הפסד נטו של הירו = חלקו הגולמי מהקופה פחות מה שהוא עצמו שם בה
-      const heroContribution = playerContribution('hero', 'river');
+      const heroContribution = playerContribution('hero', 'river') - returnedTo('hero');
       const { bb } = getBlindSbBb();
       const potBbs = bb ? Number((finalPot / bb).toFixed(1)) : null;
       const potLabel = isTournament

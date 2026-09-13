@@ -97,11 +97,20 @@ export function getContributions(handData, heroPosition, opponents, sbSize, bbSi
   }));
 }
 
-// Standard side-pot layering: each distinct all-in level slices off a pot
+// Standard side-pot layering: each distinct contribution level slices off a
 // layer, shared by everyone who contributed at least that much, won only by
 // whoever among them didn't fold. contributions: [{actor, contributed, folded}]
-// Returns pots ordered main-pot-first.
-export function computeSidePots(contributions) {
+// deadMoney (the ante) belongs to the main pot. Returns pots main-pot-first.
+//
+// Two things plain layering gets wrong, both found on a real hand (2026-09-14,
+// 9-handed: five callers fold on the flop, one all-in, hero covers him):
+// - Adjacent layers with the same eligible players are ONE pot. The folders'
+//   preflop calls form a level of their own, and splitting there produced a
+//   "main pot" and a "side pot" contested by exactly the same two players.
+// - A layer only one player reached is not a pot at all: nobody matched that
+//   part of the bet, so it goes straight back to its owner (getUncalledReturn).
+//   It had been shown as a second side pot that hero "won".
+export function computeSidePots(contributions, deadMoney = 0) {
   const active = contributions.filter(p => p.contributed > 0);
   if (!active.length) return [];
   const levels = [...new Set(active.map(p => p.contributed))].sort((a, b) => a - b);
@@ -113,13 +122,29 @@ export function computeSidePots(contributions) {
     prevLevel = level;
     if (layerSize <= 0) continue;
     const contributors = active.filter(p => p.contributed >= level);
+    if (contributors.length < 2) continue; // uncalled — returned, never in the pot
     const eligible = contributors.filter(p => !p.folded).map(p => p.actor);
     // A layer everyone who reached it has folded can't happen once a hand
     // truly reaches showdown (see note below) — skip defensively.
     if (!eligible.length) continue;
-    pots.push({ amount: layerSize * contributors.length, eligible });
+    const amount = layerSize * contributors.length;
+    const last = pots[pots.length - 1];
+    const sameContest = last && last.eligible.length === eligible.length
+      && last.eligible.every((actor, i) => actor === eligible[i]);
+    if (sameContest) last.amount += amount;
+    else pots.push({ amount, eligible });
   }
+  if (pots.length && deadMoney > 0) pots[0].amount += deadMoney;
   return pots;
+}
+
+// The part of the biggest contribution that nobody matched — returned to that
+// player rather than won or lost. { actor, amount } or null.
+export function getUncalledReturn(contributions) {
+  const sorted = contributions.filter(p => p.contributed > 0).sort((a, b) => b.contributed - a.contributed);
+  if (sorted.length < 2) return null;
+  const excess = sorted[0].contributed - sorted[1].contributed;
+  return excess > 0 ? { actor: sorted[0].actor, amount: excess } : null;
 }
 // Note on the "empty eligible" guard above: contribution is cumulative per
 // player, so whoever is still in at showdown is, by construction, an eligible

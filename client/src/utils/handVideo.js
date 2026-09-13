@@ -1,6 +1,6 @@
 ﻿// PokerIsrael – GGPoker/WSOP Broadcast Style
 // Canvas 760×480, 30fps, WebM VP9
-import { getAllInLockStreet } from './handPots';
+import { getAllInLockStreet, getContributions, getUncalledReturn } from './handPots';
 import { seatsFor, minPlayersFor } from './pokerPositions';
 
 const W = 760, H = 480;
@@ -791,6 +791,13 @@ function buildEvents(hand_data,hero_stack,opponents,sb,bb,ante,hero_position,isT
     });
     if(street===lockStreet) events.push({type:'reveal'});
   });
+  // החלק של ההימור הגדול ביותר שאף אחד לא השווה חוזר לערימה של בעליו — הוא
+  // לא חלק מהקופה שעוברת למנצח (אותו חישוב כמו באשף ובנרטיב, ראה handPots.js)
+  const uncalled=getUncalledReturn(getContributions(hand_data,hero_position,opponents,sb,bb,ante,isTournament));
+  if(uncalled){
+    const key=uncalled.actor==='hero'?'hero':opponents.find(o=>String(o.id)===uncalled.actor)?.id;
+    if(key!=null&&stacks[key]!=null){stacks[key]+=uncalled.amount;pot-=uncalled.amount;}
+  }
   return{events,finalPot:pot,finalStacks:{...stacks}};
 }
 
