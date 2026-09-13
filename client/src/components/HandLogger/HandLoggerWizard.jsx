@@ -104,6 +104,8 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
 
   // Streets actions
   const [handData, setHandData] = useState(_d?.handData ?? initHandData);
+  // { street, index } of the logged action being changed in place, or null
+  const [editingAction, setEditingAction] = useState(null);
 
   // Result
   const [result, setResult] = useState(_d?.result ?? '');
@@ -336,20 +338,35 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
     };
   };
 
-  const addAction = (street, action) => {
+  // `index` inserts instead of appending — when a player's turn was skipped (their
+  // action deleted mid-street), the re-entered action goes back to its seat
+  // position rather than to the end of the street. See findTurn().
+  const addAction = (street, action, index) => {
+    setHandData(prev => {
+      const actions = [...prev.streets[street].actions];
+      actions.splice(index ?? actions.length, 0, action);
+      return {
+        ...prev,
+        streets: { ...prev.streets, [street]: { ...prev.streets[street], actions } },
+      };
+    });
+  };
+
+  const replaceAction = (street, index, action) => {
     setHandData(prev => ({
       ...prev,
       streets: {
         ...prev.streets,
         [street]: {
           ...prev.streets[street],
-          actions: [...prev.streets[street].actions, action],
+          actions: prev.streets[street].actions.map((a, i) => (i === index ? action : a)),
         },
       },
     }));
   };
 
   const removeAction = (street, index) => {
+    setEditingAction(null);
     setHandData(prev => ({
       ...prev,
       streets: {
@@ -404,6 +421,33 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
     return canAct.filter(p => p.actor !== lastAggressor && !actedAfter.has(p.actor));
   };
 
+  // The one player whose turn it is after `actions`: the first seat clockwise
+  // from the last actor that still needs to act. `players` is in acting order.
+  const nextAfter = (actions, players) => {
+    const need = playersWhoNeedToAct(actions, players);
+    if (!need.length) return null;
+    if (!actions.length) return need[0];
+    const last = String(actions[actions.length - 1].actor);
+    const idx = players.findIndex(p => String(p.actor) === last);
+    const rotated = [...players.slice(idx + 1), ...players.slice(0, idx + 1)];
+    return rotated.find(p => need.some(n => n.actor === p.actor)) || need[0];
+  };
+
+  // Whose turn it is, and WHERE in the list their action belongs. Normally the
+  // end of the list. If an action was deleted mid-street, the earliest point where
+  // the recorded order skips the player who should have acted — so the
+  // re-entered action lands there. A player who does act later in the list is
+  // out of order, not missing, and isn't asked again.
+  const findTurn = (actions, players) => {
+    for (let k = 0; k < actions.length; k++) {
+      const expected = nextAfter(actions.slice(0, k), players);
+      if (!expected || String(expected.actor) === String(actions[k].actor)) continue;
+      const actsLater = actions.slice(k).some(a => String(a.actor) === String(expected.actor));
+      if (!actsLater) return { player: expected, index: k };
+    }
+    return { player: nextAfter(actions, players), index: actions.length };
+  };
+
   // ערימה נוכחית של שחקן — ראשוני מינוס כל מה שהכניס עד כה (כולל שלב נוכחי)
   const getPlayerCurrentStack = (actor, street) => {
     const initial = actor === 'hero'
@@ -445,11 +489,66 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
   // אול-אין/קיפלו), אף אחד לא מתבקש לפעול שוב — כולל השחקן עם הצ'יפים
   // שנשארו מאחוריו, שהיום מתבקש בטעות להמר שוב מול יריבים שכבר לא יכולים
   // להגיב. ראה [[project_poker_handlogger]] — זו הבעיה שהמשתמש דיווח עליה.
-  const actablePlayers = (street) => {
+  const streetPlayers = (street) => {
     if (lockStreet && STREET_SEQUENCE.indexOf(street) > STREET_SEQUENCE.indexOf(lockStreet)) return [];
     const prevFolded = getFoldedBefore(street);
-    const allPlayers = sortedPlayers(heroPosition, opponents, street, playersCount).filter(p => !prevFolded.has(p.actor));
-    return playersWhoNeedToAct(handData.streets[street]?.actions || [], allPlayers);
+    return sortedPlayers(heroPosition, opponents, street, playersCount).filter(p => !prevFolded.has(p.actor));
+  };
+
+  // A street with a skipped turn can't be left until it's filled — otherwise the
+  // hand saves with a player's action missing from the middle of the street.
+  const hasTurnGap = (street) => {
+    const actions = handData.streets[street]?.actions || [];
+    return findTurn(actions, streetPlayers(street)).index < actions.length;
+  };
+
+  // Only the player whose turn it is gets a selector. Actions are saved in tap
+  // order, so offering everyone at once let a 9-handed flop save HJ's fold ahead
+  // of LJ's. While an action is being edited, its selector takes that place.
+  const renderTurn = (street) => {
+    const actions = handData.streets[street]?.actions || [];
+    const { sb, bb } = getBlindSbBb();
+    const selectorProps = (actor, index) => ({
+      actor, unit, street,
+      priorActions: actions.slice(0, index),
+      blindBb: bb, blindSb: sb,
+      actorPosted: getActorPosted(actor, street),
+      playerStack: getPlayerCurrentStack(actor, street),
+      getActorPosted,
+    });
+
+    const editIndex = editingAction?.street === street ? editingAction.index : -1;
+    const edited = actions[editIndex];
+    if (edited) {
+      return (
+        <div className="space-y-1">
+          <div className="flex items-center justify-between text-xs">
+            <button onClick={() => setEditingAction(null)} className="text-slate-400 hover:text-slate-200 underline">
+              ביטול
+            </button>
+            <span className="text-amber-300 font-bold">✏️ עריכת פעולה {editIndex + 1}</span>
+          </div>
+          <ActionSelector key={`edit-${street}-${editIndex}`} label={actorName(edited.actor)}
+            {...selectorProps(edited.actor, editIndex)}
+            onAction={a => { replaceAction(street, editIndex, { ...a, actor: edited.actor }); setEditingAction(null); }} />
+        </div>
+      );
+    }
+
+    const { player, index } = findTurn(actions, streetPlayers(street));
+    if (!player) return null;
+    return (
+      <div className="space-y-1">
+        {index < actions.length && (
+          <div className="text-xs text-amber-300 text-right">
+            ⚠️ חסרה פעולה של {player.label} — היא תירשם במקומה לפי סדר המושבים
+          </div>
+        )}
+        <ActionSelector key={`${street}-${player.actor}-${index}-${actions.length}`} label={player.label}
+          {...selectorProps(player.actor, index)}
+          onAction={a => addAction(street, { ...a, actor: player.actor }, index)} />
+      </div>
+    );
   };
 
   // הרגע הנכון להציג את פאנל גילוי הקלפים: מיד בשלב הבא אחרי שהיד ננעלה,
@@ -528,9 +627,10 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
     if (step === 4) return heroCards.length === 2;
     if (step === 5) {
       const actions = handData.streets.preflop.actions || [];
-      if (!actions.length) return false;
+      if (!actions.length || hasTurnGap('preflop')) return false;
       return playersWhoNeedToAct(actions, sortedPlayers(heroPosition, opponents, 'preflop', playersCount)).length === 0;
     }
+    if (step >= 6 && step <= 8) return !hasTurnGap(STREET_SEQUENCE[step - 5]);
     if (step === 10) {
       if (isMultiPot) {
         return !!potWinners && potWinners.length === pots.length && potWinners.every(w => (w || []).length > 0);
@@ -541,6 +641,7 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
   };
 
   const goNext = () => {
+    setEditingAction(null);
     if (step === 10) {
       const state = buildState();
       setNarrative(generateNarrative(state));
@@ -553,6 +654,7 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
     });
   };
   const goBack = () => {
+    setEditingAction(null);
     let prev = Math.max(step - 1, 0);
     if (prev === 9 && revealedAtLock) prev = 8;
     // חזרה מ"קפוא" (result==='unknown', אחרי לחיצה על "?") לתוך שלבי העריכה
@@ -783,10 +885,15 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
     return (
       <div className="rounded-xl bg-slate-900/60 border border-slate-700 p-2 space-y-1 max-h-36 overflow-y-auto">
         {actions.map((a, i) => (
-          <div key={i} className="flex items-center justify-between text-xs gap-2">
+          <div key={i} className={`flex items-center justify-between text-xs gap-2 rounded ${
+            editingAction?.street === street && editingAction.index === i ? 'bg-amber-500/15' : ''}`}>
             <button onClick={() => removeAction(street, i)}
               className="text-slate-600 hover:text-red-400 transition-colors flex-shrink-0 w-4 h-4 flex items-center justify-center rounded hover:bg-red-500/10">
               ✕
+            </button>
+            <button onClick={() => setEditingAction({ street, index: i })} title="ערוך פעולה"
+              className="text-slate-500 hover:text-amber-300 transition-colors flex-shrink-0 w-4 h-4 flex items-center justify-center rounded hover:bg-amber-500/10">
+              ✎
             </button>
             <span className={`flex-1 text-right ${a.actor === 'hero' ? 'text-blue-300' : 'text-orange-300'}`}>
               {actorName(a.actor)} — {ACTION_DISPLAY[a.action] || a.action}
@@ -1072,19 +1179,7 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
         <ActionLog street="preflop" />
         <PotDisplay street="preflop" />
         <StackDisplay street="preflop" />
-        {playersWhoNeedToAct(
-          handData.streets.preflop.actions,
-          sortedPlayers(heroPosition, opponents, 'preflop', playersCount)
-        ).map(p => (
-          <ActionSelector key={`preflop-${p.actor}-${handData.streets.preflop.actions.length}`}
-            actor={p.actor} label={p.label} unit={unit} street="preflop"
-            priorActions={handData.streets.preflop.actions}
-            blindBb={getBlindSbBb().bb} blindSb={getBlindSbBb().sb}
-            actorPosted={getActorPosted(p.actor, 'preflop')}
-            playerStack={getPlayerCurrentStack(p.actor, 'preflop')}
-            getActorPosted={getActorPosted}
-            onAction={a => addAction('preflop', { ...a, actor: p.actor })} />
-        ))}
+        {renderTurn('preflop')}
         <button onClick={() => skipStreet('preflop')}
           className="w-full py-2 rounded-xl text-xs text-slate-500 border border-dashed border-slate-700 hover:border-slate-600 hover:text-slate-400 transition-all">
           ⏭ דלג לפלופ (קיפלנו / ניצחנו)
@@ -1109,15 +1204,7 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
             <ActionLog street="flop" />
             <PotDisplay street="flop" />
             <StackDisplay street="flop" />
-            {actablePlayers('flop').map(p => (
-              <ActionSelector key={`flop-${p.actor}-${handData.streets.flop.actions.length}`}
-                actor={p.actor} label={p.label} unit={unit} street="flop"
-                priorActions={handData.streets.flop.actions}
-                blindBb={getBlindSbBb().bb} blindSb={getBlindSbBb().sb}
-                playerStack={getPlayerCurrentStack(p.actor, 'flop')}
-                getActorPosted={getActorPosted}
-                onAction={a => addAction('flop', { ...a, actor: p.actor })} />
-            ))}
+            {renderTurn('flop')}
             <LockBanner street="flop" />
           </div>
         )}
@@ -1148,15 +1235,7 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
             <ActionLog street="turn" />
             <PotDisplay street="turn" />
             <StackDisplay street="turn" />
-            {actablePlayers('turn').map(p => (
-              <ActionSelector key={`turn-${p.actor}-${handData.streets.turn.actions.length}`}
-                actor={p.actor} label={p.label} unit={unit} street="turn"
-                priorActions={handData.streets.turn.actions}
-                blindBb={getBlindSbBb().bb} blindSb={getBlindSbBb().sb}
-                playerStack={getPlayerCurrentStack(p.actor, 'turn')}
-                getActorPosted={getActorPosted}
-                onAction={a => addAction('turn', { ...a, actor: p.actor })} />
-            ))}
+            {renderTurn('turn')}
             <LockBanner street="turn" />
           </div>
         )}
@@ -1194,15 +1273,7 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
             <ActionLog street="river" />
             <PotDisplay street="river" />
             <StackDisplay street="river" />
-            {actablePlayers('river').map(p => (
-              <ActionSelector key={`river-${p.actor}-${handData.streets.river.actions.length}`}
-                actor={p.actor} label={p.label} unit={unit} street="river"
-                priorActions={handData.streets.river.actions}
-                blindBb={getBlindSbBb().bb} blindSb={getBlindSbBb().sb}
-                playerStack={getPlayerCurrentStack(p.actor, 'river')}
-                getActorPosted={getActorPosted}
-                onAction={a => addAction('river', { ...a, actor: p.actor })} />
-            ))}
+            {renderTurn('river')}
             <LockBanner street="river" />
           </div>
         )}

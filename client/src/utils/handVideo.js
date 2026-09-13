@@ -1,6 +1,7 @@
 ﻿// PokerIsrael – GGPoker/WSOP Broadcast Style
 // Canvas 760×480, 30fps, WebM VP9
 import { getAllInLockStreet } from './handPots';
+import { seatsFor, minPlayersFor } from './pokerPositions';
 
 const W = 760, H = 480;
 const TCX = 382, TCY = 244;
@@ -9,7 +10,16 @@ const AVATAR_R = 30;
 
 const SUIT_SYM   = { s:'♠', h:'♥', d:'♦', c:'♣' };
 const SUIT_COLOR = { s:'#1e293b', h:'#dc2626', d:'#dc2626', c:'#1e293b' };
-const SEAT_DEG   = {BTN:38, SB:76, BB:128, UTG:175, 'UTG+1':212, MP:248, HJ:292, CO:334};
+// Seat angles come from the seats actually at this table, not a fixed map. The
+// old map had eight seats and no LJ/MP+1, so a 9-handed LJ fell back to 0° and
+// was drawn right of the table, next to the button — out of clockwise order.
+// Anchored at the button (38°), which keeps an 8-handed table where it was.
+function seatAngles(playersCount){
+  const seats=seatsFor(playersCount), n=seats.length, deg={};
+  seats.forEach((s,i)=>{ deg[s]=(38+((i+1)/n)*360)%360; });
+  return deg;
+}
+let SEAT_DEG = seatAngles(8);
 
 // ════════════════════════════════════════════════════
 // HELPERS
@@ -282,7 +292,7 @@ function drawPlayerBox(ctx,pos,label,stack,isHero,isDealer=false,isWinner=false)
   // Position badge (below avatar)
   const posColors={
     BTN:'#7c3aed', BB:'#b91c1c', SB:'#c2410c',
-    UTG:'#1d4ed8','UTG+1':'#0369a1', MP:'#0f766e', HJ:'#15803d', CO:'#4d7c0f',
+    UTG:'#1d4ed8','UTG+1':'#0369a1', MP:'#0f766e','MP+1':'#0e7490', LJ:'#047857', HJ:'#15803d', CO:'#4d7c0f',
   };
   const pc=posColors[pos]||'#374151';
   const pw=Math.max(32,(pos.length)*7+14), ph=15;
@@ -796,6 +806,16 @@ export function buildFrames(state){
 
   const opponents=hand_data?.opponents||[];
   const isCash=game_type==='cash'||game_type==='cash_online';
+
+  // Every seat drawn below reads SEAT_DEG, so it is set before any frame is
+  // built. Grown to fit any seat in the hand, so an understated players_count
+  // can't drop a player back to the 0° fallback.
+  const tableSize=Math.max(
+    Number(state.players_count)||0,
+    opponents.length+1,
+    ...[hero_position,...opponents.map(o=>o.position)].filter(Boolean).map(minPlayersFor),
+  );
+  SEAT_DEG=seatAngles(tableSize);
 
   const{events,finalStacks,finalPot}=buildEvents(hand_data,hero_stack,opponents,sb,bb,ante,hero_position,!isCash);
   // finalPot מגיע ישירות מ-buildEvents (סכימת הפעולות בפועל, לא ניחוש
