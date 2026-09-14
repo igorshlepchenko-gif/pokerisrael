@@ -668,9 +668,49 @@ function drawMiniLog(ctx,events=[]){
   ACTION_COL.return='#94a3b8';
   const LBLS={fold:'fold',check:'check',call:'call',limp:'limp',raise:'raise',
     'three-bet':'3bet','four-bet':'4bet',allin:'all-in',bet:'bet',return:'returned'};
-  const rowH=19, top=y+32, maxRows=Math.floor((h-40)/rowH);
-  events.slice(-maxRows).forEach((ev,i)=>{
+  // Rows grouped by street: a header (PREFLOP / FLOP / TURN / RIVER, with that
+  // street's board cards) before each street's actions. Streets come from the
+  // actions themselves and from the 'street' markers buildFrames adds when a
+  // board is dealt, so a street with no action (all-in run-out) still shows.
+  const STREET_NAME={preflop:'PREFLOP',flop:'FLOP',turn:'TURN',river:'RIVER'};
+  const STREET_COL={preflop:'#60a5fa',flop:'#22d3ee',turn:'#a78bfa',river:'#34d399'};
+  const rows=[];
+  let cur=null;
+  events.forEach(ev=>{
+    if(ev.type==='street'){ rows.push({header:ev.street,cards:ev.cards,street:ev.street}); cur=ev.street; return; }
+    const st=ev.street||cur;
+    if(st&&st!==cur){ rows.push({header:st,cards:[],street:st}); cur=st; }
+    rows.push({...ev,street:st});
+  });
+
+  // 16px rows: a 9-handed hand with an all-in (22 rows incl. street headers)
+  // fits whole; longer hands scroll, keeping the street name on the top row
+  const rowH=16, top=y+30, maxRows=Math.floor((h-38)/rowH);
+  let shown=rows.slice(-maxRows);
+  // scrolled past a street's header — keep its name on the top row
+  if(shown.length&&!shown[0].header){
+    const st=shown[0].street, hdr=rows.find(r=>r.header===st);
+    shown=[{header:st,cards:hdr?.cards||[],street:st},...shown.slice(1)];
+  }
+  shown.forEach((ev,i)=>{
     const ry=top+i*rowH+rowH/2;
+    if(ev.header){
+      const col=STREET_COL[ev.header]||'#94a3b8';
+      ctx.textAlign='left'; ctx.font='bold 10px Arial'; ctx.fillStyle=col;
+      const name=STREET_NAME[ev.header]||ev.header;
+      ctx.fillText(name,x+10,ry);
+      let cx=x+14+ctx.measureText(name).width;
+      (ev.cards||[]).forEach(card=>{
+        const s=`${card.rank}${SUIT_SYM[card.suit]||''}`;
+        ctx.font='bold 10px Arial';
+        ctx.fillStyle=(card.suit==='h'||card.suit==='d')?'#f87171':'#e2e8f0';
+        ctx.fillText(s,cx,ry);
+        cx+=ctx.measureText(s).width+5;
+      });
+      ctx.strokeStyle=`${col}55`; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(Math.min(cx+2,x+w-12),ry); ctx.lineTo(x+w-10,ry); ctx.stroke();
+      return;
+    }
     const isHero=ev.actor==='hero';
     ctx.textAlign='left'; ctx.font='bold 10px Arial';
     ctx.fillStyle=SEAT_COLOR[ev.pos]||(isHero?'#93c5fd':'#fca5a5');
@@ -1093,6 +1133,10 @@ export function buildFrames(state){
       else if(ev.street==='river') {currentStreet='ריבר'; betAmounts={};}
 
       const newBoard=[...revealedBoard,ev.card];
+      // street header in the action log, once that street's board is out
+      if((ev.street==='flop'&&ev.cardIdx===2)||ev.street==='turn'||ev.street==='river'){
+        logEvents=[...logEvents,{type:'street',street:ev.street,cards:ev.street==='flop'?newBoard.slice(0,3):[ev.card]}];
+      }
       const snap={board:[...newBoard],pot:currentPot,stacks:{...currentStacks},log:[...logEvents],
         str:currentStreet,folded:new Set(foldedActors),revealed:new Set(revealedActors)};
       frames.push({duration:18,draw:(ctx,t)=>{
