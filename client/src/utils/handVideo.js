@@ -34,6 +34,35 @@ const HERO_COLOR='#2563eb';
 const PLAYER_PALETTE=['#dc2626','#16a34a','#9333ea','#ea580c','#0891b2','#ca8a04','#db2777','#4f46e5','#65a30d'];
 let SEAT_COLOR = {};
 
+// Counts frames as they're drawn (reset per hand in buildFrames), so effects
+// like the ALL IN pulse are driven by the video's own timeline — not the wall
+// clock, which the encoder runs faster or slower than.
+let FRAME_NO = 0;
+
+// "ALL IN" tag straddling the top of the avatar ring, pulsing, from the moment
+// the player moves all-in until the end of the hand — on exactly the players
+// who are all-in, instead of a "everyone's all-in" banner that usually wasn't true.
+function allInTagBox(pos){ const a=seatOuter(pos); return{x:a.x-24,y:a.y-AVATAR_R-8,w:48,h:16}; }
+function allInPositions(events){
+  return new Set((events||[]).filter(e=>e.action==='allin'&&e.pos).map(e=>e.pos));
+}
+function drawAllInTags(ctx,positions){
+  if(!positions||!positions.size) return;
+  const pulse=0.5+0.5*Math.abs(Math.sin(FRAME_NO*Math.PI/15)); // ~1s cycle at 30fps
+  positions.forEach(pos=>{
+    const b=allInTagBox(pos);
+    ctx.save();
+    setSh(ctx,`rgba(244,63,94,${0.9*pulse})`,6+10*pulse);
+    ctx.globalAlpha=0.55+0.45*pulse;
+    rr(ctx,b.x,b.y,b.w,b.h,5,'#e11d48','#fecdd3',1);
+    clrSh(ctx);
+    ctx.fillStyle='#ffffff'; ctx.font='bold 9.5px Arial';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('ALL IN',b.x+b.w/2,b.y+b.h/2+.5);
+    ctx.restore();
+  });
+}
+
 // ════════════════════════════════════════════════════
 // HELPERS
 // ════════════════════════════════════════════════════
@@ -88,7 +117,7 @@ function betLayout(){
   if(_betLayoutFor===SEAT_DEG) return _betLayout;
   const seats=Object.keys(SEAT_DEG);
   const table={x:PANEL_W+2,y:HUD_H+2,w:W-PANEL_W-4,h:H-HUD_H-4};
-  const fixed=[boardBox(),...seats.map(cardsBox),...seats.map(avatarBox),...seats.map(badgeBox)];
+  const fixed=[boardBox(),...seats.map(cardsBox),...seats.map(avatarBox),...seats.map(badgeBox),...seats.map(allInTagBox)];
   const inTable=(b)=>b.x>=table.x&&b.y>=table.y&&b.x+b.w<=table.x+table.w&&b.y+b.h<=table.y+table.h;
   const hits=(box,extra)=>(inTable(box)?0:10)
     +fixed.filter(o=>boxesOverlap(o,box)).length+extra.filter(o=>boxesOverlap(o,box)).length;
@@ -156,6 +185,7 @@ export function __videoLayoutForTest(playersCount){
     const a=seatOuter(pos), b=seatBet(pos);
     return{pos,avatar:{x:a.x,y:a.y,r:AVATAR_R},
       below:{x:a.x-26,y:a.y+AVATAR_R-7,w:52,h:15}, // position badge on the ring
+      tag:allInTagBox(pos),
       cards:cardsBox(pos),chips:chipsBox(b.x,b.y),label:betLabelBox(pos)};
   });
   return{W,H,HUD_H,PANEL_W,board:boardBox(),seats};
@@ -377,7 +407,8 @@ function drawPlayerBox(ctx,pos,label,stack,isHero,isDealer=false,isWinner=false)
 
   // Dealer button (top-right corner of avatar)
   if(isDealer){
-    const dx=x+r*.72, dy=y-r*.72;
+    // right of the top, clear of the ALL IN tag that sits on the top of the ring
+    const dx=x+r*.87, dy=y-r*.5;
     setSh(ctx,'rgba(0,0,0,0.5)',5);
     ctx.beginPath(); ctx.arc(dx,dy,9.5,0,Math.PI*2);
     ctx.fillStyle='#f8c030'; ctx.fill(); clrSh(ctx);
@@ -863,6 +894,7 @@ function drawScene(ctx,{
     }
   });
 
+  drawAllInTags(ctx,allInPositions(logEvents));
   if(board.length) drawBoard(ctx,board,flipStates||[]);
   // The felt pot pile only between betting rounds — while bets are out, top
   // seats' chips sit where it would be, and the pot is in the left column anyway
@@ -978,6 +1010,7 @@ export function buildFrames(state){
     ...[hero_position,...opponents.map(o=>o.position)].filter(Boolean).map(minPlayersFor),
   );
   SEAT_DEG=seatAngles(tableSize);
+  FRAME_NO=0;
   SEAT_COLOR={};
   opponents.forEach((o,i)=>{ if(o.position) SEAT_COLOR[o.position]=PLAYER_PALETTE[i%PLAYER_PALETTE.length]; });
   if(hero_position) SEAT_COLOR[hero_position]=HERO_COLOR;
@@ -1174,14 +1207,8 @@ export function buildFrames(state){
             logEvents:revealSnap.log,currentStreet:revealSnap.str,betAmounts:revealSnap.bets,
             showHeroCards:true,heroCardsFaceUp:true,foldedActors:revealSnap.folded,
             revealedActors:new Set()});
-          ctx.save();
-          ctx.globalAlpha=0.6; ctx.fillStyle='rgba(0,0,0,0.55)'; ctx.fillRect(0,0,W,H); ctx.globalAlpha=1;
-          setSh(ctx,'#f8c030',12);
-          ctx.fillStyle='#f8c030'; ctx.font='bold 22px Arial';
-          ctx.textAlign='center'; ctx.textBaseline='middle';
-          ctx.fillText('🔓 כולם באול-אין!',TCX,TCY-TRY-26);
-          clrSh(ctx);
-          ctx.restore();
+          // (no "everyone's all-in" banner — usually only one player is; the
+          // ALL IN tags on the players themselves say who, see drawAllInTags)
         }});
         frames.push({duration:28,draw:(ctx,t)=>{
           drawScene(ctx,{...base,pot:revealSnap.pot,stacks:revealSnap.stacks,
@@ -1405,6 +1432,7 @@ export function buildFrames(state){
         if(p.isHero) drawHoleCards(ctx,p.position,hero_cards,true);
         else { const oc=oppCardsAtResult(p); drawHoleCards(ctx,p.position,oc,!!oc); }
       });
+      drawAllInTags(ctx,allInPositions(logEvents));
       drawBoard(ctx,preResultBoard,Array(preResultBoard.length).fill(1));
       pots.forEach((pot,i)=>{
         const{x,y}=potPositions[i];
@@ -1456,6 +1484,7 @@ export function buildFrames(state){
         if(p.isHero) drawHoleCards(ctx,p.position,hero_cards,true);
         else { const oc=oppCardsAtResult(p); drawHoleCards(ctx,p.position,oc,!!oc); }
       });
+      drawAllInTags(ctx,allInPositions(logEvents));
       drawBoard(ctx,preResultBoard,Array(preResultBoard.length).fill(1));
       drawPotCenter(ctx,lerp(currentPot,0,easeInOut(moveT)),isCash);
       drawChipParticles(ctx,TCX,TCY,winnerXY.x,winnerXY.y,moveT,finalPot);
@@ -1506,6 +1535,7 @@ export function buildFrames(state){
       if(p.isHero) drawHoleCards(ctx,p.position,hero_cards,true);
       else { const oc=oppCardsAtResult(p); drawHoleCards(ctx,p.position,oc,!!oc); }
     });
+    drawAllInTags(ctx,allInPositions(logEvents));
     if(preResultBoard.length) drawBoard(ctx,preResultBoard,Array(preResultBoard.length).fill(1));
 
     // Dark vignette for result overlay
@@ -1541,7 +1571,8 @@ export function buildFrames(state){
   }});
   }
 
-  return{frames,W,H};
+  // every drawn frame advances FRAME_NO (animation clock, see drawAllInTags)
+  return{frames:frames.map(f=>({...f,draw:(ctx,t)=>{FRAME_NO++; f.draw(ctx,t);}})),W,H};
 }
 
 // ════════════════════════════════════════════════════
