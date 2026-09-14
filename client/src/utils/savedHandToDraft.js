@@ -11,6 +11,7 @@
  */
 
 import { HAND_LOGGER_DRAFT_KEY } from './handLoggerDraft';
+import { resequenceHandActions } from './actionOrder';
 
 const BLIND_PRESETS = ['25/50', '50/100', '100/200', '200/400', '400/800', '1000/2000'];
 const STAKES_PRESETS = ['1/2', '2/5', '5/10', '10/20', '25/50'];
@@ -20,7 +21,9 @@ const STAKES_PRESETS = ['1/2', '2/5', '5/10', '10/20', '25/50'];
 const SUMMARY_STEP = 11;
 
 export function savedHandToDraft(hand) {
-  const hd = hand.hand_data || {};
+  // Seat order restored on the way in, so "עדכן יד" saves the corrected order
+  // for hands recorded out of turn before the wizard enforced it
+  const hd = resequenceHandActions(hand.hand_data || {}, hand.hero_position, hand.hand_data?.opponents || [], hand.players_count);
   const opponents = (hd.opponents || []).map(o => ({ ...o }));
 
   const street = (st) => ({

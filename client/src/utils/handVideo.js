@@ -2,6 +2,7 @@
 // Canvas 760×480, 30fps, WebM VP9
 import { getAllInLockStreet, getContributions, getUncalledReturn } from './handPots';
 import { seatsFor, minPlayersFor } from './pokerPositions';
+import { resequenceHandActions } from './actionOrder';
 
 // 16:9 so the action log gets its own full-height column beside the table
 // instead of floating over the seats — 760×480 had no room for both, and the
@@ -995,8 +996,11 @@ export function buildFrames(state){
   const{
     game_type, tournament_stage, blind_sb:sb, blind_bb:bb, ante=0, cash_stakes,
     hero_position, hero_stack=0, hero_cards=[],
-    hand_data={}, result, hero_profit,
+    hand_data:storedHandData={}, result, hero_profit,
   }=state;
+  // Replayed in seat order even when the actions were saved out of turn
+  // (hands recorded before the wizard enforced turn order) — see actionOrder.js
+  const hand_data=resequenceHandActions(storedHandData,hero_position,storedHandData?.opponents||[],state.players_count);
 
   const opponents=hand_data?.opponents||[];
   const isCash=game_type==='cash'||game_type==='cash_online';

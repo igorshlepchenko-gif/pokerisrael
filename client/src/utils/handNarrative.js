@@ -1,6 +1,7 @@
 // PokerStars-style hand history generator for PokerIsrael
 import { bestHandEval, describeHandEn } from './handEvaluator';
 import { getContributions, getUncalledReturn } from './handPots';
+import { resequenceHandActions } from './actionOrder';
 
 const POSITION_ORDER = ['UTG', 'UTG+1', 'MP', 'HJ', 'CO', 'BTN', 'SB', 'BB'];
 
@@ -126,10 +127,12 @@ export function generateNarrative(state) {
     hero_position,
     hero_stack,
     hero_cards = [],
-    hand_data = {},
+    hand_data: storedHandData = {},
     result,
     hero_profit,
   } = state;
+  // Written in seat order even when the actions were saved out of turn — see actionOrder.js
+  const hand_data = resequenceHandActions(storedHandData, hero_position, storedHandData?.opponents || [], state.players_count);
 
   const { opponents = [], streets = {}, showdown } = hand_data;
   const isCash = game_type === 'cash' || game_type === 'cash_online';
