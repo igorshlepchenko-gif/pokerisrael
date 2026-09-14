@@ -3,10 +3,17 @@
 import { getAllInLockStreet, getContributions, getUncalledReturn } from './handPots';
 import { seatsFor, minPlayersFor } from './pokerPositions';
 
-const W = 760, H = 480;
-const TCX = 382, TCY = 244;
-const TRX = 272, TRY = 154;
-const AVATAR_R = 30;
+// 16:9 so the action log gets its own full-height column beside the table
+// instead of floating over the seats — 760×480 had no room for both, and the
+// log covered whichever players sat in its corner.
+const W = 960, H = 540;
+const HUD_H = 42;
+const PANEL_W = 210;     // left column: action log on top, pot at the bottom
+const POT_BOX_H = 74;
+const TCX = PANEL_W + (W - PANEL_W) / 2, TCY = HUD_H + (H - HUD_H) / 2 + 2;
+const TRX = 262, TRY = 124;     // felt
+const SEAT_RX = 318, SEAT_RY = 182; // avatar centres, around the rail
+const AVATAR_R = 36;     // room for the player's name and stack inside the circle
 
 const SUIT_SYM   = { s:'♠', h:'♥', d:'♦', c:'♣' };
 const SUIT_COLOR = { s:'#1e293b', h:'#dc2626', d:'#dc2626', c:'#1e293b' };
@@ -20,6 +27,12 @@ function seatAngles(playersCount){
   return deg;
 }
 let SEAT_DEG = seatAngles(8);
+
+// Each player's colour — avatar fill and their name in the action log. Set per
+// hand in buildFrames, keyed by seat (unique within a hand).
+const HERO_COLOR='#2563eb';
+const PLAYER_PALETTE=['#dc2626','#16a34a','#9333ea','#ea580c','#0891b2','#ca8a04','#db2777','#4f46e5','#65a30d'];
+let SEAT_COLOR = {};
 
 // ════════════════════════════════════════════════════
 // HELPERS
@@ -42,42 +55,110 @@ function easeInOut(t){return t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;}
 // ════════════════════════════════════════════════════
 function seatOuter(pos){
   const deg=SEAT_DEG[pos]||0, rad=deg*Math.PI/180;
-  return{x:TCX+(TRX+54)*Math.cos(rad), y:TCY+(TRY+46)*Math.sin(rad)};
+  return{x:TCX+SEAT_RX*Math.cos(rad), y:TCY+SEAT_RY*Math.sin(rad)};
 }
+// Hole cards: pulled in from the avatar toward the table centre just far enough
+// that cards and avatar (with its position badge) never touch, whatever the
+// direction. A second, fixed ellipse inside the seats let them overlap on the
+// diagonal seats.
 function seatCards(pos){
-  const deg=SEAT_DEG[pos]||0, rad=deg*Math.PI/180;
-  return{x:TCX+(TRX-26)*Math.cos(rad), y:TCY+(TRY-18)*Math.sin(rad)};
+  const a=seatOuter(pos);
+  const dx=a.x-TCX, dy=a.y-TCY, len=Math.hypot(dx,dy)||1, ux=dx/len, uy=dy/len;
+  const needX=AVATAR_R+4+CARD_HALF_W+2, needY=AVATAR_R+10+CARD_HALF_H+2;
+  const d=Math.min(ux?needX/Math.abs(ux):Infinity, uy?needY/Math.abs(uy):Infinity);
+  return{x:a.x-ux*d, y:a.y-uy*d};
 }
-function seatBet(pos){
-  const deg=SEAT_DEG[pos]||0, rad=deg*Math.PI/180;
-  // Same radius as the hole cards (not further in toward the pot) but offset
-  // tangentially — chips sit beside the cards on the felt instead of stacked
-  // on the same radial line, where they used to land on top of them.
-  const cx=TCX+(TRX-26)*Math.cos(rad), cy=TCY+(TRY-18)*Math.sin(rad);
-  const tx=-Math.sin(rad), ty=Math.cos(rad);
-  return{x:cx+tx*48, y:cy+ty*48};
+// Bet chips and their amount label must not cover anything: cards, the board,
+// avatars, or another seat's bet. They used to be offset sideways at the
+// cards' own radius and landed on the cards. Now each seat's chips move out
+// from its cards toward the table centre until they're clear, and the label
+// takes the nearest clear spot around its chips — clear of labels already
+// placed too. Computed once per table size.
+const CARD_HALF_W=34, CARD_HALF_H=22;
+const BET_CHIP_COUNT=4, BET_LABEL_W=62, BET_LABEL_H=15;
+function boxesOverlap(a,b){ return a.x<b.x+b.w&&b.x<a.x+a.w&&a.y<b.y+b.h&&b.y<a.y+a.h; }
+function cardsBox(pos){ const c=seatCards(pos); return{x:c.x-CARD_HALF_W,y:c.y-CARD_HALF_H,w:CARD_HALF_W*2,h:CARD_HALF_H*2}; }
+function avatarBox(pos){ const a=seatOuter(pos); return{x:a.x-AVATAR_R-4,y:a.y-AVATAR_R-4,w:AVATAR_R*2+8,h:AVATAR_R*2+8}; }
+function badgeBox(pos){ const a=seatOuter(pos); return{x:a.x-26,y:a.y+AVATAR_R-7,w:52,h:15}; }
+function boardBox(){ const a=getBoardPos(0), b=getBoardPos(4); return{x:a.x-4,y:a.y-4,w:b.x+b.w-a.x+8,h:a.h+8}; }
+function chipsBox(x,y){ const h=BET_CHIP_COUNT*3.8+8; return{x:x-9,y:y-h+4,w:18,h}; }
+
+let _betLayoutFor=null, _betLayout=null;
+function betLayout(){
+  if(_betLayoutFor===SEAT_DEG) return _betLayout;
+  const seats=Object.keys(SEAT_DEG);
+  const table={x:PANEL_W+2,y:HUD_H+2,w:W-PANEL_W-4,h:H-HUD_H-4};
+  const fixed=[boardBox(),...seats.map(cardsBox),...seats.map(avatarBox),...seats.map(badgeBox)];
+  const inTable=(b)=>b.x>=table.x&&b.y>=table.y&&b.x+b.w<=table.x+table.w&&b.y+b.h<=table.y+table.h;
+  const hits=(box,extra)=>(inTable(box)?0:10)
+    +fixed.filter(o=>boxesOverlap(o,box)).length+extra.filter(o=>boxesOverlap(o,box)).length;
+
+  const chips={}, placedChips=[];
+  seats.forEach(pos=>{
+    const c=seatCards(pos);
+    const dx=TCX-c.x, dy=TCY-c.y, len=Math.hypot(dx,dy)||1, ux=dx/len, uy=dy/len;
+    // along the line to the centre, nudged sideways when the straight line is blocked
+    const tx=-uy, ty=ux;
+    let best=null;
+    search: for(let d=12;d<=120;d+=3){
+      for(const s of[0,12,-12,24,-24,36,-36]){
+        const x=c.x+ux*d+tx*s, y=c.y+uy*d+ty*s, box=chipsBox(x,y), h=hits(box,placedChips);
+        if(!best||h<best.h) best={x,y,box,h};
+        if(h===0) break search;
+      }
+    }
+    chips[pos]=best; placedChips.push(best.box);
+  });
+
+  const labels={}, placedLabels=[];
+  seats.forEach(pos=>{
+    const{x,y}=chips[pos];
+    const lw=BET_LABEL_W, lh=BET_LABEL_H, midY=y-BET_CHIP_COUNT*3.8/2, side=13+lw/2;
+    const up=BET_CHIP_COUNT*3.8+10+lh/2, down=10+lh/2;
+    const offsets=[[side,0],[-side,0],[0,down],[0,-up],
+      [side,lh+2],[-side,lh+2],[side,-(lh+2)],[-side,-(lh+2)],
+      // farther out, for crowded 8–10 seat tables
+      [0,down+lh+4],[0,-(up+lh+4)],[side+24,0],[-(side+24),0],
+      [side,2*(lh+2)],[-side,2*(lh+2)],[side,-2*(lh+2)],[-side,-2*(lh+2)]];
+    // last resort: further in toward the table centre, where the felt is open
+    const cdx=TCX-x, cdy=TCY-midY, clen=Math.hypot(cdx,cdy)||1;
+    [28,44,60].forEach(k=>offsets.push([cdx/clen*k,cdy/clen*k]));
+    // and failing all of those, the nearest clear spot on a grid around the chips
+    const grid=[];
+    for(let gx=-104;gx<=104;gx+=8) for(let gy=-72;gy<=72;gy+=6) grid.push([gx,gy]);
+    grid.sort((a,b)=>Math.hypot(a[0],a[1])-Math.hypot(b[0],b[1]));
+    offsets.push(...grid);
+    let best=null;
+    for(const[ox,oy]of offsets){
+      const box={x:x+ox-lw/2,y:midY+oy-lh/2,w:lw,h:lh};
+      const h=hits(box,[...placedChips,...placedLabels]);
+      if(!best||h<best.h) best={box,h};
+      if(h===0) break;
+    }
+    labels[pos]=best.box; placedLabels.push(best.box);
+  });
+
+  _betLayoutFor=SEAT_DEG; _betLayout={chips,labels};
+  return _betLayout;
+}
+function seatBet(pos){ const c=betLayout().chips[pos]; return c?{x:c.x,y:c.y}:seatCards(pos); }
+function betLabelBox(pos){
+  const l=betLayout().labels[pos];
+  if(l) return l;
+  const b=seatBet(pos);
+  return{x:b.x+13,y:b.y-BET_LABEL_H,w:BET_LABEL_W,h:BET_LABEL_H};
 }
 
-// Mini-log placement — pick whichever corner doesn't sit on top of a seat that's
-// actually in this hand (e.g. UTG+1's avatar+cards land right under the default
-// top-left corner). Checked as circles around both the avatar (seatOuter) and
-// hole cards (seatCards) since those two are ~80px apart, not one cluster.
-function rectCircleOverlap(lx,ly,lw,lh,cx,cy,r){
-  const nx=Math.max(lx,Math.min(cx,lx+lw)), ny=Math.max(ly,Math.min(cy,ly+lh));
-  const dx=cx-nx, dy=cy-ny;
-  return (dx*dx+dy*dy)<r*r;
-}
-function pickLogSpot(activePositions,lw,lh){
-  const SEAT_CLEAR_R=45;
-  const candidates=[
-    {x:8,y:48},              // top-left — default
-    {x:W-lw-8,y:48},         // top-right
-    {x:8,y:H-lh-8},          // bottom-left
-    {x:W-lw-8,y:H-lh-8},     // bottom-right
-  ];
-  const seatPoints=(activePositions||[]).flatMap(pos=>[seatOuter(pos),seatCards(pos)]);
-  return candidates.find(c=>!seatPoints.some(p=>rectCircleOverlap(c.x,c.y,lw,lh,p.x,p.y,SEAT_CLEAR_R)))
-    || candidates[0];
+// Geometry the renderer actually draws with, for layout tests only.
+export function __videoLayoutForTest(playersCount){
+  SEAT_DEG=seatAngles(playersCount);
+  const seats=Object.keys(SEAT_DEG).map(pos=>{
+    const a=seatOuter(pos), b=seatBet(pos);
+    return{pos,avatar:{x:a.x,y:a.y,r:AVATAR_R},
+      below:{x:a.x-26,y:a.y+AVATAR_R-7,w:52,h:15}, // position badge on the ring
+      cards:cardsBox(pos),chips:chipsBox(b.x,b.y),label:betLabelBox(pos)};
+  });
+  return{W,H,HUD_H,PANEL_W,board:boardBox(),seats};
 }
 
 // ════════════════════════════════════════════════════
@@ -92,7 +173,9 @@ function drawBG(ctx){
     [22,178,74,44,-21],[714,402,74,44,13],[58,432,74,44,6],[682,148,74,44,-15],
     [340,8,74,44,4],[420,462,74,44,-3],
   ];
-  bills.forEach(([bx,by,bw,bh,ang])=>{
+  // Positions were laid out for 760×480 — scaled to the current canvas
+  bills.forEach(([bx0,by0,bw,bh,ang])=>{
+    const bx=bx0*W/760, by=by0*H/480;
     ctx.save();
     ctx.translate(bx+bw/2,by+bh/2); ctx.rotate(ang*Math.PI/180);
     ctx.globalAlpha=0.17;
@@ -110,7 +193,8 @@ function drawBG(ctx){
     [52,452,'#dc2626'],[702,442,'#f59e0b'],[744,228,'#e2e8f0'],[16,242,'#3b82f6'],
     [380,10,'#fbbf24'],[382,468,'#dc2626'],
   ];
-  chips.forEach(([cx,cy,col])=>{
+  chips.forEach(([cx0,cy0,col])=>{
+    const cx=cx0*W/760, cy=cy0*H/480;
     ctx.beginPath(); ctx.arc(cx,cy,9,0,Math.PI*2);
     ctx.fillStyle=col+'1e'; ctx.fill();
     ctx.strokeStyle=col+'28'; ctx.lineWidth=1.5; ctx.stroke();
@@ -252,44 +336,32 @@ function drawPlayerBox(ctx,pos,label,stack,isHero,isDealer=false,isWinner=false)
     ctx.fillStyle='rgba(248,192,48,0.18)'; ctx.fill(); clrSh(ctx);
   }
 
-  // Thick outer ring
-  ctx.beginPath(); ctx.arc(x,y,r+5,0,Math.PI*2);
-  ctx.fillStyle=isHero?'#3060c8':isWinner?'#c8900a':'#5a3a18'; ctx.fill();
+  // Outer ring — gold for the winner, light for hero, dark otherwise
+  ctx.beginPath(); ctx.arc(x,y,r+4,0,Math.PI*2);
+  ctx.fillStyle=isWinner?'#f8c030':isHero?'#bfdbfe':'#0f172a'; ctx.fill();
 
-  // Dark separator
-  ctx.beginPath(); ctx.arc(x,y,r+2.5,0,Math.PI*2);
-  ctx.fillStyle='#0a0604'; ctx.fill();
-
-  // Render avatar interior on tiny temp canvas WITH clip (74×74 = trivial GPU cost)
+  // Avatar interior on the tiny temp canvas (clip without a GPU hit): the
+  // player's own colour with their name in it — no logo — so every seat is
+  // told apart at a glance and matches its name colour in the action log.
   const ac=getAvCtx();
   ac.clearRect(0,0,sz,sz);
   ac.save();
   ac.beginPath(); ac.arc(off,off,r,0,Math.PI*2); ac.clip();
-
-  // Avatar background
-  ac.fillStyle=isHero?'#112060':'#18100a';
+  ac.fillStyle=SEAT_COLOR[pos]||'#475569';
   ac.fillRect(0,0,sz,sz);
-
-  // Red diagonal accent strip (GGPoker design)
-  ac.save(); ac.translate(off,off); ac.rotate(-0.35);
-  ac.fillStyle='rgba(160,22,10,0.55)';
-  ac.fillRect(-r,-r*.26,r*2,r*.52);
-  ac.restore();
-
-  // "PI" logo text
-  ac.fillStyle='#ffffff'; ac.font=`bold ${(r*.66)|0}px Arial`;
-  ac.textAlign='center'; ac.textBaseline='middle';
-  ac.fillText('PI',off,off-r*.04);
-
-  // Subtitle
-  ac.fillStyle='rgba(255,255,255,0.45)'; ac.font=`${(r*.25)|0}px Arial`;
-  ac.fillText('ISRAEL',off,off+r*.52);
+  const shade=ac.createLinearGradient(0,off-r,0,off+r);
+  shade.addColorStop(0,'rgba(255,255,255,0.22)'); shade.addColorStop(1,'rgba(0,0,0,0.38)');
+  ac.fillStyle=shade; ac.fillRect(0,0,sz,sz);
+  // Name and stack both inside the circle — text hanging below the avatar ran
+  // into the next seat down at the sides and into the cards at the top
+  const stackDisp=isWinner?`+${typeof stack==='number'?stack.toLocaleString():stack}`:(typeof stack==='number'?stack.toLocaleString():stack);
+  drawAvatarText(ac,label||'Player',String(stackDisp),isWinner?'#fde047':'#f1f5f9',off,off,r);
   ac.restore();
 
   // Composite tiny canvas onto main canvas
   ctx.drawImage(_avCv,Math.round(x-off),Math.round(y-off));
 
-  // Position badge (below avatar)
+  // Position badge — straddles the bottom of the ring instead of hanging below it
   const posColors={
     BTN:'#7c3aed', BB:'#b91c1c', SB:'#c2410c',
     UTG:'#1d4ed8','UTG+1':'#0369a1', MP:'#0f766e','MP+1':'#0e7490', LJ:'#047857', HJ:'#15803d', CO:'#4d7c0f',
@@ -297,24 +369,11 @@ function drawPlayerBox(ctx,pos,label,stack,isHero,isDealer=false,isWinner=false)
   const pc=posColors[pos]||'#374151';
   const pw=Math.max(32,(pos.length)*7+14), ph=15;
   setSh(ctx,'rgba(0,0,0,0.4)',4);
-  rr(ctx,x-pw/2,y+r+5,pw,ph,5,pc,null);
+  rr(ctx,x-pw/2,y+r-7,pw,ph,5,pc,'#0f172a',1);
   clrSh(ctx);
   ctx.fillStyle='#fff'; ctx.font='bold 8.5px Arial';
   ctx.textAlign='center'; ctx.textBaseline='middle';
-  ctx.fillText(pos,x,y+r+5+ph/2);
-
-  // Player name
-  ctx.fillStyle=isHero?'#93c5fd':'#e2e8f0';
-  ctx.font=`bold ${isHero?11:10}px Arial`;
-  ctx.textAlign='center'; ctx.textBaseline='top';
-  ctx.fillText((label||'Player').substring(0,9),x,y+r+22);
-
-  // Stack
-  const stackDisp=isWinner?`+${typeof stack==='number'?stack.toLocaleString():stack}`:(typeof stack==='number'?stack.toLocaleString():stack);
-  ctx.fillStyle=isWinner?'#f8c030':isHero?'#60a5fa':'#94a3b8';
-  ctx.font=`${isHero?9:8}px Arial`;
-  ctx.textBaseline='top';
-  ctx.fillText(stackDisp,x,y+r+35);
+  ctx.fillText(pos,x,y+r-7+ph/2);
 
   // Dealer button (top-right corner of avatar)
   if(isDealer){
@@ -327,6 +386,46 @@ function drawPlayerBox(ctx,pos,label,stack,isHero,isDealer=false,isWinner=false)
     ctx.textAlign='center'; ctx.textBaseline='middle';
     ctx.fillText('D',dx,dy);
   }
+}
+
+// A player's name and stack inside their avatar. The name takes one line if it
+// fits at a readable size, else two lines split at the space nearest the
+// middle, else it's shrunk and cut with "…"; the stack goes underneath.
+// Hebrew names render right-to-left on their own.
+function drawAvatarText(c,name,stack,stackColor,cx,cy,r){
+  const maxW=r*2-14;
+  c.textAlign='center'; c.textBaseline='middle';
+  c.shadowColor='rgba(0,0,0,0.7)'; c.shadowBlur=3;
+  const fits=(s,px)=>{ c.font=`bold ${px}px Arial`; return c.measureText(s).width<=maxW; };
+  let lines=null, px=9;
+  for(let p=12;p>=10&&!lines;p--) if(fits(name,p)){ lines=[name]; px=p; }
+  if(!lines){
+    const words=name.trim().split(/\s+/);
+    if(words.length>1){
+      let best=null;
+      for(let k=1;k<words.length;k++){
+        const a=words.slice(0,k).join(' '), b=words.slice(k).join(' ');
+        const d=Math.abs(a.length-b.length);
+        if(!best||d<best.d) best={a,b,d};
+      }
+      for(let p=11;p>=8&&!lines;p--) if(fits(best.a,p)&&fits(best.b,p)){ lines=[best.a,best.b]; px=p; }
+    }
+  }
+  if(!lines){ c.font='bold 9px Arial'; lines=[clipText(c,name,maxW)]; px=9; }
+
+  const lineH=px+1, stackPx=10, gap=2;
+  let yy=cy-(lines.length*lineH+gap+stackPx)/2+lineH/2;
+  c.fillStyle='#ffffff'; c.font=`bold ${px}px Arial`;
+  lines.forEach(l=>{ c.fillText(l,cx,yy); yy+=lineH; });
+  yy+=gap-lineH/2+stackPx/2;
+  c.font=`bold ${stackPx}px Arial`; c.fillStyle=stackColor;
+  c.fillText(clipText(c,stack,maxW),cx,yy);
+}
+function clipText(c,s,maxW){
+  if(c.measureText(s).width<=maxW) return s;
+  let t=s;
+  while(t.length>1&&c.measureText(t+'…').width>maxW) t=t.slice(0,-1);
+  return t+'…';
 }
 
 // ════════════════════════════════════════════════════
@@ -376,9 +475,11 @@ function drawHoleCards(ctx,pos,cards,faceUp=false,flipT=1){
 // BOARD CARDS
 // ════════════════════════════════════════════════════
 function getBoardPos(idx){
-  const cw=52, ch=74, gap=10;
+  const cw=48, ch=68, gap=8;
   const total=5*(cw+gap)-gap;
-  return{x:TCX-total/2+idx*(cw+gap), y:TCY-ch/2-14, w:cw, h:ch};
+  // Vertically centred: top and bottom seats both need room for their bets
+  // between their hole cards and the board
+  return{x:TCX-total/2+idx*(cw+gap), y:TCY-ch/2-4, w:cw, h:ch};
 }
 function drawBoard(ctx,cards,flipStates=[]){
   cards.forEach((c,i)=>{
@@ -416,22 +517,12 @@ function drawChipStack(ctx,cx,cy,count=5,c1='#dc2626',c2='#1e293b'){
 // ════════════════════════════════════════════════════
 function drawPotCenter(ctx,pot,isCash){
   if(pot<=0) return;
-  const potStr=isCash?`₪${Math.round(pot).toLocaleString()}`:`${Math.round(pot).toLocaleString()}`;
-  const chipCy=TCY-72;
-  drawChipStack(ctx,TCX-22,chipCy,5,'#dc2626','#1e293b');
-  drawChipStack(ctx,TCX,   chipCy,7,'#e2e8f0','#1e293b');
-  drawChipStack(ctx,TCX+22,chipCy,4,'#dc2626','#f8c030');
-
-  // POT pill — wide, centered, prominent
-  const pw=140, ph=26;
-  setSh(ctx,'rgba(0,0,0,0.55)',8);
-  rr(ctx,TCX-pw/2,chipCy-ph-8,pw,ph,ph/2,'rgba(4,10,26,0.94)','#2d4a3a',1);
-  clrSh(ctx);
-  ctx.fillStyle='#64748b'; ctx.font='bold 9px Arial';
-  ctx.textAlign='center'; ctx.textBaseline='middle';
-  ctx.fillText('POT',TCX-32,chipCy-ph/2-8);
-  ctx.fillStyle='#f8c030'; ctx.font='bold 16px Arial';
-  ctx.fillText(potStr,TCX+14,chipCy-ph/2-8);
+  // Just a chip pile under the board — the amount is in the left column. The
+  // old pill above the board sat on the top seats' hole cards.
+  const chipCy=TCY+62;
+  drawChipStack(ctx,TCX-22,chipCy,4,'#dc2626','#1e293b');
+  drawChipStack(ctx,TCX,   chipCy,5,'#e2e8f0','#1e293b');
+  drawChipStack(ctx,TCX+22,chipCy,3,'#dc2626','#f8c030');
 }
 
 // ════════════════════════════════════════════════════
@@ -440,10 +531,10 @@ function drawPotCenter(ctx,pot,isCash){
 // different stack depths (hand_data.pots.length > 1)
 // ════════════════════════════════════════════════════
 function getPotPilePositions(n){
-  const spacing=Math.min(150,600/Math.max(1,n-1||1));
+  const spacing=Math.min(150,(W-PANEL_W-200)/Math.max(1,n-1||1));
   const totalW=(n-1)*spacing;
   const startX=TCX-totalW/2;
-  return Array.from({length:n},(_,i)=>({x:startX+i*spacing,y:TCY-72}));
+  return Array.from({length:n},(_,i)=>({x:startX+i*spacing,y:TCY+82})); // below the board, as drawPotCenter
 }
 function drawPotPile(ctx,x,y,amount,label,isCash){
   if(amount<=0) return;
@@ -496,14 +587,14 @@ function drawQuestionCard(ctx,alpha){
 function drawBetChips(ctx,pos,amount,isCash){
   if(!amount||amount<=0) return;
   const{x,y}=seatBet(pos);
-  const stacks=Math.max(2,Math.min(8,Math.ceil(amount/600)));
-  drawChipStack(ctx,x,y,stacks,'#dc2626','#e2e8f0');
+  // Fixed stack height — the layout (seatBet/betLabelBox) reserves exactly this
+  drawChipStack(ctx,x,y,BET_CHIP_COUNT,'#dc2626','#e2e8f0');
   const label=isCash?`₪${Math.round(amount).toLocaleString()}`:`${Math.round(amount).toLocaleString()}`;
-  const lw=60, lh=15;
-  rr(ctx,x-lw/2,y+12,lw,lh,4,'rgba(4,10,26,0.9)','#1e3553',.8);
+  const box=betLabelBox(pos);
+  rr(ctx,box.x,box.y,box.w,box.h,4,'rgba(4,10,26,0.9)','#1e3553',.8);
   ctx.fillStyle='#e2e8f0'; ctx.font='bold 9px Arial';
   ctx.textAlign='center'; ctx.textBaseline='middle';
-  ctx.fillText(label,x,y+19);
+  ctx.fillText(label,box.x+box.w/2,box.y+box.h/2);
 }
 
 // ════════════════════════════════════════════════════
@@ -532,7 +623,14 @@ function drawActionBadge(ctx,pos,action,amount,isCash,alpha){
   // y with the naive fixed offset, running the badge off the top edge. The
   // arrow below still points at (x,y) regardless, so clamping just shortens
   // the visual gap instead of leaving the badge fully off-screen.
-  const bx=Math.max(4,Math.min(W-tw-4,x-tw/2)), by=Math.max(4,y-AVATAR_R-bh-16);
+  // On the outside of the seat — below the avatar for the bottom half of the
+  // table, above it for the top half. Always above, it covered the bottom
+  // seats' own hole cards (which sit between the avatar and the table centre).
+  const outsideBelow=y>TCY;
+  const bx=Math.max(PANEL_W+4,Math.min(W-tw-4,x-tw/2));
+  const by=outsideBelow
+    ? Math.min(H-bh-2,y+AVATAR_R+14)
+    : Math.max(HUD_H+2,y-AVATAR_R-bh-14);
 
   ctx.globalAlpha=alpha;
   // Glow
@@ -541,7 +639,8 @@ function drawActionBadge(ctx,pos,action,amount,isCash,alpha){
   clrSh(ctx);
   // Arrow pointing to player
   ctx.beginPath();
-  ctx.moveTo(x-9,by+bh); ctx.lineTo(x,by+bh+13); ctx.lineTo(x+9,by+bh);
+  if(outsideBelow){ ctx.moveTo(x-8,by); ctx.lineTo(x,by-10); ctx.lineTo(x+8,by); }
+  else { ctx.moveTo(x-9,by+bh); ctx.lineTo(x,by+bh+11); ctx.lineTo(x+9,by+bh); }
   ctx.closePath(); ctx.fillStyle=col; ctx.fill();
   // Text
   ctx.fillStyle=['call','check','limp','fold'].includes(action)?'#111111':'#ffffff';
@@ -553,37 +652,35 @@ function drawActionBadge(ctx,pos,action,amount,isCash,alpha){
 // ════════════════════════════════════════════════════
 // ACTION LOG — left panel
 // ════════════════════════════════════════════════════
-function drawMiniLog(ctx,events,activePositions=[],maxRows=5){
-  if(!events.length) return;
-  const lw=190, lh=Math.min(events.length,maxRows)*21+30;
-  const{x:lx,y:ly}=pickLogSpot(activePositions,lw,lh);
-  rr(ctx,lx,ly,lw,lh,8,'rgba(4,10,26,0.9)','#1e3553',1);
-  ctx.fillStyle='rgba(255,255,255,0.35)'; ctx.font='bold 9px Arial';
-  ctx.textAlign='left'; ctx.textBaseline='top';
-  ctx.fillText('ACTION LOG',lx+12,ly+9);
+// Its own full-height column left of the table (above the pot box), so it can
+// never cover a seat. Always drawn — empty until the first action — so the
+// table doesn't shift when it fills. Names in each player's seat colour.
+function drawMiniLog(ctx,events=[]){
+  const x=6, y=HUD_H+6, w=PANEL_W-12, h=H-HUD_H-POT_BOX_H-12;
+  rr(ctx,x,y,w,h,10,'rgba(4,10,26,0.92)','#1e3553',1);
+  ctx.fillStyle='rgba(255,255,255,0.4)'; ctx.font='bold 10px Arial';
+  ctx.textAlign='left'; ctx.textBaseline='middle';
+  ctx.fillText('ACTION LOG',x+12,y+16);
   const ACTION_COL={
     fold:'#6b7280', check:'#22c55e', call:'#f8c030', limp:'#60a5fa',
     raise:'#fbbf24', 'three-bet':'#f87171', 'four-bet':'#f9a8d4', allin:'#e879f9', bet:'#fbbf24',
   };
-  const shown=events.slice(-maxRows);
-  shown.forEach((ev,i)=>{
-    const ey=ly+26+i*21;
+  ACTION_COL.return='#94a3b8';
+  const LBLS={fold:'fold',check:'check',call:'call',limp:'limp',raise:'raise',
+    'three-bet':'3bet','four-bet':'4bet',allin:'all-in',bet:'bet',return:'returned'};
+  const rowH=19, top=y+32, maxRows=Math.floor((h-40)/rowH);
+  events.slice(-maxRows).forEach((ev,i)=>{
+    const ry=top+i*rowH+rowH/2;
     const isHero=ev.actor==='hero';
-    const col=ACTION_COL[ev.action]||'#e2e8f0';
-    const name=(isHero?'Hero':(ev.opponentLabel||'Villain')).substring(0,6);
+    ctx.textAlign='left'; ctx.font='bold 10px Arial';
+    ctx.fillStyle=SEAT_COLOR[ev.pos]||(isHero?'#93c5fd':'#fca5a5');
+    ctx.fillText(clipText(ctx,isHero?'Hero':(ev.opponentLabel||'Villain'),58),x+10,ry);
     const amtStr=ev.amount>0?` ${Math.round(ev.amount).toLocaleString()}`:'';
-    const LBLS={fold:'fold',check:'check',call:'call',limp:'limp',raise:'raise',
-      'three-bet':'3bet','four-bet':'4bet',allin:'all-in',bet:'bet'};
-    const actionStr=(LBLS[ev.action]||ev.action||'?')+amtStr;
-    ctx.fillStyle=isHero?'#93c5fd':'#fca5a5';
-    ctx.font='bold 9px Arial'; ctx.textBaseline='middle';
-    ctx.fillText(`${name}:`,lx+12,ey+10);
-    ctx.fillStyle=col;
-    ctx.fillText(actionStr,lx+56,ey+10);
+    ctx.fillStyle=ACTION_COL[ev.action]||'#e2e8f0';
+    ctx.fillText((LBLS[ev.action]||ev.action||'?')+amtStr,x+72,ry);
     if(ev.bbVal&&ev.amount>0){
-      const bbs=Number((ev.amount/ev.bbVal).toFixed(1));
-      ctx.fillStyle='#475569'; ctx.font='7.5px Arial';
-      ctx.fillText(`(${bbs}BB)`,lx+140,ey+10);
+      ctx.fillStyle='#64748b'; ctx.font='8px Arial'; ctx.textAlign='right';
+      ctx.fillText(`${Number((ev.amount/ev.bbVal).toFixed(1))}BB`,x+w-8,ry);
     }
   });
 }
@@ -667,29 +764,33 @@ function drawTopHUD(ctx,isCash,stakes,sb,bb,ante,tournamentStage){
 function drawStreetBadge(ctx,label){
   const colors={'פרה-פלופ':'#60a5fa','פלופ':'#22d3ee','טרן':'#a78bfa','ריבר':'#34d399'};
   const col=colors[label]||'#e2e8f0';
-  ctx.font='bold 11px Arial';
-  const tw=ctx.measureText(label).width+22;
-  rr(ctx,TCX-tw/2,TCY+TRY*.60,tw,20,5,`${col}22`,col,.8);
+  // In the top bar above the table's centre — on the felt it sat among the
+  // bottom seats' bets
+  ctx.font='bold 12px Arial';
+  const tw=ctx.measureText(label).width+26;
+  rr(ctx,TCX-tw/2,10,tw,22,6,`${col}22`,col,1);
   ctx.fillStyle=col; ctx.textAlign='center'; ctx.textBaseline='middle';
-  ctx.fillText(label,TCX,TCY+TRY*.60+10);
+  ctx.fillText(label,TCX,21);
 }
 
 // ════════════════════════════════════════════════════
-// POT DISPLAY — bottom right HUD
+// POT DISPLAY — bottom of the left column
 // ════════════════════════════════════════════════════
 function drawPotDisplay(ctx,pot,sb,bb,ante,isCash,stakes){
-  const pw=172, ph=50, px=W-pw-10, py=H-ph-10;
+  // Bottom of the left column, under the action log — in the bottom-right
+  // corner it sat on top of the button/small blind seats
+  const px=6, pw=PANEL_W-12, ph=POT_BOX_H-6, py=H-POT_BOX_H;
   setSh(ctx,'rgba(0,0,0,0.6)',12,0,4);
-  rr(ctx,px,py,pw,ph,8,'rgba(4,11,26,0.94)','#1e3d6b',1.5);
+  rr(ctx,px,py,pw,ph,10,'rgba(4,11,26,0.94)','#1e3d6b',1.5);
   clrSh(ctx);
-  ctx.fillStyle='#475569'; ctx.font='9px Arial';
-  ctx.textAlign='right'; ctx.textBaseline='top';
-  ctx.fillText('POT',px+pw-12,py+8);
-  ctx.fillStyle='#f8c030'; ctx.font='bold 20px Arial';
-  ctx.fillText(Math.round(pot).toLocaleString(),px+pw-12,py+20);
+  ctx.fillStyle='#64748b'; ctx.font='bold 10px Arial';
+  ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText('POT',px+12,py+9);
+  ctx.fillStyle='#f8c030'; ctx.font='bold 24px Arial';
+  ctx.fillText(`${isCash?'₪':''}${Math.round(pot).toLocaleString()}`,px+12,py+21);
   const bl=isCash?`Stakes: ${stakes||''}`:`Blinds: ${sb||0}/${bb||0}${ante>0?` · Ante ${ante}`:''}`;
-  ctx.fillStyle='#334155'; ctx.font='8.5px Arial'; ctx.textBaseline='bottom';
-  ctx.fillText(bl,px+pw-12,py+ph-8);
+  ctx.fillStyle='#475569'; ctx.font='9px Arial'; ctx.textBaseline='bottom';
+  ctx.fillText(bl,px+12,py+ph-7);
 }
 
 // ════════════════════════════════════════════════════
@@ -723,12 +824,15 @@ function drawScene(ctx,{
   });
 
   if(board.length) drawBoard(ctx,board,flipStates||[]);
-  drawPotCenter(ctx,pot,isCash);
+  // The felt pot pile only between betting rounds — while bets are out, top
+  // seats' chips sit where it would be, and the pot is in the left column anyway
+  const betsOut=Object.values(betAmounts).some(a=>a>0);
+  if(!betsOut) drawPotCenter(ctx,pot,isCash);
   Object.entries(betAmounts).forEach(([pos,amt])=>drawBetChips(ctx,pos,amt,isCash));
   if(currentStreet) drawStreetBadge(ctx,currentStreet);
   if(actionBadge&&actionBadgeAlpha>0)
     drawActionBadge(ctx,actionBadge.pos,actionBadge.action,actionBadge.amount,isCash,actionBadgeAlpha);
-  if(logEvents.length) drawMiniLog(ctx,logEvents,allPlayers.map(p=>p.position));
+  drawMiniLog(ctx,logEvents);
   drawPotDisplay(ctx,pot,sb,bb,ante,isCash,stakes);
 }
 
@@ -764,6 +868,12 @@ function buildEvents(hand_data,hero_stack,opponents,sb,bb,ante,hero_position,isT
   // אותו זיהוי בדיוק כמו באשף (HandLoggerWizard), כדי שהסרטון יגלה קלפים
   // באותה נקודה בדיוק שבה האשף כבר הציג את פאנל הגילוי המוקדם
   const lockStreet=getAllInLockStreet(hand_data,hero_position,hero_stack,opponents,sb,bb,ante,isTournament);
+  // The part of the biggest bet nobody matched goes back to its owner's stack
+  // as soon as that betting round ends — not only at the very end, or the pot
+  // on screen stays too big for the rest of the hand (same rule as the wizard
+  // and the narrative, see handPots.js)
+  const uncalled=getUncalledReturn(getContributions(hand_data,hero_position,opponents,sb,bb,ante,isTournament));
+  const lastActionStreet=['river','turn','flop','preflop'].find(s=>(streets[s]?.actions||[]).length);
   ['preflop','flop','turn','river'].forEach(street=>{
     if(street==='flop'&&streets.flop?.board?.length)
       streets.flop.board.forEach((card,i)=>events.push({type:'card',street:'flop',cardIdx:i,card,pot,stacks:{...stacks}}));
@@ -791,15 +901,18 @@ function buildEvents(hand_data,hero_stack,opponents,sb,bb,ante,hero_position,isT
         actorPos:a.actor==='hero'?hero_stack:opp?.position,
       });
     });
+    if(uncalled&&street===lastActionStreet){
+      const opp=uncalled.actor==='hero'?null:opponents.find(o=>String(o.id)===uncalled.actor);
+      const key=uncalled.actor==='hero'?'hero':opp?.id;
+      if(key!=null&&stacks[key]!=null){
+        stacks[key]+=uncalled.amount; pot-=uncalled.amount;
+        events.push({type:'return',street,actor:uncalled.actor,amount:uncalled.amount,
+          pos:uncalled.actor==='hero'?hero_position:opp?.position,opponentLabel:opp?.label||null,
+          potAfter:pot,stacksAfter:{...stacks}});
+      }
+    }
     if(street===lockStreet) events.push({type:'reveal'});
   });
-  // החלק של ההימור הגדול ביותר שאף אחד לא השווה חוזר לערימה של בעליו — הוא
-  // לא חלק מהקופה שעוברת למנצח (אותו חישוב כמו באשף ובנרטיב, ראה handPots.js)
-  const uncalled=getUncalledReturn(getContributions(hand_data,hero_position,opponents,sb,bb,ante,isTournament));
-  if(uncalled){
-    const key=uncalled.actor==='hero'?'hero':opponents.find(o=>String(o.id)===uncalled.actor)?.id;
-    if(key!=null&&stacks[key]!=null){stacks[key]+=uncalled.amount;pot-=uncalled.amount;}
-  }
   return{events,finalPot:pot,finalStacks:{...stacks}};
 }
 
@@ -825,6 +938,9 @@ export function buildFrames(state){
     ...[hero_position,...opponents.map(o=>o.position)].filter(Boolean).map(minPlayersFor),
   );
   SEAT_DEG=seatAngles(tableSize);
+  SEAT_COLOR={};
+  opponents.forEach((o,i)=>{ if(o.position) SEAT_COLOR[o.position]=PLAYER_PALETTE[i%PLAYER_PALETTE.length]; });
+  if(hero_position) SEAT_COLOR[hero_position]=HERO_COLOR;
 
   const{events,finalStacks,finalPot}=buildEvents(hand_data,hero_stack,opponents,sb,bb,ante,hero_position,!isCash);
   // finalPot מגיע ישירות מ-buildEvents (סכימת הפעולות בפועל, לא ניחוש
@@ -949,6 +1065,7 @@ export function buildFrames(state){
       drawCardFlip(ctx,x-cw-gap/2,y-ch/2,cw,ch,hero_cards[0].rank,hero_cards[0].suit,ft0);
       drawCardFlip(ctx,x+gap/2,y-ch/2,cw,ch,hero_cards[1].rank,hero_cards[1].suit,ft1);
     }
+    drawMiniLog(ctx,[]);
     drawPotDisplay(ctx,initialPot,sb,bb,ante,isCash,cash_stakes);
   }});
 
@@ -994,6 +1111,11 @@ export function buildFrames(state){
           foldedActors:snap.folded,revealedActors:snap.revealed});
       }});
       revealedBoard=newBoard; flipStates=Array(revealedBoard.length).fill(1);
+
+    } else if(ev.type==='return'){
+      // uncalled bet back to its owner — pot and stack from here on, plus a log line
+      currentPot=ev.potAfter; currentStacks={...ev.stacksAfter};
+      logEvents=[...logEvents,{actor:ev.actor,action:'return',amount:ev.amount,pos:ev.pos,opponentLabel:ev.opponentLabel}];
 
     } else if(ev.type==='reveal'){
       // אול-אין לפני שהבורד הושלם: מציגים את קלפי כל מי שנשאר ולא קיפל,
@@ -1046,7 +1168,7 @@ export function buildFrames(state){
       const hasChips=ev.amount>0;
       if(hasChips&&actorPos) betAmounts={...betAmounts,[actorPos]:(betAmounts[actorPos]||0)+ev.amount};
 
-      const newLog=[...logEvents,{...ev,opponentLabel:actorOpp?.label||null}];
+      const newLog=[...logEvents,{...ev,opponentLabel:actorOpp?.label||null,pos:actorPos}];
       const snap={board:[...revealedBoard],str:currentStreet,bets:{...betAmounts},
         folded:new Set(foldedActors),revealed:new Set(revealedActors)};
       const badge={pos:actorPos,action:ev.action,amount:ev.amount};
@@ -1381,7 +1503,9 @@ export function buildFrames(state){
 // ════════════════════════════════════════════════════
 // RECORD VIDEO — WebCodecs (no captureStream, no GPU crash)
 // ════════════════════════════════════════════════════
-const RENDER_SCALE = 2; // 2× pixel density → 1520×960, sharp HD output
+// 1.6× → 1536×864: about the pixel count the old 2× on 760×480 had (1520×960),
+// so the 16:9 canvas doesn't raise the per-frame encoder memory on mobile
+const RENDER_SCALE = 1.6;
 
 export async function recordVideo(state,onProgress){
   // WebCodecs מדווח את עצמו כזמין (typeof VideoEncoder!=='undefined') גם

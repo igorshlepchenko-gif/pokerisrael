@@ -183,9 +183,14 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
     if (actor === 'hero') return heroCards;
     const idx = opponents.findIndex(o => String(o.id) === String(actor));
     if (idx < 0) return [];
-    const cards = idx === 0 ? oppRevealedCards : (handData.showdown?.opponent_cards?.[idx] || []);
+    const stored = handData.showdown?.opponent_cards?.[idx];
+    const cards = stored?.length ? stored : (idx === 0 ? oppRevealedCards : []);
     return cards?.length === 2 ? cards : [];
   };
+  // True when every opponent still in the hand has both cards entered.
+  const showdownCardsKnown = () => getShowdownPlayers()
+    .filter(p => p.actor !== 'hero')
+    .every(p => getRevealedCards(p.actor).length === 2);
 
   const computeAutoResult = () => {
     const sdPlayers = getShowdownPlayers();
@@ -391,12 +396,17 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
     }));
   };
 
-  const setShowdownCards = (cards) => {
-    setHandData(prev => ({
-      ...prev,
-      showdown: { reached: true, opponent_cards: [cards] },
-    }));
-    setOppRevealedCards(cards);
+  // One opponent's cards, stored at that opponent's index in
+  // showdown.opponent_cards — the index the narrative and the video read by.
+  // The old setters replaced the whole array with [cards] for the first
+  // opponent, and for anyone else mapped over an array that had no entry at
+  // their index yet — so picking cards for the 2nd opponent onward saved nothing.
+  const setOpponentCards = (index, cards) => {
+    setHandData(prev => {
+      const next = opponents.map((_, j) => (j === index ? cards : (prev.showdown?.opponent_cards?.[j] || [])));
+      return { ...prev, showdown: { reached: next.some(c => c?.length === 2), opponent_cards: next } };
+    });
+    if (index === 0) setOppRevealedCards(cards);
   };
 
   // מחזיר את רשימת השחקנים שעדיין צריכים לפעול בשלב הנוכחי
@@ -659,7 +669,9 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
     setStep(s => {
       let next = Math.min(s + 1, steps.length - 1);
       // שלב 9 (קלפי יריב) כבר נענה מוקדם יותר ע"י AllInRevealPanel — לא לשאול שוב
-      if (next === 9 && revealedAtLock) next = 10;
+      // ...אבל רק אם באמת הוזנו שם קלפים: "דלג — לא לגלות קלפים" בפאנל הזה
+      // השאיר עד עכשיו את שלב 9 חסום לתמיד, בלי שום דרך להזין את קלפי היריב
+      if (next === 9 && revealedAtLock && showdownCardsKnown()) next = 10;
       return next;
     });
   };
@@ -669,8 +681,8 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
   const jumpToStep = (target) => {
     if (target < 0 || target >= step) return;
     setEditingAction(null);
-    let prev = target;
-    if (prev === 9 && revealedAtLock) prev = 8;
+    // חזרה אחורה מגיעה תמיד גם לשלב 9 — זה המקום לתקן/להזין קלפי יריב
+    const prev = target;
     // חזרה מ"קפוא" (result==='unknown', אחרי לחיצה על "?") לתוך שלבי העריכה
     // עצמם (9 ומטה) — זה לא רק הצצה בתוצאה, זה סימן שהמשתמש רוצה להמשיך
     // את היד באמת. מפשירים את המצב כדי שהזיהוי האוטומטי יעבוד שוב כשמגיעים
@@ -949,37 +961,38 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
 
   // רשימת CardPicker אחת ליריב — משותפת בין שלב 9 (אחרי הריבר, הזרימה
   // הרגילה) לבין פאנל הגילוי המוקדם (AllInRevealPanel, כשהיד ננעלת מוקדם)
-  const OpponentCardInputs = () => (
-    <>
-      {opponents.length === 0 && (
-        <p className="text-xs text-slate-500 text-right">לא הוזנו יריבים בשלב 3.</p>
-      )}
-      {opponents.map((opp, i) => (
-        <div key={opp.id}>
-          <label className="block text-sm font-bold text-slate-300 mb-2 text-right">
-            קלפי {opp.label || `יריב ${i + 1}`}
-          </label>
-          <CardPicker
-            selected={i === 0 ? oppRevealedCards : (handData.showdown?.opponent_cards?.[i] || [])}
-            onChange={c => {
-              if (i === 0) { setOppRevealedCards(c); setShowdownCards(c); }
-              else {
-                setHandData(prev => ({
-                  ...prev,
-                  showdown: {
-                    reached: true,
-                    opponent_cards: prev.showdown.opponent_cards.map((oc, j) => j === i ? c : oc),
-                  },
-                }));
-              }
-            }}
-            max={2}
-            disabled={[...heroCards, ...allBoardCards]}
-          />
-        </div>
-      ))}
-    </>
-  );
+  // Only opponents still in the hand can show cards. Listing everyone who
+  // folded buried the one picker that mattered (9-handed: six pickers, one
+  // relevant). Falls back to all opponents if the actions mark everyone folded.
+  const OpponentCardInputs = () => {
+    const folded = getFoldedAll();
+    const all = opponents.map((opp, i) => ({ opp, i }));
+    const inHand = all.filter(({ opp }) => !folded.has(opp.id) && !folded.has(String(opp.id)));
+    const list = inHand.length ? inHand : all;
+    const cardsOf = (i) => (handData.showdown?.opponent_cards?.[i]?.length
+      ? handData.showdown.opponent_cards[i]
+      : (i === 0 ? oppRevealedCards : []));
+    return (
+      <>
+        {opponents.length === 0 && (
+          <p className="text-xs text-slate-500 text-right">לא הוזנו יריבים בשלב 3.</p>
+        )}
+        {list.map(({ opp, i }) => (
+          <div key={opp.id}>
+            <label className="block text-sm font-bold text-slate-300 mb-2 text-right">
+              קלפי {opp.label || `יריב ${i + 1}`}
+            </label>
+            <CardPicker
+              selected={cardsOf(i)}
+              onChange={c => setOpponentCards(i, c)}
+              max={2}
+              disabled={[...heroCards, ...allBoardCards, ...opponents.flatMap((_, j) => (j === i ? [] : cardsOf(j)))]}
+            />
+          </div>
+        ))}
+      </>
+    );
+  };
 
   // כשהיד ננעלת (כולם אול-אין) — פאנל גילוי מיידי, לפני שממשיכים לחלק את
   // שאר הבורד. ראה showRevealPanelFor למיקום המדויק בזרימה.
@@ -1304,11 +1317,22 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
 
     // 10: Result
     if (step === 10) {
+      // Cards of a player still in at showdown weren't entered — offer the way
+      // back to step 9 right here, where the result is being decided.
+      const missingOppCards = getShowdownPlayers()
+        .some(p => p.actor !== 'hero' && getRevealedCards(p.actor).length !== 2);
+      const cardsPrompt = missingOppCards && result !== 'unknown' ? (
+        <button onClick={() => jumpToStep(9)}
+          className="w-full py-2 rounded-xl text-sm font-bold text-blue-300 border border-blue-500/40 bg-blue-500/10 hover:bg-blue-500/20 transition-all">
+          🃏 הזן את קלפי היריב
+        </button>
+      ) : null;
       if (isMultiPot) {
         const { bb } = getBlindSbBb();
         const allResolved = potWinners && potWinners.length === pots.length && potWinners.every(w => (w || []).length > 0);
         return (
           <div className="space-y-4" dir="rtl">
+            {cardsPrompt}
             <div className="text-center text-sm font-bold text-amber-300">
               🎰 יד עם קופות צד — {pots.length} קופות
             </div>
@@ -1393,6 +1417,7 @@ export default function HandLoggerWizard({ onClose, onSaved }) {
 
       return (
       <div className="space-y-4">
+        {cardsPrompt}
         {/* Pot display */}
         <div className="flex items-center justify-between px-4 py-3 rounded-2xl bg-amber-500/10 border border-amber-500/30" dir="rtl">
           <span className="text-amber-300 font-black text-lg font-mono tabular-nums">{potLabel}</span>
