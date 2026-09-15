@@ -937,6 +937,19 @@ function buildEvents(hand_data,hero_stack,opponents,sb,bb,ante,hero_position,isT
   let pot=computeInitialPot(hand_data,hero_position,opponents,sb,bb,isTournament?ante:0);
   const events=[];
   const streets=hand_data?.streets||{};
+  // Posted blinds come out of the blind's stack, exactly as computeInitialPot
+  // puts them in the pot (not for a blind who raised preflop — a raise amount
+  // already includes the blind). Without this the big blind kept its blind:
+  // a 310,000 stack that posted 10,000, called 10,000 and moved all-in for
+  // 290,000 showed 10,000 left behind, and 83,000 instead of 73,000 at the end.
+  const raisedPreflop=new Set((streets.preflop?.actions||[])
+    .filter(a=>['bet','raise','three-bet','four-bet'].includes(a.action)&&a.amount).map(a=>String(a.actor)));
+  [['hero',hero_position],...opponents.map(o=>[o.id,o.position])].forEach(([key,pos])=>{
+    if(raisedPreflop.has(String(key))||stacks[key]==null) return;
+    if(pos==='BB') stacks[key]=Math.max(0,stacks[key]-(bb||0));
+    else if(pos==='SB') stacks[key]=Math.max(0,stacks[key]-(sb||0));
+  });
+  const startStacks={...stacks}, startPot=pot;
   // השלב שאחריו כבר אי-אפשר לבצע יותר פעולות הימור (כולם אול-אין/קיפלו) —
   // אותו זיהוי בדיוק כמו באשף (HandLoggerWizard), כדי שהסרטון יגלה קלפים
   // באותה נקודה בדיוק שבה האשף כבר הציג את פאנל הגילוי המוקדם
@@ -986,7 +999,7 @@ function buildEvents(hand_data,hero_stack,opponents,sb,bb,ante,hero_position,isT
     }
     if(street===lockStreet) events.push({type:'reveal'});
   });
-  return{events,finalPot:pot,finalStacks:{...stacks}};
+  return{events,finalPot:pot,finalStacks:{...stacks},startStacks,startPot};
 }
 
 // ════════════════════════════════════════════════════
@@ -1019,7 +1032,7 @@ export function buildFrames(state){
   opponents.forEach((o,i)=>{ if(o.position) SEAT_COLOR[o.position]=PLAYER_PALETTE[i%PLAYER_PALETTE.length]; });
   if(hero_position) SEAT_COLOR[hero_position]=HERO_COLOR;
 
-  const{events,finalStacks,finalPot}=buildEvents(hand_data,hero_stack,opponents,sb,bb,ante,hero_position,!isCash);
+  const{events,finalStacks,finalPot,startStacks,startPot}=buildEvents(hand_data,hero_stack,opponents,sb,bb,ante,hero_position,!isCash);
   // finalPot מגיע ישירות מ-buildEvents (סכימת הפעולות בפועל, לא ניחוש
   // מ-hero_profit שהוא נטו ומטעה בקופה מחולקת) — לא מ-events[last].potAfter,
   // שיכול להיות אירוע 'reveal' בלי potAfter כשהאול-אין קורה על הריבר עצמו
@@ -1043,9 +1056,10 @@ export function buildFrames(state){
     {label:'Hero',position:hero_position,stack:hero_stack,isHero:true,id:'hero'},
     ...opponents.map(o=>({...o,isHero:false})),
   ];
-  const initialPot=(sb||0)+(bb||0)+(isCash?0:(ante||0)); // one big blind ante
-  const initialStacks={hero:hero_stack};
-  opponents.forEach(o=>initialStacks[o.id]=o.stack||0);
+  // Blinds already posted (out of the stacks, into the pot) — the same starting
+  // point the action events count from, so nothing jumps at the first action
+  const initialPot=startPot;
+  const initialStacks={...startStacks};
 
   // קלפי יריב שנחשפו במהלך היד (אשף "קלפי יריב" / AllInRevealPanel) — ממופה
   // לפי actor id, בדיוק כמו hand_data.showdown.opponent_cards (אינדקס = סדר
