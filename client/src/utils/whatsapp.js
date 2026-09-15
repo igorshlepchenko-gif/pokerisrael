@@ -92,20 +92,40 @@ function toDateStrInTZ(date, tz) {
   return `${p.year}-${pad(p.month)}-${pad(p.day)}`;
 }
 
+// שעון-הקיר בישראל (שעה, דקה, יום בשבוע) של start_time — בלי תלות באזור הזמן של
+// הדפדפן. ה-API שולח רגע UTC אמיתי ("2026-09-15T15:00:00.000Z" לטורניר של 18:00),
+// אז מחרוזת עם Z/היסט מומרת דרך Asia/Jerusalem; רק מחרוזת נאיבית (ללא אזור זמן)
+// נקראת כספרות שעון-קיר ישראל כמו שהן.
+// ⚠️ לפני כן השעה נחלצה מהמחרוזת ב-regex גם כשהגיעה עם Z — וכל טורניר שבועי
+// הוצג 2-3 שעות מוקדם מדי (18:00 הוצג 15:00). בעלי מועדונים "תיקנו" את זה ידנית
+// והזיזו את השעה השמורה קדימה. אותה טעות תוקנה בטפסי העריכה ב-2026-08-17 (2271b51)
+// אבל נשארה כאן.
+export function israelWallClock(startTime) {
+  if (!startTime) return null;
+  const s = String(startTime);
+  if (startTime instanceof Date || /Z$|[+-]\d{2}:?\d{2}$/.test(s)) {
+    const d = startTime instanceof Date ? startTime : new Date(s);
+    if (isNaN(d.getTime())) return null;
+    const p = tzParts(d, IL_TZ);
+    return { hour: p.hour, minute: p.minute, weekday: p.weekday };
+  }
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/);
+  if (!m) return null;
+  const [y, mo, d, h, mi] = m.slice(1).map(Number);
+  return { hour: h, minute: mi, weekday: new Date(Date.UTC(y, mo - 1, d)).getUTCDay() };
+}
+
 // מחשב את התאריך של המופע הקרוב הבא לאירוע שבועי קבוע, בשעון ישראל — ללא תלות
-// באזור הזמן של מי שמריץ את הפונקציה (דפדפן הצופה). startTime מגיע כמחרוזת נאיבית
-// (ללא אזור זמן) שמייצגת שעון-קיר ישראל לפי המוסכמה של האפליקציה; חילוץ השעה/דקה
-// שלה נעשה ישירות מהמחרוזת (regex), לא דרך new Date().getHours(), כי זה האחרון
-// תלוי באיך אזור הזמן של הריצה הנוכחית "היה מפרש" אותה כזמן מקומי.
+// באזור הזמן של מי שמריץ את הפונקציה (דפדפן הצופה). השעה/דקה נלקחות משעון-הקיר
+// בישראל של startTime (israelWallClock).
 // dayOfWeek: 0-6, skipped: מערך תאריכים לדילוג
 export function nextOccurrence(startTime, dayOfWeek, skipped = []) {
   if (!startTime) return null;
-  const m = String(startTime).match(/T(\d{2}):(\d{2})/);
-  const baseHour = m ? Number(m[1]) : 0;
-  const baseMinute = m ? Number(m[2]) : 0;
+  const wall = israelWallClock(startTime);
+  const baseHour = wall ? wall.hour : 0;
+  const baseMinute = wall ? wall.minute : 0;
 
-  const base = new Date(startTime);
-  const dow = (dayOfWeek === null || dayOfWeek === undefined) ? base.getDay() : Number(dayOfWeek);
+  const dow = (dayOfWeek === null || dayOfWeek === undefined) ? (wall ? wall.weekday : 0) : Number(dayOfWeek);
   const skipList = Array.isArray(skipped) ? skipped : (() => { try { return JSON.parse(skipped || '[]'); } catch { return []; } })();
 
   const nowParts = tzParts(new Date(), IL_TZ);
@@ -199,11 +219,12 @@ export function startInstant(t, effectiveStart) {
 export function currentOccurrence(t, lookbackHours = 12) {
   if (!t.is_recurring) return t.start_time;
 
-  const m = String(t.start_time).match(/T(\d{2}):(\d{2})/);
-  const baseHour = m ? Number(m[1]) : 0;
-  const baseMinute = m ? Number(m[2]) : 0;
+  // שעון-קיר ישראל של start_time — ראה israelWallClock (היה regex על המחרוזת, 3 שעות מוקדם)
+  const wall = israelWallClock(t.start_time);
+  const baseHour = wall ? wall.hour : 0;
+  const baseMinute = wall ? wall.minute : 0;
   const dow = (t.day_of_week === null || t.day_of_week === undefined)
-    ? new Date(t.start_time).getDay()
+    ? (wall ? wall.weekday : 0)
     : Number(t.day_of_week);
 
   const skipList = Array.isArray(t.skipped_dates)
