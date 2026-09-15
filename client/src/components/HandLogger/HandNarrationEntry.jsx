@@ -24,6 +24,12 @@ import { startRecording, isRecordingSupported } from '../../utils/handAudioRecor
 const SUIT_SYMBOLS = { s: '♠', h: '♥', d: '♦', c: '♣' };
 const SUIT_COLORS = { s: 'text-slate-200', h: 'text-red-400', d: 'text-red-400', c: 'text-slate-200' };
 
+// One id per narration attempt, sent with every call, so the server's narration
+// log (services/narrationLog.js) can tie the transcript, parse, edits and handoff
+// of the same hand together.
+const newNarrationSessionId = () => (globalThis.crypto?.randomUUID?.()
+  || `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`);
+
 const GAME_LABELS = {
   tournament: '🏆 טורניר לייב',
   cash: '💰 קאש לייב',
@@ -392,6 +398,8 @@ export default function HandNarrationEntry({ onClose, onHandOff }) {
   const fileRef = useRef(null);
   const audioRef = useRef(null);
   const recorderRef = useRef(null);
+  const sessionRef = useRef(newNarrationSessionId());
+  const logHeaders = () => ({ headers: { 'X-Narration-Session': sessionRef.current } });
   const [error, setError] = useState('');
 
   const [state, setState] = useState(null);
@@ -478,7 +486,7 @@ export default function HandNarrationEntry({ onClose, onHandOff }) {
     try {
       const form = new FormData();
       form.append('audio', file);
-      const res = await api.post('/hand-narration/transcribe', form);
+      const res = await api.post('/hand-narration/transcribe', form, logHeaders());
       // Appended rather than replacing: a player may have typed context first,
       // or recorded a second time to add something they forgot.
       setText(t => (t.trim() ? `${t.trim()}\n${res.data.text}` : res.data.text));
@@ -515,7 +523,7 @@ export default function HandNarrationEntry({ onClose, onHandOff }) {
     try {
       const form = new FormData();
       form.append('image', await downscaleImage(file));
-      const res = await api.post('/hand-narration/read-image', form);
+      const res = await api.post('/hand-narration/read-image', form, logHeaders());
       // Appended, not replaced — a player may have typed context the picture
       // doesn't show ("this was the bubble"), and losing it would be rude.
       setText(t => (t.trim() ? `${t.trim()}
@@ -533,7 +541,7 @@ ${res.data.text}` : res.data.text));
     setBusy(true);
     setError('');
     try {
-      const res = await api.post('/hand-narration/parse', { message, priorState, answers });
+      const res = await api.post('/hand-narration/parse', { message, priorState, answers }, logHeaders());
       applyResponse(res.data);
     } catch (e) {
       setError(e?.response?.data?.message || 'לא הצלחנו לנתח את היד. נסה שוב.');
@@ -587,7 +595,7 @@ ${res.data.text}` : res.data.text));
     setBusy(true);
     setError('');
     try {
-      const res = await api.post('/hand-narration/recheck', { state: nextState, fix });
+      const res = await api.post('/hand-narration/recheck', { state: nextState, fix }, logHeaders());
       setState(res.data.state);
       setWizardState(res.data.wizardState || null);
       setContradictions(res.data.contradictions || []);
@@ -615,6 +623,10 @@ ${res.data.text}` : res.data.text));
     if (!wizardState) { setError('היד עדיין לא שלמה — חזור והשלם את החסר.'); return; }
     // Review-card corrections are top-level in buildState's shape too, so they
     // lay straight over the wizard state on the way out.
+    // Logged for the narration log (what the player corrected before the wizard);
+    // fire-and-forget — the handoff never waits on it or fails because of it.
+    api.post('/hand-narration/log', { kind: 'handoff', details: { overrides, wizardState } }, logHeaders())
+      .catch(() => {});
     stageNarrationDraft({ ...wizardState, ...overrides });
     onHandOff();
   };

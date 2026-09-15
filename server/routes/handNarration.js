@@ -42,5 +42,7 @@ router.post('/transcribe', authenticate, audioUpload.single('audio'), ctrl.trans
 router.post('/read-image', authenticate, imageUpload.single('image'), ctrl.readImage);
 // Deterministic re-validation after an edit — no model, so it stays instant.
 router.post('/recheck', authenticate, ctrl.recheck);
+// Client-side events for the narration log (handoff to the wizard).
+router.post('/log', authenticate, ctrl.logEvent);
 
 module.exports = router;

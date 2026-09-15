@@ -120,6 +120,23 @@ async function ensureSchema() {
       // same admin-panel toggle pattern once the parser is proven.
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS hand_narration_pilot_access BOOLEAN DEFAULT false`,
       `UPDATE users SET hand_narration_pilot_access = true WHERE email = 'igor.shlepchenko@gmail.com'`,
+      // Narration log — what each free-text / image / voice attempt produced
+      // (transcript, parsed state, questions asked, corrections at handoff), so
+      // real-world failures can be studied. Text only; see services/narrationLog.js.
+      `CREATE TABLE IF NOT EXISTS hand_narration_logs (
+        id           SERIAL PRIMARY KEY,
+        user_id      INTEGER,
+        session_id   VARCHAR(64),
+        kind         VARCHAR(20) NOT NULL,
+        input_text   TEXT,
+        output_text  TEXT,
+        details      JSONB NOT NULL DEFAULT '{}',
+        error        TEXT,
+        duration_ms  INTEGER,
+        created_at   TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      )`,
+      `CREATE INDEX IF NOT EXISTS hand_narration_logs_created_idx ON hand_narration_logs(created_at DESC)`,
+      `CREATE INDEX IF NOT EXISTS hand_narration_logs_session_idx ON hand_narration_logs(session_id)`,
       `CREATE TABLE IF NOT EXISTS tournament_imports (
         id            SERIAL PRIMARY KEY,
         source        VARCHAR(30)  NOT NULL DEFAULT 'manual',
