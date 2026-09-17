@@ -1,6 +1,13 @@
 // Web Crypto polyfill — required by @whiskeysockets/baileys on Node 18
 if (!globalThis.crypto) globalThis.crypto = require('crypto').webcrypto;
 
+// File polyfill — groq-sdk (voice transcription) uploads through the global File,
+// which only exists from Node 20. Railway pins no Node version, so production ran
+// Node 18 and every recording failed with "File is not defined as a global".
+// node:buffer has had File since 18.13, so exposing it keeps transcription working
+// whatever Node the platform picks. Same pattern as the crypto polyfill above.
+if (!globalThis.File) globalThis.File = require('node:buffer').File;
+
 // אזור זמן קבוע — כל הזמנים במערכת הם שעון ישראל (גם אם השרת רץ ב-UTC, כמו Railway)
 process.env.TZ = process.env.TZ || 'Asia/Jerusalem';
 require('dotenv').config({ path: require('path').join(__dirname, '.env') });
