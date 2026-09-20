@@ -307,10 +307,17 @@ function extractJson(text) {
   return fenced ? fenced[1] : t;
 }
 
+class TruncatedError extends Error {}
+
 async function callModel(client, userContent, nudge) {
   const r = await client.messages.create({
     model: DEFAULT_MODEL,
-    max_tokens: 2000,
+    // A spoken hand costs roughly 5 output tokens per word, so 2000 ran out at
+    // about 350 words — a two-minute telling. The answer was then cut mid-JSON
+    // and surfaced as "invalid JSON", retried at the same length, and failed
+    // with a reason that told the player nothing. Only generated tokens are
+    // billed, so a high ceiling costs nothing on ordinary hands.
+    max_tokens: 8000,
     temperature: 0.1,
     system: HAND_SCHEMA_SYSTEM,
     messages: [
@@ -323,6 +330,7 @@ ${nudge}` : userContent },
       { role: 'assistant', content: '{' },
     ],
   });
+  if (r.stop_reason === 'max_tokens') throw new TruncatedError('hand narration too long for one parse');
   return '{' + extractJson(r.content.find(b => b.type === 'text')?.text || '');
 }
 
@@ -353,6 +361,9 @@ async function parseHandNarration(message, priorState = null, history = []) {
       return JSON.parse(retry);
     }
   } catch (e) {
+    if (e instanceof TruncatedError) {
+      return { error: 'too_long', detail: 'הסיפור ארוך מדי לפירוש אחד' };
+    }
     // The reason travels back to the caller rather than being flattened into a
     // bare failure. An admin-only screen saying "the key is missing" and one
     // saying "Anthropic rejected the request" send you to completely different

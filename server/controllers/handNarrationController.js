@@ -10,6 +10,13 @@ const { logNarration } = require('../services/narrationLog');
  * provider is down, and those need three different responses.
  */
 function sendFailure(res, result, what) {
+  // Length is the player's problem to fix, not the server's — say so plainly
+  // instead of reporting it as a failed service.
+  if (result?.error === 'too_long') {
+    return res.status(422).json({
+      message: 'הסיפור ארוך מדי לפירוש אחד — ספר את היד עצמה (עמדה, קלפים, פעולות) בלי הרקע שמסביב, או פצל לשתי הקלטות.',
+    });
+  }
   if (result?.error === 'not_configured') {
     return res.status(503).json({
       message: `${what} לא מוגדר בשרת — חסר משתנה הסביבה ${result.detail}`,
