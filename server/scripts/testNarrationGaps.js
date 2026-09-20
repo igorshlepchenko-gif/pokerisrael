@@ -781,6 +781,52 @@ t('קלף שכבר על הבורד לא מוקצה שוב לירו', () => {
   eq(new Set(all).size, all.length, `קלף כפול בחפיסה: ${all.join(' ')}`);
 });
 
+t('"אס קינג" בלי שנאמר סוטד — לא הופך ליד סוטד', () => {
+  const s = materializeSuits({ ...complete(), hero_cards: [card('A'), card('K')] });
+  ok(s.hero_cards[0].suit !== s.hero_cards[1].suit,
+    `ברירת המחדל חייבת להיות offsuit: ${s.hero_cards.map(c => c.rank + c.suit).join(' ')}`);
+});
+
+t('בורד בלי צבעים — קשת, לא שלושה מאותו צבע', () => {
+  const s = materializeSuits({ ...complete(),
+    hero_cards: [card('A'), card('K')],
+    streets: { ...complete().streets, flop: { board: [card('2'), card('3'), card('4')], actions: [] } } });
+  const suits = s.streets.flop.board.map(c => c.suit);
+  eq(new Set(suits).size, 3, `פלופ מונוטון הומצא: ${suits.join('')}`);
+});
+
+t('צבעים שנאמרו במפורש נשמרים — פלופ פלאש אמיתי', () => {
+  const s = materializeSuits({ ...complete(),
+    streets: { ...complete().streets,
+      flop: { board: [card('2', 's'), card('9', 's'), card('K', 's')], actions: [] } } });
+  eq(s.streets.flop.board.map(c => c.suit).join(''), 'sss', 'בורד שנאמר במפורש שונה');
+});
+
+t('צבעים שהושלמו מסומנים למשתמש בכרטיס האישור', () => {
+  const e = applyDefaults(sanitize({ ...complete(), hero_cards: [card('A'), card('K')] }).clean);
+  ok((e._inferred || []).some(i => i.field === 'card_suits'), 'חסר סימון שהצבעים הושלמו');
+});
+
+t('הקלטה אמיתית (2026-09-20): AK על 2-3-4 — לא סוטד ולא מונוטון', () => {
+  const st = toWizardState(applyDefaults(sanitize({
+    game_type: 'tournament', blind_sb: 1000, blind_bb: 2000, hero_stack: 100000,
+    hero_position: 'BTN', players_count: 3, hero_cards: [card('A'), card('K')],
+    board: [{ street: 'flop', rank: '2', suit: null }, { street: 'flop', rank: '3', suit: null },
+            { street: 'flop', rank: '4', suit: null }],
+    actions: [
+      { street: 'preflop', actor: 'hero', action: 'bet', amount: '4000' },
+      { street: 'preflop', actor: 'BB', action: 'three-bet', amount: '10000' },
+      { street: 'preflop', actor: 'hero', action: 'call', amount: '10000' },
+      { street: 'flop', actor: 'BB', action: 'bet', amount: '5000' },
+      { street: 'flop', actor: 'hero', action: 'fold' },
+    ],
+    result: 'lost',
+  }).clean));
+  ok(st.hero_cards[0].suit !== st.hero_cards[1].suit, 'AK יצא סוטד');
+  const flop = st.hand_data.streets.flop.board.map(c => c.suit);
+  eq(new Set(flop).size, 3, `הפלופ יצא מונוטון: ${flop.join('')}`);
+});
+
 // ── Adapter into the wizard's shape ──────────────────────────────────────────
 
 t('toWizardState מקנן opponents/streets תחת hand_data', () => {

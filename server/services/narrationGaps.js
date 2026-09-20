@@ -813,6 +813,13 @@ function applyDefaults(e) {
     note('result', derived.why);
   }
 
+  // Suits nobody said are invented later (materializeSuits) because the
+  // renderer needs a concrete glyph — flag it, so the review card shows them as
+  // completed rather than as something the player actually told us.
+  const suitless = [...(out.hero_cards || []), ...STREETS.flatMap(st => out.streets?.[st]?.board || [])]
+    .some(c => c && c.suit == null);
+  if (suitless) note('card_suits', 'הצבעים לא נאמרו — הושלמו אוטומטית');
+
   if (!out.showdown) {
     out.showdown = { reached: false, opponent_cards: [] };
   }
@@ -835,8 +842,11 @@ function materializeSuits(e) {
   (e.hero_cards || []).forEach(collect);
   for (const st of ['flop', 'turn', 'river']) (e.streets?.[st]?.board || []).forEach(collect);
 
-  const pick = rank => {
-    const s = SUITS.find(su => !used.has(`${rank}${su}`)) || 's';
+  // `avoid` keeps an invented suit away from the cards it sits next to, so
+  // unspoken suits don't quietly create a suited hand or a monotone board.
+  const pick = (rank, avoid = []) => {
+    const free = su => !used.has(`${rank}${su}`);
+    const s = SUITS.find(su => free(su) && !avoid.includes(su)) || SUITS.find(free) || 's';
     used.add(`${rank}${s}`);
     return s;
   };
@@ -848,10 +858,11 @@ function materializeSuits(e) {
     const s = SUITS.find(su => !used.has(`${hero[0].rank}${su}`) && !used.has(`${hero[1].rank}${su}`)) || 's';
     hero.forEach(c => { c.suit = s; used.add(`${c.rank}${s}`); });
   } else {
-    // Offsuit (or unspecified): pick per card, and for an explicit "offsuit"
-    // make sure we don't accidentally hand back a suited combo.
-    hero.forEach(c => { if (c.suit == null) c.suit = pick(c.rank); });
-    if (e.hero_cards_suited === false && hero.length === 2 && hero[0].suit === hero[1].suit) {
+    // Offsuit unless the player actually said "suited". Picking the first free
+    // suit per card turned a plain "אס קינג" into AKs — a different hand, with
+    // a flush draw it never had (seen in a real recording, 2026-09-20).
+    hero.forEach(c => { if (c.suit == null) c.suit = pick(c.rank, hero.map(h => h.suit)); });
+    if (hero.length === 2 && hero[0].suit === hero[1].suit && hero[0].rank !== hero[1].rank) {
       const alt = SUITS.find(su => su !== hero[0].suit && !used.has(`${hero[1].rank}${su}`));
       if (alt) { hero[1].suit = alt; used.add(`${hero[1].rank}${alt}`); }
     }
@@ -861,7 +872,18 @@ function materializeSuits(e) {
   for (const st of ['flop', 'turn', 'river']) {
     streets[st] = {
       ...streets[st],
-      board: (streets[st]?.board || []).map(c => (c.suit ? c : { ...c, suit: pick(c.rank) })),
+      // Rainbow by default: per-rank picking turned an unspoken "2 3 4" into
+      // three spades — a monotone flop, a completely different hand. A real
+      // flush board still comes through whenever the suits were stated.
+      board: (() => {
+        const onStreet = (streets[st]?.board || []).map(c => c.suit).filter(Boolean);
+        return (streets[st]?.board || []).map(c => {
+          if (c.suit) return c;
+          const su = pick(c.rank, onStreet);
+          onStreet.push(su);
+          return { ...c, suit: su };
+        });
+      })(),
     };
   }
 
