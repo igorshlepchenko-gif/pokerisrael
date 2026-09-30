@@ -30,13 +30,10 @@ function sendFailure(res, result, what) {
 const failureText = (result) => (result?.error ? `${result.error}${result.detail ? `: ${result.detail}` : ''}` : 'no result');
 const fileInfo = (file) => (file ? `${file.originalname || '(no name)'} · ${file.mimetype} · ${file.size} bytes` : null);
 
-// ADMIN ONLY for now, by the owner's decision on first production deploy
-// (2026-09-08). The `hand_narration_pilot_access` column and its admin-panel
-// toggle stay in place unused — widening this to pilot users later is a matter
-// of restoring `hand_narration_pilot_access ||` to these checks and the one in
-// HandLoggerSection.jsx, with no migration.
+// Admin, or a specific user opted into the pilot via the `hand_narration_pilot_access`
+// flag (toggled per-user in the Admin Panel) — widened from admin-only on 2026-09-30.
 exports.parse = async (req, res) => {
-  if (req.user.role !== 'admin') {
+  if (req.user.role !== 'admin' && !req.user.hand_narration_pilot_access) {
     return res.status(403).json({ message: 'אין לך גישה לפיילוט הזה' });
   }
 
@@ -111,7 +108,7 @@ exports.parse = async (req, res) => {
 // The player sees what was read, fixes anything the image got wrong, and only
 // then runs it through /parse — same pipeline as anything they typed.
 exports.readImage = async (req, res) => {
-  if (req.user.role !== 'admin') {
+  if (req.user.role !== 'admin' && !req.user.hand_narration_pilot_access) {
     return res.status(403).json({ message: 'אין לך גישה לפיילוט הזה' });
   }
   if (!req.file) return res.status(400).json({ message: 'לא נשלחה תמונה' });
@@ -143,7 +140,7 @@ exports.readImage = async (req, res) => {
  * applies one suggested repair first.
  */
 exports.recheck = async (req, res) => {
-  if (req.user.role !== 'admin') {
+  if (req.user.role !== 'admin' && !req.user.hand_narration_pilot_access) {
     return res.status(403).json({ message: 'אין לך גישה לפיילוט הזה' });
   }
 
@@ -179,7 +176,7 @@ exports.recheck = async (req, res) => {
  * before it becomes their saved hand.
  */
 exports.transcribe = async (req, res) => {
-  if (req.user.role !== 'admin') {
+  if (req.user.role !== 'admin' && !req.user.hand_narration_pilot_access) {
     return res.status(403).json({ message: 'אין לך גישה לפיילוט הזה' });
   }
   if (!req.file) return res.status(400).json({ message: 'לא נשלחה הקלטה' });
@@ -211,7 +208,7 @@ exports.transcribe = async (req, res) => {
  */
 const CLIENT_EVENTS = ['handoff'];
 exports.logEvent = (req, res) => {
-  if (req.user.role !== 'admin') {
+  if (req.user.role !== 'admin' && !req.user.hand_narration_pilot_access) {
     return res.status(403).json({ message: 'אין לך גישה לפיילוט הזה' });
   }
   const { kind, details } = req.body || {};

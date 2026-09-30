@@ -148,10 +148,9 @@ export default function HandLoggerSection() {
   const [totalHands,   setTotalHands]   = useState(0);
 
   const hasAccess = user && (user.hand_logger_access || user.role === 'admin');
-  // ADMIN ONLY for now (owner's call, 2026-09-08 production deploy). The button
-  // does not render for anyone else, and the four server endpoints refuse them
-  // too — the UI check alone would be decoration.
-  const hasNarrationAccess = user && user.role === 'admin';
+  // Admin, or a specific user opted into the pilot via hand_narration_pilot_access
+  // (toggled per-user in the Admin Panel) — widened from admin-only on 2026-09-30.
+  const hasNarrationAccess = user && (user.role === 'admin' || user.hand_narration_pilot_access);
 
   const handleRegisterClick = () => {
     if (!user) {
