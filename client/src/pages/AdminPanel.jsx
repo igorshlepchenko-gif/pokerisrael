@@ -970,6 +970,9 @@ export default function AdminPanel() {
                   <span className="px-3 py-1 rounded-full text-xs font-bold bg-slate-700 text-slate-400">
                     <span className="font-mono tabular-nums">{users.filter(u => !u.hand_logger_access && u.role !== 'admin').length}</span> ללא גישה
                   </span>
+                  <span className="px-3 py-1 rounded-full text-xs font-bold bg-violet-500/20 text-violet-300 border border-violet-500/30">
+                    ✍️ <span className="font-mono tabular-nums">{users.filter(u => u.hand_narration_pilot_access && u.role !== 'admin').length}</span> עם "ספר לי את היד"
+                  </span>
                 </div>
               </div>
 
@@ -1011,13 +1014,14 @@ export default function AdminPanel() {
                   <div className="space-y-2">
                     {filtered.map(u => {
                       const hasAccess = !!u.hand_logger_access;
+                      const hasNarration = !!u.hand_narration_pilot_access;
                       return (
                         <div key={u.id}
                           className={`rounded-2xl border p-4 flex items-center justify-between gap-4 transition-all
                             ${hasAccess
                               ? 'border-blue-500/30 bg-blue-500/5'
                               : 'border-slate-700/60 bg-slate-800/40'}`}>
-                          <div dir="rtl">
+                          <div dir="rtl" className="min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-bold text-slate-100">{u.name}</span>
                               <span className="text-xs text-slate-500 bg-slate-700 px-2 py-0.5 rounded-full">
@@ -1028,29 +1032,70 @@ export default function AdminPanel() {
                                   ✅ גישה פעילה
                                 </span>
                               )}
+                              {hasNarration && (
+                                <span className="text-xs font-bold text-violet-300 bg-violet-500/10 px-2 py-0.5 rounded-full border border-violet-500/20">
+                                  ✍️ ספר לי את היד פעיל
+                                </span>
+                              )}
                             </div>
-                            <p className="text-sm text-slate-500 mt-0.5">{u.email}</p>
+                            <p className="text-sm text-slate-500 mt-0.5 break-all">{u.email}</p>
+                            {hasNarration && !hasAccess && (
+                              <p className="text-xs text-amber-400 mt-1">
+                                ⚠️ בלי גישה בסיסית הוא יוכל לתאר יד אבל לא לשמור אותה
+                              </p>
+                            )}
                           </div>
 
-                          {/* Toggle button */}
-                          <button
-                            role="switch"
-                            aria-checked={hasAccess}
-                            aria-label={`גישה לרישום ידיים עבור ${u.name}`}
-                            onClick={async () => {
-                              try {
-                                const res = await api.patch(`/admin/users/${u.id}/hand-logger-access`);
-                                setUsers(prev => prev.map(p => p.id === u.id
-                                  ? { ...p, hand_logger_access: res.data.hand_logger_access }
-                                  : p
-                                ));
-                              } catch { alert('שגיאה בעדכון'); }
-                            }}
-                            className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors flex-shrink-0
-                              ${hasAccess ? 'bg-blue-600' : 'bg-slate-600'}`}>
-                            <span className={`inline-block h-6 w-6 rounded-full bg-white shadow-lg transform transition-transform
-                              ${hasAccess ? 'translate-x-7' : 'translate-x-1'}`} />
-                          </button>
+                          {/* Two switches: "ספר לי את היד" pilot (text/voice/image entry) + basic module access.
+                              direction:ltr on each switch — the page is RTL, which otherwise starts the knob on the
+                              right and translate-x pushes it out of the track. */}
+                          <div className="flex items-start gap-4 flex-shrink-0">
+                            <div className="flex flex-col items-center gap-1.5">
+                              <button
+                                role="switch"
+                                aria-checked={hasNarration}
+                                aria-label={`ספר לי את היד עבור ${u.name}`}
+                                style={{ direction: 'ltr' }}
+                                onClick={async () => {
+                                  try {
+                                    const res = await api.patch(`/admin/users/${u.id}/hand-narration-pilot-access`);
+                                    setUsers(prev => prev.map(p => p.id === u.id
+                                      ? { ...p, hand_narration_pilot_access: res.data.hand_narration_pilot_access }
+                                      : p
+                                    ));
+                                  } catch { alert('שגיאה בעדכון'); }
+                                }}
+                                className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors flex-shrink-0
+                                  ${hasNarration ? 'bg-violet-600' : 'bg-slate-600'}`}>
+                                <span className={`inline-block h-6 w-6 rounded-full bg-white shadow-lg transform transition-transform
+                                  ${hasNarration ? 'translate-x-7' : 'translate-x-1'}`} />
+                              </button>
+                              <span className="text-[11px] text-slate-500 whitespace-nowrap">✍️ ספר לי את היד</span>
+                            </div>
+
+                            <div className="flex flex-col items-center gap-1.5">
+                              <button
+                                role="switch"
+                                aria-checked={hasAccess}
+                                aria-label={`גישה לרישום ידיים עבור ${u.name}`}
+                                style={{ direction: 'ltr' }}
+                                onClick={async () => {
+                                  try {
+                                    const res = await api.patch(`/admin/users/${u.id}/hand-logger-access`);
+                                    setUsers(prev => prev.map(p => p.id === u.id
+                                      ? { ...p, hand_logger_access: res.data.hand_logger_access }
+                                      : p
+                                    ));
+                                  } catch { alert('שגיאה בעדכון'); }
+                                }}
+                                className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors flex-shrink-0
+                                  ${hasAccess ? 'bg-blue-600' : 'bg-slate-600'}`}>
+                                <span className={`inline-block h-6 w-6 rounded-full bg-white shadow-lg transform transition-transform
+                                  ${hasAccess ? 'translate-x-7' : 'translate-x-1'}`} />
+                              </button>
+                              <span className="text-[11px] text-slate-500 whitespace-nowrap">גישה בסיסית</span>
+                            </div>
+                          </div>
                         </div>
                       );
                     })}
