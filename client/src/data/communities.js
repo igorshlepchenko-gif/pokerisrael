@@ -98,6 +98,14 @@ export const COMMUNITIES = [
     url: 'https://chat.whatsapp.com/G4tvarWDuAKDSJYaTHEAF3',
   },
   {
+    id: 'wa-chip-and-a-smile',
+    name: 'A CHIP AND A SMILE',
+    type: 'whatsapp',
+    logo: '/communities/chip-and-a-smile.jpeg',
+    description: 'קהילת השחקנים/ות של תומר בן אז"ר, שמבוססת על תלמידים וחברים. הקהילה מאופיינת באווירה מיוחדת, ספורטיבית ומפרגנת, המקנה תחושת שייכות ומשפחתיות. הקהילה מלווה במערך לימודים עשיר המותאם לכל הרמות, תוך אפשרויות משחק שונות בלייב ובאונליין ליישום העקרונות הנלמדים.',
+    url: 'https://chat.whatsapp.com/Hnsh3znUR1X7Uajm3CiWz8',
+  },
+  {
     id: 'wa-dama-club',
     name: 'Dama Club',
     type: 'whatsapp',
