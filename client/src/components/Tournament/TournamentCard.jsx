@@ -74,6 +74,8 @@ export default function TournamentCard({ t, onClick, brands = [] }) {
     ? t.stages
     : (typeof t.stages === 'string' ? JSON.parse(t.stages || '[]') : []);
   const lateRegClosed = isLateRegClosed(t);
+  // קישור ההרשמה של המועדון המארח עצמו (venues.registration_url) — מוצג ליד הוואטסאפ, לא כשיש לטורניר קישור ייעודי
+  const venueRegUrl = !isJokerClub && !lateRegClosed && !t.external_registration_url ? t.venue_registration_url : null;
 
   return (
     <div
@@ -332,6 +334,20 @@ export default function TournamentCard({ t, onClick, brands = [] }) {
               ? `הרשמה דרך ${t.venue_name}`
               : (t.tournament_type === 'cash' || t.tournament_type === 'online_cash' ? 'הצטרפות למשחק' : 'הרשמה לטורניר')}
         </button>
+      )}
+
+      {venueRegUrl && (
+        <a
+          href={venueRegUrl}
+          target="_blank" rel="noopener noreferrer"
+          onClick={e => e.stopPropagation()}
+          className="mt-2 flex items-center justify-center gap-2 w-full min-h-[44px] font-bold py-2.5 px-4 rounded-xl text-sm
+            text-white bg-gradient-to-l from-blue-600 to-indigo-600
+            shadow-[0_0_14px_rgba(99,102,241,0.6)] hover:shadow-[0_0_22px_rgba(99,102,241,0.9)]
+            hover:scale-105 active:scale-95 transition-all duration-200"
+        >
+          🔗 הרשמה
+        </a>
       )}
 
       {/* רישום כפול — הרשמה דרך המארגן (Runner Runner וכו') */}

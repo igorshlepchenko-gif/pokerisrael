@@ -11,6 +11,8 @@ export default function TournamentListRow({ t, index, onClick }) {
   const levelDur = getStageDurations(stages, t.level_duration);
   const lateRegClosed = isLateRegClosed(t);
   const isJokerClub = isJokerClubVenue(t.venue_name);
+  // קישור ההרשמה של המועדון המארח עצמו (venues.registration_url) — מוצג ליד הוואטסאפ, לא כשיש לטורניר קישור ייעודי
+  const venueRegUrl = !isJokerClub && !lateRegClosed && !t.external_registration_url ? t.venue_registration_url : null;
   const registerLabel = t.tournament_type === 'cash' || t.tournament_type === 'online_cash' ? 'הצטרפות למשחק' : 'הרשמה לטורניר';
   // formatCost() נופל ל"חינם" (עברית) כשאין עלות אמיתית — mono רק כשהערך המוצג הוא באמת מספר
   const costMono = t.cost ? 'font-mono tabular-nums' : '';
@@ -154,6 +156,13 @@ export default function TournamentListRow({ t, index, onClick }) {
             <WaIcon /> {registerLabel}
           </button>
         )}
+        {venueRegUrl && (
+          <a href={venueRegUrl} target="_blank" rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="flex items-center justify-center gap-2 w-full font-bold py-2 px-4 rounded-xl text-sm text-white bg-gradient-to-l from-blue-600 to-indigo-600">
+            🔗 הרשמה
+          </a>
+        )}
         {/* רישום כפול — דרך המארגן, וקישור חיצוני — כמו ב-Card וב-Modal */}
         {hasOrganizer && t.organizer_whatsapp && (
           <button onClick={openOrganizerWhatsApp}
@@ -294,6 +303,13 @@ export default function TournamentListRow({ t, index, onClick }) {
               className="wa-btn flex items-center justify-center gap-1.5 bg-[#25D366] hover:bg-[#1da851] text-white font-bold py-2 px-3 rounded-xl text-xs whitespace-nowrap transition-all hover:scale-105">
               <WaIcon /> הרשמה
             </button>
+          )}
+          {venueRegUrl && (
+            <a href={venueRegUrl} target="_blank" rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="flex items-center justify-center gap-1.5 font-bold py-1.5 px-3 rounded-xl text-[11px] whitespace-nowrap text-white bg-gradient-to-l from-blue-600 to-indigo-600">
+              🔗 הרשמה
+            </a>
           )}
           {hasOrganizer && t.organizer_whatsapp && (
             <button onClick={openOrganizerWhatsApp}

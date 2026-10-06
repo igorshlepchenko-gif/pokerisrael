@@ -80,7 +80,7 @@ const TOURNAMENT_SELECT = `
         COALESCE(t.address, v.address) AS venue_address,
         COALESCE(t.city, v.city) AS venue_city,
         v.whatsapp_number, v.logo_url AS venue_logo,
-        v.venue_type AS venue_type, v.club_number AS venue_club_number, v.website AS venue_website,
+        v.venue_type AS venue_type, v.club_number AS venue_club_number, v.website AS venue_website, v.registration_url AS venue_registration_url,
         ${RESOLVED_LAT} AS venue_lat,
         ${RESOLVED_LNG} AS venue_lng,
         org.name AS organizer_name, org.whatsapp_number AS organizer_whatsapp, org.registration_url AS organizer_registration_url
