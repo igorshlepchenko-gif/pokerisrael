@@ -92,7 +92,14 @@ app.use(cookieParser());
 app.use(passport.initialize());
 
 // שרות קבצים סטטיים (לוגואים וסרטונים)
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// רק סוגי מדיה מוכרים מוגשים — כל קובץ אחר (למשל .html/.svg שהגיע איכשהו לתיקייה)
+// מחזיר 404, כדי שלא יוגש כדף מהדומיין שלנו. CSP sandbox כשכבת הגנה נוספת.
+const UPLOAD_SERVED_EXT = /\.(jpe?g|png|gif|webp|mp4|webm|mov)$/i;
+app.use('/uploads',
+  (req, res, next) => (UPLOAD_SERVED_EXT.test(req.path) ? next() : res.status(404).end()),
+  express.static(path.join(__dirname, 'uploads'), {
+    setHeaders: (res) => res.setHeader('Content-Security-Policy', "sandbox; default-src 'none'; img-src 'self'; media-src 'self'"),
+  }));
 
 app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/tournaments', tournamentRoutes);

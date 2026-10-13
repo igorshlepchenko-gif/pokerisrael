@@ -37,10 +37,9 @@ const logoUpload = multer({
 // ── סרטון: disk → validate magic bytes → מחיקה אם שגוי ───────────
 const videoStorage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, path.join(__dirname, '../uploads/videos')),
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-    cb(null, `${uuidv4()}${ext}`);
-  },
+  // ללא סיומת בשלב הזה — הסיומת הסופית נקבעת לפי התוכן האמיתי (validateVideoMagicBytes),
+  // אחרת אפשר היה להעלות "סרטון" בשם x.html שיוגש כדף HTML מהדומיין שלנו (XSS)
+  filename: (req, file, cb) => cb(null, `${uuidv4()}.upload`),
 });
 
 const videoUpload = multer({
@@ -61,6 +60,10 @@ const validateVideoMagicBytes = async (req, res, next) => {
       fs.unlinkSync(req.file.path); // מחיקת הקובץ המזויף
       return res.status(400).json({ message: 'קובץ לא תקין — תוכן הקובץ אינו תואם לסיומת' });
     }
+    const finalPath = req.file.path.replace(/\.upload$/, `.${type.ext}`);
+    fs.renameSync(req.file.path, finalPath);
+    req.file.path = finalPath;
+    req.file.filename = path.basename(finalPath);
     next();
   } catch {
     if (req.file?.path) fs.unlinkSync(req.file.path);
