@@ -102,6 +102,52 @@ exports.boostTournament = async (req, res) => {
   }
 };
 
+// טורניר "פיתיון" (canary) — מוחזר ב-API אבל מוסתר מגולשים בדף. אם הוא מופיע
+// באתר אחר, סימן שהנתונים הועתקו מאיתנו. ראה middleware/antiScraping.js
+exports.toggleCanary = async (req, res) => {
+  try {
+    const result = await pool.query(
+      `UPDATE tournaments SET is_canary = NOT is_canary, updated_at = NOW()
+       WHERE id = $1 RETURNING id, is_canary`,
+      [req.params.id]
+    );
+    if (!result.rows[0]) return res.status(404).json({ message: 'טורניר לא נמצא' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'שגיאת שרת' });
+  }
+};
+
+// יומן האבטחה — סיכום לפי IP (24 שעות / 7 ימים) + 200 האירועים האחרונים
+exports.getSecurityEvents = async (req, res) => {
+  try {
+    const days = Math.min(30, Math.max(1, parseInt(req.query.days) || 7));
+    const [byIp, recent] = await Promise.all([
+      pool.query(
+        `SELECT ip, COUNT(*)::int AS events, MAX(created_at) AS last_seen,
+                ARRAY_AGG(DISTINCT reason) AS reasons,
+                (ARRAY_AGG(user_agent ORDER BY created_at DESC))[1] AS last_user_agent
+         FROM security_events
+         WHERE created_at > NOW() - make_interval(days => $1)
+         GROUP BY ip ORDER BY events DESC, last_seen DESC LIMIT 100`,
+        [days]
+      ),
+      pool.query(
+        `SELECT id, ip, user_agent, method, path, reason, created_at
+         FROM security_events
+         WHERE created_at > NOW() - make_interval(days => $1)
+         ORDER BY created_at DESC LIMIT 200`,
+        [days]
+      ),
+    ]);
+    res.json({ days, by_ip: byIp.rows, recent: recent.rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'שגיאת שרת' });
+  }
+};
+
 exports.getAllVenues = async (req, res) => {
   try {
     const result = await pool.query(`
@@ -120,7 +166,7 @@ exports.getAllVenues = async (req, res) => {
 exports.getAllTournaments = async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT t.id, t.name, t.status, t.start_time, t.cost, t.is_boosted, t.boost_label,
+      SELECT t.id, t.name, t.status, t.start_time, t.cost, t.is_boosted, t.boost_label, t.is_canary,
              v.name AS venue_name
       FROM tournaments t JOIN venues v ON t.venue_id = v.id
       WHERE t.status = 'approved' AND t.is_active = true

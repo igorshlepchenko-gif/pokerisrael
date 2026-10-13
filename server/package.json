@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "setup-db": "node database/setup.js"
+    "setup-db": "node database/setup.js",
+    "test": "node --test \"tests/*.test.js\""
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.100.1",

@@ -45,6 +45,14 @@ app.use(helmet({
   contentSecurityPolicy: false, // SPA מנהל CSP בצד לקוח
 }));
 
+// ── הגנה מפני גריפת נתונים (scraping) — הגדרות ב-config/antiScraping.js ──
+const antiScraping = require('./middleware/antiScraping');
+const antiScrapingConfig = require('./config/antiScraping');
+app.use(antiScraping.resolveClientIp);
+app.use(antiScraping.guard);
+app.get('/robots.txt', (req, res) => res.type('text/plain').send(antiScraping.robotsTxt()));
+app.get(`${antiScrapingConfig.trap.path}*`, (req, res, next) => antiScraping.trap(req, res).catch(next));
+
 // ── CORS ──────────────────────────────────────────────────────────
 // The Hand Logger mobile app (Capacitor) requests from a fixed local-scheme origin
 // rather than the web CLIENT_URL — capacitor://localhost on iOS, https://localhost
@@ -91,6 +99,18 @@ app.use(express.json({ limit: '20mb' })); // 20mb for WhatsApp image forwarding
 app.use(cookieParser());
 app.use(passport.initialize());
 
+// מגבלת קצב + טוקן דף על נקודות הקצה הציבוריות של הנתונים (אחרי cookieParser —
+// משתמש מחובר מזוהה לפי העוגייה ופטור)
+app.use(antiScraping.dataGuard);
+
+// בפיתוח (Vite מגיש את index.html, לא השרת) — הדפדפן מבקש טוקן כאן במקום מה-<meta>
+if (process.env.NODE_ENV !== 'production') {
+  app.get('/api/page-token', async (req, res) => {
+    const html = antiScraping.renderIndexHtml('<head></head>', { canaryIds: await antiScraping.getCanaryIds() });
+    res.json({ token: html.match(/content="([^"]+)"/)[1] });
+  });
+}
+
 // שרות קבצים סטטיים (לוגואים וסרטונים)
 // רק סוגי מדיה מוכרים מוגשים — כל קובץ אחר (למשל .html/.svg שהגיע איכשהו לתיקייה)
 // מחזיר 404, כדי שלא יוגש כדף מהדומיין שלנו. CSP sandbox כשכבת הגנה נוספת.
@@ -124,7 +144,7 @@ app.get('/api/stats', async (req, res) => {
       SELECT
         (SELECT COUNT(*) FROM tournaments t
            JOIN venues v ON t.venue_id = v.id
-           WHERE t.status = 'approved' AND t.is_active = true AND v.is_approved = true
+           WHERE t.status = 'approved' AND t.is_active = true AND v.is_approved = true AND t.is_canary = false
            AND (t.is_recurring = true OR COALESCE(t.estimated_end_time, t.start_time) > NOW())) AS tournaments,
         (SELECT COUNT(*) FROM venues WHERE is_approved = true) AS venues,
         (SELECT COUNT(*) FROM users)                           AS users
@@ -144,10 +164,17 @@ app.get('/api/stats', async (req, res) => {
 // ── הגשת הלקוח הבנוי בפרודקשן (SPA) ───────────────────────────
 if (process.env.NODE_ENV === 'production') {
   const clientDist = path.join(__dirname, '../client/dist');
-  app.use(express.static(clientDist));
-  // כל נתיב שאינו /api או /uploads → index.html (React Router)
-  app.get(/^(?!\/api|\/uploads).*/, (req, res) => {
-    res.sendFile(path.join(clientDist, 'index.html'));
+  // index: false — גם "/" עובר דרך ה-handler למטה, כדי שיקבל טוקן דף
+  app.use(express.static(clientDist, { index: false }));
+  // כל נתיב שאינו /api או /uploads → index.html (React Router), עם טוקן דף וקישור מלכודת.
+  // no-store: הטוקן תקף דקות ספורות, אסור שדפדפן/פרוקסי יגיש עותק ישן.
+  const fs = require('fs');
+  const indexHtml = fs.readFileSync(path.join(clientDist, 'index.html'), 'utf8');
+  app.get(/^(?!\/api|\/uploads).*/, antiScraping.pageLimiter, async (req, res, next) => {
+    try {
+      const html = antiScraping.renderIndexHtml(indexHtml, { canaryIds: await antiScraping.getCanaryIds() });
+      res.set('Cache-Control', 'no-store').type('html').send(html);
+    } catch (err) { next(err); }
   });
 }
 
@@ -166,6 +193,12 @@ const cleanOldLogs = async () => {
     if (result.rowCount > 0) {
       console.log(`[CLEANUP] נמחקו ${result.rowCount} רשומות ישנות מיומן השינויים`);
     }
+    // יומן האבטחה (scraping) — נשמר רק לתקופה שב-config/antiScraping.js
+    const sec = await pool.query(
+      `DELETE FROM security_events WHERE created_at < NOW() - make_interval(days => $1)`,
+      [antiScrapingConfig.log.retentionDays]
+    );
+    if (sec.rowCount > 0) console.log(`[CLEANUP] נמחקו ${sec.rowCount} רשומות ישנות מיומן האבטחה`);
   } catch (err) {
     console.error('[CLEANUP] שגיאה במחיקת רשומות ישנות:', err.message);
   }

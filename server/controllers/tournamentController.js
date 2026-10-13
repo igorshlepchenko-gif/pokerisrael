@@ -5,6 +5,7 @@ const { BLIND_PRESETS, presetToStages } = require('../config/blindPresets');
 const Groq = require('groq-sdk');
 const { VISION_MODELS, stripToJson } = require('../config/aiModels');
 const { todayInIsrael, resolveScheduleYear } = require('../utils/scheduleDates');
+const antiScrapingConfig = require('../config/antiScraping');
 
 function getGroq() {
   if (!process.env.GROQ_API_KEY) return null;
@@ -106,13 +107,15 @@ exports.getNearby = async (req, res) => {
         AND t.is_active = true
         AND v.is_approved = true
         AND t.tournament_type <> 'online'
+        AND t.is_canary = false
         AND ${RESOLVED_LAT} IS NOT NULL
         AND ${RESOLVED_LNG} IS NOT NULL
         AND (
           t.is_recurring = true
           OR (t.start_time > NOW() - INTERVAL '12 hours' AND t.start_time < NOW() + INTERVAL '30 hours')
         )
-    `);
+      LIMIT $1
+    `, [antiScrapingConfig.nearbyMaxResults]);
     res.json(result.rows);
   } catch (err) {
     console.error(err);
@@ -125,7 +128,13 @@ exports.getAll = async (req, res) => {
     const { city, day, search, sort, venue_ids, gtd_min, tournament_type } = req.query;
     const hasFilters = city || day !== undefined || search || venue_ids || gtd_min || tournament_type;
 
-    const baseSelect = TOURNAMENT_SELECT;
+    // עימוד — אף קריאה לא מחזירה את כל המאגר בבת אחת (config/antiScraping.js)
+    const { defaultPageSize, maxPageSize } = antiScrapingConfig.pagination;
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const pageSize = Math.min(maxPageSize, Math.max(1, parseInt(req.query.page_size) || defaultPageSize));
+
+    // סך התוצאות (לפני LIMIT) מחושב באותה שאילתה
+    const baseSelect = TOURNAMENT_SELECT.replace(/^\s*SELECT/, 'SELECT COUNT(*) OVER() AS _total,');
 
     // מיון
     // לטורנירים חוזרים מחשבים את המופע הבא לפי day_of_week + שעה (בשעון ישראל)
@@ -147,12 +156,13 @@ exports.getAll = async (req, res) => {
     // אחרת הם כולם היו נופלים לסוף המיון (NULLS LAST) בלי קשר ליום שבו הם מתקיימים
     const dayOfWeekExpr = `COALESCE(t.day_of_week, EXTRACT(DOW FROM t.start_time)::int)`;
 
+    // t.id בסוף — סדר יציב, כדי שעימוד לא ידלג/יכפיל טורנירים עם ערך מיון זהה
     const sortClause =
-      sort === 'venue_name' ? 'ORDER BY t.is_boosted DESC, v.name ASC' :
-      sort === 'cost_asc'   ? 'ORDER BY t.is_boosted DESC, t.cost ASC NULLS LAST' :
-      sort === 'cost_desc'  ? 'ORDER BY t.is_boosted DESC, t.cost DESC NULLS LAST' :
-      sort === 'day'        ? `ORDER BY t.is_boosted DESC, ${dayOfWeekExpr} ASC, t.start_time ASC` :
-      /* start_time default */ `ORDER BY t.is_boosted DESC, ${nextOccurrenceExpr} ASC`;
+      sort === 'venue_name' ? 'ORDER BY t.is_boosted DESC, v.name ASC, t.id ASC' :
+      sort === 'cost_asc'   ? 'ORDER BY t.is_boosted DESC, t.cost ASC NULLS LAST, t.id ASC' :
+      sort === 'cost_desc'  ? 'ORDER BY t.is_boosted DESC, t.cost DESC NULLS LAST, t.id ASC' :
+      sort === 'day'        ? `ORDER BY t.is_boosted DESC, ${dayOfWeekExpr} ASC, t.start_time ASC, t.id ASC` :
+      /* start_time default */ `ORDER BY t.is_boosted DESC, ${nextOccurrenceExpr} ASC, t.id ASC`;
 
     let query, params = [], idx = 1;
 
@@ -190,8 +200,27 @@ exports.getAll = async (req, res) => {
         ${sortClause}`;
     }
 
+    query += ` LIMIT $${idx++} OFFSET $${idx++}`;
+    params.push(pageSize, (page - 1) * pageSize);
+
     const result = await pool.query(query, params);
-    res.json(result.rows);
+    const total = result.rows[0] ? parseInt(result.rows[0]._total) : 0;
+    const items = result.rows.map(({ _total, ...t }) => t);
+
+    // רשימת הערים לסינון — רק בעמוד הראשון (היא לא תלויה בעמוד)
+    let cities;
+    if (page === 1) {
+      const c = await pool.query(`
+        SELECT DISTINCT COALESCE(t.city, v.city) AS city
+        FROM tournaments t JOIN venues v ON t.venue_id = v.id
+        WHERE t.status = 'approved' AND t.is_active = true AND v.is_approved = true
+          AND t.is_canary = false AND ${notPastClause}
+          AND COALESCE(t.city, v.city) IS NOT NULL AND COALESCE(t.city, v.city) <> ''
+        ORDER BY 1`);
+      cities = c.rows.map(r => r.city);
+    }
+
+    res.json({ items, total, page, page_size: pageSize, has_more: page * pageSize < total, cities });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'שגיאת שרת' });

@@ -12,6 +12,8 @@ router.delete('/venues/:id', ctrl.rejectVenue);
 router.patch('/tournaments/:id/approve', ctrl.approveTournament);
 router.patch('/tournaments/:id/reject', ctrl.rejectTournament);
 router.patch('/tournaments/:id/boost', ctrl.boostTournament);
+router.patch('/tournaments/:id/canary', ctrl.toggleCanary);
+router.get('/security-events', ctrl.getSecurityEvents);
 router.get('/venues/all', ctrl.getAllVenues);
 router.get('/tournaments', ctrl.getAllTournaments);
 router.get('/users', ctrl.getAllUsers);

@@ -234,6 +234,21 @@ async function ensureSchema() {
       )`,
       `CREATE INDEX IF NOT EXISTS idx_inquiry_logs_lesson  ON inquiry_logs(lesson_id)`,
       `CREATE INDEX IF NOT EXISTS idx_inquiry_logs_created ON inquiry_logs(created_at DESC)`,
+      // ── הגנה מפני scraping (middleware/antiScraping.js) ──
+      // טורניר "פיתיון": מוחזר ב-API אבל מוסתר מגולשים בדף — אם מופיע באתר אחר, הועתק מאיתנו
+      `ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS is_canary BOOLEAN NOT NULL DEFAULT false`,
+      // יומן בקשות שנחסמו/חשודות. בלי user_id — רק מה שצריך לזיהוי הגורף
+      `CREATE TABLE IF NOT EXISTS security_events (
+        id          SERIAL PRIMARY KEY,
+        ip          VARCHAR(64) NOT NULL,
+        user_agent  VARCHAR(300),
+        method      VARCHAR(10),
+        path        VARCHAR(300),
+        reason      VARCHAR(60) NOT NULL,
+        created_at  TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_security_events_created ON security_events(created_at DESC)`,
+      `CREATE INDEX IF NOT EXISTS idx_security_events_ip ON security_events(ip)`,
     ];
     for (const sql of MIGRATIONS) {
       try { await pool.query(sql); } catch (e) { console.error('migration failed:', e.message); }

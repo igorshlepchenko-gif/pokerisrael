@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import api from '../utils/api';
+import { splitCanaries } from '../utils/pageToken';
 import TournamentCard from '../components/Tournament/TournamentCard';
 import TournamentListRow from '../components/Tournament/TournamentListRow';
 import TournamentDetailModal from '../components/Tournament/TournamentDetailModal';
@@ -14,11 +15,28 @@ import { getVariant, trackAb } from '../utils/ab';
 import NearbyPromoVideo from '../components/NearbyPromoVideo';
 import LiveTournamentsBanner from '../components/LiveTournamentsBanner';
 
+// עטיפה לטורנירי פיתיון: מחוץ למסך, מוסתר מקוראי מסך, לא ניתן לפוקוס/לחיצה,
+// ו-data-nosnippet כדי שגוגל לא יציג את הטקסט שלהם בתוצאות חיפוש
+const HIDDEN_PROPS = {
+  'aria-hidden': 'true',
+  'data-nosnippet': '',
+  inert: '',
+  style: { position: 'absolute', left: '-10000px', top: 'auto', width: '1px', height: '1px', overflow: 'hidden' },
+};
+
 export default function Home() {
   const { user } = useAuth();
 
   const [tournaments, setTournaments] = useState([]);
+  // טורנירי "פיתיון" (canary) — נשארים ב-DOM כדי שמי שמעתיק את הדף יקבל אותם, אבל מוסתרים מהגולש
+  const [hiddenTournaments, setHiddenTournaments] = useState([]);
   const [loading, setLoading] = useState(true);
+  // עימוד — השרת מחזיר עמוד אחד בכל פעם; העמוד הבא נטען אוטומטית בגלילה לתחתית הרשימה
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const requestId = useRef(0);
   const [tournamentType, setTournamentType] = useState('live');
   const [search, setSearch] = useState('');
   const [city, setCity] = useState('');
@@ -59,9 +77,7 @@ export default function Home() {
     return () => clearTimeout(timer);
   }, [tournamentType, city, day, sort, selectedVenues, gtdMin, search]);
 
-  const fetchTournaments = async () => {
-    setLoading(true);
-    try {
+  const buildParams = () => {
       const params = { sort };
       if (city) params.city = city;
       if (day !== '') params.day = day;
@@ -69,16 +85,65 @@ export default function Home() {
       if (selectedVenues.length > 0) params.venue_ids = selectedVenues.join(',');
       if (gtdMin) params.gtd_min = gtdMin;
       if (tournamentType !== 'all') params.tournament_type = tournamentType;
-      const res = await api.get('/tournaments', { params });
-      setTournaments(res.data);
-      const uniqueCities = [...new Set(res.data.map(t => t.venue_city))].filter(Boolean);
-      if (uniqueCities.length > 0) setCities(uniqueCities);
+      return params;
+  };
+
+  const fetchTournaments = async () => {
+    const myId = ++requestId.current;
+    setLoading(true);
+    try {
+      const res = await api.get('/tournaments', { params: { ...buildParams(), page: 1 } });
+      if (myId !== requestId.current) return; // סינון חדש כבר בדרך
+      const { visible, hidden } = await splitCanaries(res.data.items);
+      setTournaments(visible);
+      setHiddenTournaments(hidden);
+      setTotal(res.data.total);
+      setPage(1);
+      setHasMore(res.data.has_more);
+      if (res.data.cities?.length > 0) setCities(res.data.cities);
     } catch {
       // show empty
+      if (myId === requestId.current) { setTournaments([]); setHiddenTournaments([]); setTotal(0); setHasMore(false); }
     } finally {
-      setLoading(false);
+      if (myId === requestId.current) setLoading(false);
     }
   };
+
+  const loadMore = useCallback(async () => {
+    if (loadingMore || !hasMore) return;
+    const myId = requestId.current;
+    setLoadingMore(true);
+    try {
+      const res = await api.get('/tournaments', { params: { ...buildParams(), page: page + 1 } });
+      if (myId !== requestId.current) return;
+      const { visible, hidden } = await splitCanaries(res.data.items);
+      // בלי כפילויות, למקרה שטורניר זז בין עמודים בזמן הגלילה
+      setTournaments(prev => [...prev, ...visible.filter(t => !prev.some(p => p.id === t.id))]);
+      setHiddenTournaments(prev => [...prev, ...hidden.filter(t => !prev.some(p => p.id === t.id))]);
+      setPage(page + 1);
+      setHasMore(res.data.has_more);
+    } catch {
+      setHasMore(false);
+    } finally {
+      setLoadingMore(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadingMore, hasMore, page, tournamentType, city, day, sort, selectedVenues, gtdMin, search]);
+
+  // טעינת העמוד הבא כשהגולש מתקרב לתחתית הרשימה
+  const sentinelRef = useRef(null);
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el || !hasMore) return;
+    const obs = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting) loadMore();
+    }, { rootMargin: '600px' });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [hasMore, loadMore, viewMode, loading]);
+
+  // ספירה: הסך מהשרת, פחות פיתיונות שכבר זוהו בעמודים שנטענו
+  const shownCount = Math.max(tournaments.length, total - hiddenTournaments.length);
 
   const handleSearch = (e) => { e.preventDefault(); fetchTournaments(); };
 
@@ -259,7 +324,7 @@ export default function Home() {
             {/* Toolbar: count + sort + view toggle */}
             <div className="flex items-center justify-between gap-3 mb-5 min-h-[36px]">
               <h2 className="text-lg font-bold text-slate-300 flex items-center">
-                {tournaments.length} טורנירים נמצאו
+                {shownCount} טורנירים נמצאו
               </h2>
 
               <div className="flex items-center gap-2">
@@ -304,6 +369,11 @@ export default function Home() {
                 {tournaments.map((t, i) => (
                   <TournamentCard key={t.id} t={t} index={i} onClick={() => setSelectedTournament(t)} brands={allBrands} />
                 ))}
+                {hiddenTournaments.map((t, i) => (
+                  <div key={`h${t.id}`} {...HIDDEN_PROPS}>
+                    <TournamentCard t={t} index={tournaments.length + i} onClick={() => {}} brands={allBrands} />
+                  </div>
+                ))}
               </div>
             )}
 
@@ -322,7 +392,25 @@ export default function Home() {
                   {tournaments.map((t, i) => (
                     <TournamentListRow key={t.id} t={t} index={i} onClick={() => setSelectedTournament(t)} />
                   ))}
+                  {hiddenTournaments.map((t, i) => (
+                    <div key={`h${t.id}`} {...HIDDEN_PROPS}>
+                      <TournamentListRow t={t} index={tournaments.length + i} onClick={() => {}} />
+                    </div>
+                  ))}
                 </div>
+              </div>
+            )}
+
+            {/* עימוד: נקודת טריגר לגלילה + כפתור גיבוי */}
+            {hasMore && (
+              <div ref={sentinelRef} className="text-center py-6">
+                {loadingMore ? (
+                  <span className="text-slate-400 text-sm">טוען עוד טורנירים...</span>
+                ) : (
+                  <button onClick={loadMore} className="text-sm font-semibold text-slate-300 bg-slate-800 border border-slate-700 rounded-xl px-5 py-2 hover:bg-slate-700">
+                    הצג עוד טורנירים
+                  </button>
+                )}
               </div>
             )}
           </>

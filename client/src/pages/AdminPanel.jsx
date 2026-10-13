@@ -4,6 +4,7 @@ import { formatDate, formatTime, formatCost } from '../utils/whatsapp';
 import VenueEditForm from '../components/VenueEditForm';
 import LocationsManager from '../components/Admin/LocationsManager';
 import AbResults from '../components/Admin/AbResults';
+import SecurityLog from '../components/Admin/SecurityLog';
 import TournamentEditForm from '../components/TournamentEditForm';
 
 // ---- helpers for change log diff ----
@@ -258,12 +259,29 @@ export default function AdminPanel() {
         setAgentSources(src.data);
         setPendingImports(pend.data);
         setPendingVenueList(venues.data);
+      } else if (tab === 'security') {
+        // SecurityLog טוען את הנתונים בעצמו
       } else {
         const res = await api.get('/admin/users');
         setUsers(res.data);
       }
     } catch {/* ignore */}
     finally { setLoading(false); }
+  };
+
+  const toggleCanary = async (t) => {
+    if (!t.is_canary && !window.confirm(
+      `לסמן את "${t.name}" כטורניר פיתיון?
+
+הוא ייעלם מהאתר לגולשים, אבל ימשיך להופיע למי שמעתיק את הנתונים. ` +
+      `אם תראה אותו באתר אחר — הנתונים הועתקו מכאן.
+
+מיועד לטורניר בדוי שיצרת במיוחד, לא לטורניר אמיתי.`
+    )) return;
+    try {
+      const res = await api.patch(`/admin/tournaments/${t.id}/canary`);
+      setAllTournaments(prev => prev.map(x => x.id === t.id ? { ...x, is_canary: res.data.is_canary } : x));
+    } catch {/* ignore */}
   };
 
   const boostTournament = async (id) => {
@@ -391,6 +409,7 @@ export default function AdminPanel() {
           ['imports', '📥 ייבוא מפרסומים'],
           ['locations', '📍 מיקומים'],
           ['ab', '🧪 A/B'],
+          ['security', '🛡️ אבטחה'],
         ].map(([id, label]) => (
           <button key={id} onClick={() => setTab(id)}
             className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${tab === id ? 'bg-poker-green text-white' : 'text-slate-400 hover:text-slate-200'}`}>
@@ -596,6 +615,9 @@ export default function AdminPanel() {
                         {past && (
                           <span className="text-[10px] bg-slate-700/80 text-slate-400 px-1.5 py-0.5 rounded-full border border-slate-600">🕐 עבר</span>
                         )}
+                        {t.is_canary && (
+                          <span className="text-[10px] bg-rose-900/30 text-rose-300 px-1.5 py-0.5 rounded-full border border-rose-700/40">🪤 פיתיון — מוסתר מגולשים</span>
+                        )}
                       </div>
                       <p className="text-sm text-slate-400">{t.venue_name} · <span className="font-mono tabular-nums">{formatDate(t.start_time)} {formatTime(t.start_time)} · {formatCost(t.cost)}</span></p>
                     </div>
@@ -630,6 +652,17 @@ export default function AdminPanel() {
                         }`}
                       >
                         {t.is_boosted ? '⬇️ הסר קידום' : '🚀 קדם'}
+                      </button>
+                      <button
+                        onClick={() => toggleCanary(t)}
+                        title="טורניר פיתיון: מוסתר מגולשים, מופיע רק למי שמעתיק את הנתונים"
+                        className={`text-sm font-bold py-1.5 px-3 rounded-xl transition-all whitespace-nowrap ${
+                          t.is_canary
+                            ? 'bg-rose-900/50 text-rose-300 hover:bg-rose-900/80'
+                            : 'bg-slate-700/60 text-slate-400 hover:bg-rose-900/40 hover:text-rose-300'
+                        }`}
+                      >
+                        🪤 {t.is_canary ? 'בטל פיתיון' : 'פיתיון'}
                       </button>
                     </div>
                   </div>
@@ -1680,6 +1713,8 @@ export default function AdminPanel() {
           {tab === 'locations' && <LocationsManager />}
 
           {tab === 'ab' && <AbResults />}
+
+          {tab === 'security' && <SecurityLog />}
 
           {tab === 'users' && (
             <div className="space-y-2">
