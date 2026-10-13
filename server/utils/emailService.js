@@ -1,5 +1,8 @@
 const nodemailer = require('nodemailer');
 
+// שם המשתמש מגיע מטופס ההרשמה — בלי escape, אפשר היה להזריק קישורים/HTML למייל שנשלח מאיתנו
+const escapeHtml = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
@@ -44,7 +47,7 @@ exports.sendVerificationEmail = async ({ to, name, token }) => {
           <!-- Body -->
           <tr>
             <td style="padding:36px 32px;">
-              <h2 style="color:#f1f5f9;margin:0 0 12px;font-size:20px;">שלום ${name} 👋</h2>
+              <h2 style="color:#f1f5f9;margin:0 0 12px;font-size:20px;">שלום ${escapeHtml(name)} 👋</h2>
               <p style="color:#94a3b8;margin:0 0 24px;line-height:1.7;font-size:15px;">
                 תודה שנרשמת לפוקר לייב ישראל!<br/>
                 לחץ על הכפתור כדי לאמת את כתובת המייל שלך ולהפעיל את החשבון:

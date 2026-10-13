@@ -1,11 +1,13 @@
 const pool = require('../config/db');
+const { optionalUserId } = require('../middleware/auth');
 const ExcelJS = require('exceljs');
 
 exports.logRegistration = async (req, res) => {
   const {
     tournament_id, tournament_name, venue_id, venue_name,
-    tournament_date, registrant_name, registrant_phone, user_id,
+    tournament_date, registrant_name, registrant_phone,
   } = req.body;
+  const user_id = optionalUserId(req);
 
   if (!tournament_name || !venue_name || !registrant_name) {
     return res.status(400).json({ message: 'שדות חובה חסרים' });

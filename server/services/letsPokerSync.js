@@ -10,8 +10,8 @@
 // independently (own cron schedule in index.js) but shares this module's logic and the
 // feed_sources bookkeeping table (keyed by venue_id+url, so rows never collide across clubs).
 const pool = require('../config/db');
-const axios = require('axios');
-const { assertSafeUrl, SAFE_AXIOS } = require('../utils/safeUrl');
+const { safeGet } = require('../utils/safeUrl');
+const { cleanUrlField } = require('../utils/urlField');
 
 const SOURCE_KEY = 'letspoker';
 const ADMIN_USER_ID = 1;
@@ -101,14 +101,14 @@ function normalize(event) {
     re_entry: reEntry,
     late_reg_level: event.lastEntryLevel?.level ?? null,
     stages: JSON.stringify(mapStages(structure)),
-    external_registration_url: hrefMatch ? hrefMatch[1] : null,
+    // רק http/https — הקישור מגיע מ-HTML חיצוני
+    external_registration_url: hrefMatch ? cleanUrlField(hrefMatch[1]).value || null : null,
   };
 }
 
 // שליפת רשימת האירועים הגולמית מדף המועדון (ללא תלות ב-buildId של Next.js)
 async function fetchEvents(clubUrl) {
-  await assertSafeUrl(clubUrl);
-  const { data: html } = await axios.get(clubUrl, SAFE_AXIOS);
+  const { data: html } = await safeGet(clubUrl);
   const m = String(html).match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);
   if (!m) throw new Error('__NEXT_DATA__ לא נמצא בדף — ייתכן שהאתר שינה מבנה');
   const data = JSON.parse(m[1]);

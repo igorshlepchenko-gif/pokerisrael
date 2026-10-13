@@ -42,7 +42,28 @@ app.set('trust proxy', 1);
 // ── Security headers ──────────────────────────────────────────────
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' }, // מאפשר הגשת תמונות/לוגואים
-  contentSecurityPolicy: false, // SPA מנהל CSP בצד לקוח
+  // CSP: סקריפטים רק מהאתר עצמו — אם אי פעם תיפתח פרצת XSS (קישור/תוכן מוזרק),
+  // הדפדפן לא יריץ קוד מבחוץ ולא ישלח נתונים לשרת זר. הרשימות תואמות את מה שהאתר
+  // באמת טוען: Google Fonts, הטמעות YouTube/Spotify, תמונות חיצוניות (לוגואים/תמונות
+  // ממוזערות), וקבצי blob של סרטוני Hand Logger.
+  contentSecurityPolicy: {
+    useDefaults: false,
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+      fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
+      imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
+      mediaSrc: ["'self'", 'blob:', 'https:'],
+      connectSrc: ["'self'"],
+      frameSrc: ['https://www.youtube.com', 'https://www.youtube-nocookie.com', 'https://open.spotify.com'],
+      workerSrc: ["'self'", 'blob:'],
+      objectSrc: ["'none'"],
+      baseUri: ["'self'"],
+      formAction: ["'self'"],
+      frameAncestors: ["'self'"],
+    },
+  },
 }));
 
 // ── הגנה מפני גריפת נתונים (scraping) — הגדרות ב-config/antiScraping.js ──

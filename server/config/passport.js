@@ -35,17 +35,33 @@ if (googleConfigured) {
         // 2. חיפוש לפי מייל — קישור לחשבון קיים
         if (email) {
           result = await pool.query(
-            'SELECT id, name, email, phone, role, is_active, token_version FROM users WHERE email = $1',
+            'SELECT id, name, email, phone, role, is_active, email_verified, token_version FROM users WHERE email = $1',
             [email]
           );
           if (result.rows[0]) {
-            if (!result.rows[0].is_active) return done(null, false, { message: 'החשבון מושבת' });
+            const existing = result.rows[0];
+            if (!existing.email_verified) {
+              // חשבון שלא אומת — ייתכן שמישהו אחר פתח אותו עם המייל הזה ובחר סיסמה.
+              // גוגל מוכיח שהמייל שייך למי שנכנס עכשיו, לכן: מוחקים את הסיסמה של מי
+              // שפתח (אחרת היה נשאר עם גישה לחשבון), ומפעילים כחשבון גוגל מאומת.
+              const r = await pool.query(
+                `UPDATE users SET google_id = $1, auth_provider = 'google', password = NULL,
+                   email_verified = true, is_active = true, verification_token = NULL,
+                   token_version = token_version + 1
+                 WHERE id = $2
+                 RETURNING id, name, email, phone, role, token_version`,
+                [googleId, existing.id]
+              );
+              return done(null, r.rows[0]);
+            }
+            if (!existing.is_active) return done(null, false, { message: 'החשבון מושבת' });
             // קישור google_id לחשבון הקיים
             await pool.query(
               'UPDATE users SET google_id = $1, auth_provider = $2 WHERE id = $3',
-              [googleId, 'google', result.rows[0].id]
+              [googleId, 'google', existing.id]
             );
-            return done(null, result.rows[0]);
+            const { email_verified: _ev, ...linked } = existing;
+            return done(null, linked);
           }
         }
 

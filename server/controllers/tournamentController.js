@@ -6,6 +6,7 @@ const Groq = require('groq-sdk');
 const { VISION_MODELS, stripToJson } = require('../config/aiModels');
 const { todayInIsrael, resolveScheduleYear } = require('../utils/scheduleDates');
 const antiScrapingConfig = require('../config/antiScraping');
+const { cleanUrlField, BAD_URL_MESSAGE } = require('../utils/urlField');
 
 function getGroq() {
   if (!process.env.GROQ_API_KEY) return null;
@@ -258,6 +259,8 @@ exports.create = async (req, res) => {
   if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
   const { venue_id, name, description, cost, start_time, estimated_end_time, stages, starting_stack, level_duration, is_recurring, day_of_week, re_entry, late_reg_level, gtd, tournament_type, rake, rake_type, platform, game_type, secondary_games, cash_sb, cash_bb, external_registration_url, address, city, latitude, longitude } = req.body;
+  const regUrl = cleanUrlField(external_registration_url);
+  if (!regUrl.ok) return res.status(400).json({ message: BAD_URL_MESSAGE });
 
   try {
     const venueCheck = await pool.query(
@@ -283,7 +286,7 @@ exports.create = async (req, res) => {
        rake || null, rake_type || 'amount',
        platform || null, game_type || null, JSON.stringify(secondary_games || []),
        cash_sb ?? null, cash_bb ?? null,
-       req.user.id, status, external_registration_url || null,
+       req.user.id, status, regUrl.value,
        address || null, city || null,
        // מיקום ברמת הטורניר — ריק פירושו "השתמש במיקום המועדון" (COALESCE בשליפה)
        parseLat(latitude), parseLng(longitude)]
@@ -685,6 +688,8 @@ exports.updateTournament = async (req, res) => {
     platform, game_type, secondary_games, cash_sb, cash_bb,
     external_registration_url, address, city, latitude, longitude,
   } = req.body;
+  const regUrl = cleanUrlField(external_registration_url);
+  if (!regUrl.ok) return res.status(400).json({ message: BAD_URL_MESSAGE });
   // "האם נשלחו שדות מיקום" — להבדיל מ"נשלחו ריקים" (ניקוי מכוון)
   const coordsProvided = Object.prototype.hasOwnProperty.call(req.body, 'latitude')
     || Object.prototype.hasOwnProperty.call(req.body, 'longitude');
@@ -729,7 +734,7 @@ exports.updateTournament = async (req, res) => {
         re_entry || null, late_reg_level ?? null, gtd ?? null,
         rake || null, rake_type || 'amount',
         platform || null, game_type || null, JSON.stringify(secondary_games || []),
-        cash_sb ?? null, cash_bb ?? null, external_registration_url || null,
+        cash_sb ?? null, cash_bb ?? null, regUrl.value,
         address || null, city || null,
         coordsProvided, parseLat(latitude), parseLng(longitude),
         id,
@@ -853,6 +858,9 @@ exports.updateVenue = async (req, res) => {
 
   const { id } = req.params;
   const { name, address, city, whatsapp_number, description, logo_url, venue_type, club_number, agent_number, website, registration_url, latitude, longitude } = req.body;
+  const websiteUrl = cleanUrlField(website);
+  const venueRegUrl = cleanUrlField(registration_url);
+  if (!websiteUrl.ok || !venueRegUrl.ok) return res.status(400).json({ message: BAD_URL_MESSAGE });
   // "האם הלקוח בכלל שלח שדות מיקום" — שונה מ"שלח אותם ריקים" (שמשמעו ניקוי מכוון)
   const coordsProvided = Object.prototype.hasOwnProperty.call(req.body, 'latitude')
     || Object.prototype.hasOwnProperty.call(req.body, 'longitude');
@@ -891,7 +899,7 @@ exports.updateVenue = async (req, res) => {
       [name, isOnline ? null : address, isOnline ? null : city,
        whatsapp_number, description || null, logo_url || null,
        venue_type || 'physical', isOnline ? club_number : null, isOnline ? (agent_number || null) : null,
-       website || null, registration_url || null,
+       websiteUrl.value, venueRegUrl.value,
        coordsProvided,
        // למועדון אונליין אין מיקום פיזי — בדיוק כמו address/city למעלה
        isOnline ? null : parseLat(latitude), isOnline ? null : parseLng(longitude), id]
@@ -960,10 +968,10 @@ exports.importFromUrl = async (req, res) => {
   }
   try {
     const axios = require('axios');
-    const { assertSafeUrl, SAFE_AXIOS } = require('../utils/safeUrl');
+    const { assertSafeUrl, safeGet } = require('../utils/safeUrl');
     try { await assertSafeUrl(url); }
     catch (e) { return res.status(400).json({ message: e.message }); }
-    const { data } = await axios.get(url, SAFE_AXIOS);
+    const { data } = await safeGet(url);
 
     let raw = data;
     if (typeof raw === 'string') { try { raw = JSON.parse(raw); } catch { /* not json */ } }
@@ -982,7 +990,7 @@ exports.importFromUrl = async (req, res) => {
     res.json({ tournaments, count: tournaments.length });
   } catch (err) {
     console.error('[importFromUrl]', err?.message);
-    res.status(500).json({ message: 'שגיאה בקריאת הקישור', detail: err?.message });
+    res.status(500).json({ message: 'שגיאה בקריאת הקישור' });
   }
 };
 
@@ -1008,12 +1016,23 @@ exports.createFeedSource = async (req, res) => {
   if (!url || !/^https?:\/\//i.test(url)) return res.status(400).json({ message: 'יש להזין כתובת קישור תקינה' });
   try {
     if (!(await assertVenueOwnership(req, venueId))) return res.status(403).json({ message: 'אין הרשאה' });
+    const isAdmin = req.user.role === 'admin';
+    // בעל מועדון רגיל: רק למועדון מאושר, ותמיד בלי פרסום אוטומטי — טורנירים מהפיד
+    // ממתינים לאישור אדמין (בדיוק כמו טורניר שנוצר ידנית). אחרת אפשר היה לפרסם
+    // טורנירים מיד, גם ממועדון לא מאושר, ואפילו תחת שם של מועדון אחר.
+    if (!isAdmin) {
+      const approved = await pool.query('SELECT 1 FROM venues WHERE id=$1 AND is_approved=true', [venueId]);
+      if (!approved.rows[0]) return res.status(403).json({ message: 'ניתן להוסיף פיד רק למועדון מאושר' });
+    }
+    // null = לא לשנות ערך קיים (בעל מועדון ששומר מחדש פיד שאדמין הגדיר לפרסום אוטומטי)
+    const autoPublish = isAdmin ? auto_publish !== false : null;
     const r = await pool.query(
       `INSERT INTO feed_sources (venue_id, url, label, auto_publish, created_by)
-       VALUES ($1,$2,$3,$4,$5)
-       ON CONFLICT (venue_id, url) DO UPDATE SET active=true, label=EXCLUDED.label, auto_publish=EXCLUDED.auto_publish
+       VALUES ($1,$2,$3,COALESCE($4,false),$5)
+       ON CONFLICT (venue_id, url) DO UPDATE SET active=true, label=EXCLUDED.label,
+         auto_publish=COALESCE($4, feed_sources.auto_publish)
        RETURNING *`,
-      [venueId, url, label || null, auto_publish !== false, req.user.id]
+      [venueId, url, label || null, autoPublish, req.user.id]
     );
     res.status(201).json(r.rows[0]);
   } catch (err) { console.error('[createFeedSource]', err.message); res.status(500).json({ message: 'שגיאת שרת' }); }
@@ -1042,7 +1061,7 @@ exports.syncFeedNow = async (req, res) => {
     const summary = `✅ +${result.added} ~${result.updated} -${result.removed} (${result.skipped} ללא שינוי)${warn}`;
     await pool.query('UPDATE feed_sources SET last_synced=NOW(), last_result=$1 WHERE id=$2', [summary, id]);
     res.json({ result, summary });
-  } catch (err) { console.error('[syncFeedNow]', err.message); res.status(500).json({ message: 'שגיאה בסנכרון', detail: err.message }); }
+  } catch (err) { console.error('[syncFeedNow]', err.message); res.status(500).json({ message: 'שגיאה בסנכרון' }); }
 };
 
 // ── ייבוא מתמונה עם AI ─────────────────────────────────────────────────────
@@ -1198,6 +1217,9 @@ exports.createVenue = async (req, res) => {
   if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
 
   const { name, address, city, whatsapp_number, description, logo_url, venue_type, club_number, agent_number, website, registration_url, latitude, longitude } = req.body;
+  const websiteUrl = cleanUrlField(website);
+  const venueRegUrl = cleanUrlField(registration_url);
+  if (!websiteUrl.ok || !venueRegUrl.ok) return res.status(400).json({ message: BAD_URL_MESSAGE });
 
   try {
     const isOnline = venue_type === 'online';
@@ -1211,7 +1233,7 @@ exports.createVenue = async (req, res) => {
       [req.user.id, name, isOnline ? null : address, isOnline ? null : city,
        whatsapp_number, description, logo_url || null,
        venue_type || 'physical', isOnline ? club_number : null, isOnline ? (agent_number || null) : null,
-       website || null, registration_url || null,
+       websiteUrl.value, venueRegUrl.value,
        isOnline ? null : parseLat(latitude), isOnline ? null : parseLng(longitude)]
     );
     const newVenue = result.rows[0];

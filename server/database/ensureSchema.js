@@ -249,6 +249,14 @@ async function ensureSchema() {
       )`,
       `CREATE INDEX IF NOT EXISTS idx_security_events_created ON security_events(created_at DESC)`,
       `CREATE INDEX IF NOT EXISTS idx_security_events_ip ON security_events(ip)`,
+      // קישורים שמוצגים לגולשים — רק http/https (ניקוי חד-פעמי של ערכים ישנים; כתיבות חדשות
+      // נבדקות ב-utils/urlField.js). javascript:/data: וכד' היו רצים אצל מי שלוחץ "הרשמה"
+      `UPDATE tournaments SET external_registration_url = NULL
+         WHERE external_registration_url ~* '^[[:space:]]*[a-z][a-z0-9+.-]*:' AND external_registration_url !~* '^[[:space:]]*https?://'`,
+      `UPDATE venues SET registration_url = NULL
+         WHERE registration_url ~* '^[[:space:]]*[a-z][a-z0-9+.-]*:' AND registration_url !~* '^[[:space:]]*https?://'`,
+      `UPDATE venues SET website = NULL
+         WHERE website ~* '^[[:space:]]*[a-z][a-z0-9+.-]*:' AND website !~* '^[[:space:]]*https?://'`,
     ];
     for (const sql of MIGRATIONS) {
       try { await pool.query(sql); } catch (e) { console.error('migration failed:', e.message); }

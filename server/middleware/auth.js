@@ -51,4 +51,12 @@ const requireRole = (...roles) => (req, res, next) => {
   next();
 };
 
-module.exports = { authenticate, requireRole };
+// מזהה משתמש מחובר אם יש טוקן תקף, אחרת null — לנקודות קצה ציבוריות (לוג הרשמה/פנייה)
+// שרוצות לשייך למשתמש בלי לחייב התחברות. לעולם לא לסמוך על user_id שנשלח בגוף הבקשה.
+const optionalUserId = (req) => {
+  const token = req.cookies?.pli_token || req.headers.authorization?.split(' ')[1];
+  if (!token) return null;
+  try { return jwt.verify(token, process.env.JWT_SECRET).id || null; } catch { return null; }
+};
+
+module.exports = { authenticate, requireRole, optionalUserId };

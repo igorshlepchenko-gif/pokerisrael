@@ -13,8 +13,13 @@ const crypto    = require('crypto');
 const fs        = require('fs');
 const path      = require('path');
 
-const PHONE       = '0545861119';
-const PASSWORD    = 'AnE181924!';
+// פרטי ההתחברות ב-server/.env (לא בקוד — הקוד נמצא ב-GitHub)
+const PHONE       = process.env.RUNNERRUNNER_PHONE;
+const PASSWORD    = process.env.RUNNERRUNNER_PASSWORD;
+if (!PHONE || !PASSWORD) {
+  console.error('חסרים RUNNERRUNNER_PHONE / RUNNERRUNNER_PASSWORD ב-server/.env');
+  process.exit(1);
+}
 const BASE_URL    = 'https://runnerrunner.app';
 const COOKIES_FILE = path.join(__dirname, 'rr_cookies.json');
 

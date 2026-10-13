@@ -1,8 +1,10 @@
 const pool = require('../config/db');
+const { optionalUserId } = require('../middleware/auth');
 const ExcelJS = require('exceljs');
 
 exports.logInquiry = async (req, res) => {
-  const { lesson_id, lesson_name, inquirer_name, inquirer_phone, user_id } = req.body;
+  const { lesson_id, lesson_name, inquirer_name, inquirer_phone } = req.body;
+  const user_id = optionalUserId(req);
 
   if (!lesson_name || !inquirer_name) {
     return res.status(400).json({ message: 'שדות חובה חסרים' });

@@ -1,5 +1,6 @@
 // הגנת SSRF — חסימת משיכת URL שמצביע לרשת פנימית/לוקאלית
 const dns = require('dns').promises;
+const axios = require('axios');
 
 function isPrivateIp(ip) {
   const v4 = ip.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
@@ -51,4 +52,37 @@ const SAFE_AXIOS = {
   maxRedirects: 3,
 };
 
-module.exports = { assertSafeUrl, isPrivateIp, SAFE_AXIOS };
+// lookup שמסרב לכתובת פנימית — רץ ברגע החיבור עצמו, כך שגם DNS שמשתנה בין
+// הבדיקה לבקשה (DNS rebinding) לא יכול להפנות את השרת לרשת הפנימית
+function safeLookup(hostname, options, callback) {
+  require('dns').lookup(hostname, { ...options, all: true }, (err, addrs) => {
+    if (err) return callback(err);
+    const bad = addrs.find(a => isPrivateIp(a.address));
+    if (bad) return callback(new Error('הקישור מצביע לרשת פנימית — חסום'));
+    if (options && options.all) return callback(null, addrs);
+    callback(null, addrs[0].address, addrs[0].family);
+  });
+}
+
+// GET בטוח: כל הפניה (redirect) נבדקת מחדש — axios לבדו עוקב אחרי הפניות בלי
+// לבדוק אותן, כך שקישור חיצוני יכל להפנות ל-http://10.x.x.x או ל-*.railway.internal
+async function safeGet(url, extra = {}) {
+  let current = url;
+  for (let hop = 0; hop <= SAFE_AXIOS.maxRedirects; hop++) {
+    await assertSafeUrl(current);
+    const res = await axios.get(current, {
+      ...SAFE_AXIOS,
+      ...extra,
+      maxRedirects: 0,
+      lookup: safeLookup,
+      validateStatus: s => (s >= 200 && s < 300) || (s >= 300 && s < 400),
+    });
+    if (res.status < 300) return res;
+    const location = res.headers.location;
+    if (!location) throw new Error('הפניה ללא יעד');
+    current = new URL(location, current).toString();
+  }
+  throw new Error('יותר מדי הפניות');
+}
+
+module.exports = { assertSafeUrl, isPrivateIp, SAFE_AXIOS, safeGet };

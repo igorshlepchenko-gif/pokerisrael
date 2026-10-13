@@ -1,9 +1,8 @@
 // סנכרון פיד טורנירים חיצוני (JSON) → טבלת tournaments
 // רץ יומית: מוסיף חדשים, מעדכן ששונו, מוחק שירדו מהפיד (הסתיימו)
 const crypto = require('crypto');
-const axios = require('axios');
 const pool = require('../config/db');
-const { assertSafeUrl, SAFE_AXIOS } = require('../utils/safeUrl');
+const { safeGet } = require('../utils/safeUrl');
 
 const DAY_NAME_MAP = { sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6 };
 
@@ -110,11 +109,17 @@ function isChanged(existing, feed) {
 async function syncFeed(feed) {
   const result = { added: 0, updated: 0, removed: 0, skipped: 0, errors: 0 };
   const sourceKey = feed.source_key || 'feed';
-  const status = feed.auto_publish ? 'approved' : 'pending';
+  // פיד שנוצר ע"י אדמין סומך על הגדרת הפרסום האוטומטי שלו ועל שיוך טורנירים למועדונים
+  // של בעלים אחרים (רישום כפול, למשל ראנר ראנר שמארח אצל מועדונים אחרים). פיד של
+  // בעל מועדון רגיל — תמיד ממתין לאישור, ומשויך רק למועדונים של אותו בעלים.
+  const creator = feed.created_by
+    ? (await pool.query('SELECT role FROM users WHERE id=$1', [feed.created_by])).rows[0]
+    : null;
+  const trusted = creator?.role === 'admin';
+  const status = trusted && feed.auto_publish ? 'approved' : 'pending';
 
   // 1. משיכת הפיד (עם הגנת SSRF)
-  await assertSafeUrl(feed.url);
-  const { data } = await axios.get(feed.url, SAFE_AXIOS);
+  const { data } = await safeGet(feed.url);
   let raw = data;
   if (typeof raw === 'string') { try { raw = JSON.parse(raw); } catch { /* */ } }
   const list = Array.isArray(raw?.tournaments) ? raw.tournaments : Array.isArray(raw) ? raw : null;
@@ -127,7 +132,13 @@ async function syncFeed(feed) {
   const organizerVenueId = feed.venue_id;
 
   // מועדונים מאושרים — להתאמת מארח (host) למועדון קיים
-  const venuesRes = await pool.query('SELECT id, name, address FROM venues WHERE is_approved = true');
+  const venuesRes = trusted
+    ? await pool.query('SELECT id, name, address FROM venues WHERE is_approved = true')
+    : await pool.query(
+        `SELECT id, name, address FROM venues
+         WHERE is_approved = true AND owner_id = (SELECT owner_id FROM venues WHERE id = $1)`,
+        [feed.venue_id]
+      );
   const approvedVenues = venuesRes.rows;
 
   // 2. טורנירים קיימים שמקורם בפיד הזה (לפי מארגן)

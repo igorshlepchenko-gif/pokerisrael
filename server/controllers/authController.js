@@ -35,6 +35,8 @@ exports.generateToken = generateToken;
 exports.setAuthCookie = setAuthCookie;
 exports.COOKIE_OPTS = COOKIE_OPTS;
 
+const LOCK_MINUTES = 15;
+
 exports.register = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
@@ -43,9 +45,23 @@ exports.register = async (req, res) => {
   const email = rawEmail.toLowerCase();
 
   try {
-    const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
-    if (existing.rows.length > 0) {
+    const existing = await pool.query(
+      `SELECT id, email_verified, verification_expires FROM users WHERE email = $1`, [email]
+    );
+    // חשבון שנרשם ולא אומת, וקישור האימות שלו כבר פג — אפשר להירשם מחדש עם אותו מייל.
+    // בלי זה, כל אחד יכל "לתפוס" מייל של מישהו אחר ולחסום אותו מלהירשם לעולם.
+    const stale = existing.rows[0] && !existing.rows[0].email_verified &&
+      (!existing.rows[0].verification_expires || new Date(existing.rows[0].verification_expires) < new Date());
+    if (existing.rows.length > 0 && !stale) {
       return res.status(409).json({ message: 'כתובת המייל כבר רשומה במערכת' });
+    }
+    if (stale) {
+      await pool.query('DELETE FROM users WHERE id = $1 AND email_verified = false', [existing.rows[0].id])
+        .catch(() => pool.query(
+          // אם יש לו רשומות קשורות — לפחות משחררים את המייל
+          `UPDATE users SET email = CONCAT('released+', id, '@invalid.local'), is_active = false WHERE id = $1`,
+          [existing.rows[0].id]
+        ));
     }
 
     const hash = await bcrypt.hash(password, 12);
@@ -229,12 +245,21 @@ exports.login = async (req, res) => {
 
     if (!user.is_active) return res.status(401).json({ message: 'החשבון מושבת. אנא פנה למנהל המערכת.' });
 
-    // חשבון ננעל
+    // חשבון ננעל — נעילה זמנית בלבד. נעילה קבועה אפשרה לכל אחד לנעול כל חשבון
+    // (כולל של האדמין) לתמיד, רק עם 10 ניסיונות סיסמה שגויים
     if (user.is_locked) {
-      return res.status(403).json({
-        message: 'החשבון ננעל עקב ניסיונות התחברות כושלים מרובים. אנא פנה למנהל המערכת.',
-        locked: true,
-      });
+      const unlockAt = user.locked_at ? new Date(user.locked_at).getTime() + LOCK_MINUTES * 60 * 1000 : 0;
+      if (Date.now() < unlockAt) {
+        const minutes = Math.ceil((unlockAt - Date.now()) / 60000);
+        return res.status(403).json({
+          message: `החשבון ננעל זמנית עקב ניסיונות התחברות כושלים. נסה שוב בעוד ${minutes} דקות.`,
+          locked: true,
+        });
+      }
+      await pool.query(
+        'UPDATE users SET is_locked = false, failed_login_attempts = 0, locked_at = NULL WHERE id = $1',
+        [user.id]
+      );
     }
 
     // משתמש שנרשם דרך Google אין לו סיסמה
@@ -264,7 +289,7 @@ exports.login = async (req, res) => {
       if (shouldLock) {
         console.warn(`[AUTH] חשבון ננעל: ${email} — ${attempts} ניסיונות כושלים`);
         return res.status(403).json({
-          message: 'החשבון ננעל עקב ניסיונות התחברות כושלים מרובים. אנא פנה למנהל המערכת.',
+          message: `החשבון ננעל זמנית ל-${LOCK_MINUTES} דקות עקב ניסיונות התחברות כושלים.`,
           locked: true,
         });
       }
