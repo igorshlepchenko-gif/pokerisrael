@@ -5,6 +5,7 @@ import VenueEditForm from '../components/VenueEditForm';
 import LocationsManager from '../components/Admin/LocationsManager';
 import AbResults from '../components/Admin/AbResults';
 import SecurityLog from '../components/Admin/SecurityLog';
+import VisitsReport from '../components/Admin/VisitsReport';
 import TournamentEditForm from '../components/TournamentEditForm';
 
 // ---- helpers for change log diff ----
@@ -259,8 +260,8 @@ export default function AdminPanel() {
         setAgentSources(src.data);
         setPendingImports(pend.data);
         setPendingVenueList(venues.data);
-      } else if (tab === 'security') {
-        // SecurityLog טוען את הנתונים בעצמו
+      } else if (tab === 'security' || tab === 'visits') {
+        // SecurityLog / VisitsReport טוענים את הנתונים בעצמם
       } else {
         const res = await api.get('/admin/users');
         setUsers(res.data);
@@ -409,6 +410,7 @@ export default function AdminPanel() {
           ['imports', '📥 ייבוא מפרסומים'],
           ['locations', '📍 מיקומים'],
           ['ab', '🧪 A/B'],
+          ['visits', '📊 כניסות'],
           ['security', '🛡️ אבטחה'],
         ].map(([id, label]) => (
           <button key={id} onClick={() => setTab(id)}
@@ -1713,6 +1715,8 @@ export default function AdminPanel() {
           {tab === 'locations' && <LocationsManager />}
 
           {tab === 'ab' && <AbResults />}
+
+          {tab === 'visits' && <VisitsReport />}
 
           {tab === 'security' && <SecurityLog />}
 

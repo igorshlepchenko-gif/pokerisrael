@@ -111,6 +111,13 @@ module.exports = {
     '2405:8100::/32', '2a06:98c0::/29', '2c0f:f248::/32',
   ],
 
+  // ── מונה כניסות (טבלת page_views, routes/analytics.js) ──
+  analytics: {
+    // דפדפנים אוטומטיים/בוטים שמריצים JavaScript — לא נספרים
+    botUserAgents: /bot|crawl|spider|slurp|headless|lighthouse|pagespeed|preview/i,
+    retentionDays: 400,
+  },
+
   // ── יומן אבטחה (טבלת security_events) ──
   log: {
     retentionDays: 30,

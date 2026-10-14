@@ -32,6 +32,7 @@ const handNarrationRoutes    = require('./routes/handNarration');
 const importRoutes         = require('./routes/imports');
 const agentRoutes          = require('./routes/agent');
 const abRoutes = require('./routes/ab');
+const analyticsRoutes = require('./routes/analytics');
 const { seedSiteAssets } = require('./utils/seedSiteAssets');
 
 const app = express();
@@ -155,6 +156,7 @@ app.use('/api/hand-narration', handNarrationRoutes);
 app.use('/api/imports',       importRoutes);
 app.use('/api/agent',         agentRoutes);
 app.use('/api/ab',            abRoutes);
+app.use('/api/analytics',     analyticsRoutes);
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', message: 'Poker Live Israel API' }));
 
@@ -220,6 +222,11 @@ const cleanOldLogs = async () => {
       [antiScrapingConfig.log.retentionDays]
     );
     if (sec.rowCount > 0) console.log(`[CLEANUP] נמחקו ${sec.rowCount} רשומות ישנות מיומן האבטחה`);
+    // מונה כניסות — שומרים קצת יותר משנה לצורך השוואה שנתית
+    await pool.query(
+      `DELETE FROM page_views WHERE day < CURRENT_DATE - $1::int`,
+      [antiScrapingConfig.analytics.retentionDays]
+    );
   } catch (err) {
     console.error('[CLEANUP] שגיאה במחיקת רשומות ישנות:', err.message);
   }

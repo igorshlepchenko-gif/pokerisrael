@@ -20,6 +20,7 @@ import CookieConsent from './components/CookieConsent';
 import HolidayGreeting from './components/HolidayGreeting';
 import AccessibilityWidget from './components/AccessibilityWidget';
 import IsraeliBackground from './components/IsraeliBackground';
+import PageViewTracker from './components/PageViewTracker';
 
 function ProtectedRoute({ children, roles }) {
   const { user, loading } = useAuth();
@@ -71,6 +72,7 @@ function AppRoutes() {
       <CookieConsent />
       <HolidayGreeting />
       <AccessibilityWidget />
+      <PageViewTracker />
     </div>
   );
 }

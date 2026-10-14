@@ -257,6 +257,19 @@ async function ensureSchema() {
          WHERE registration_url ~* '^[[:space:]]*[a-z][a-z0-9+.-]*:' AND registration_url !~* '^[[:space:]]*https?://'`,
       `UPDATE venues SET website = NULL
          WHERE website ~* '^[[:space:]]*[a-z][a-z0-9+.-]*:' AND website !~* '^[[:space:]]*https?://'`,
+      // מונה כניסות (routes/analytics.js) — בלי IP ובלי עוגיות: visitor = גיבוב יומי של
+      // IP+דפדפן שמתחלף כל יום, כך שאי אפשר לעקוב אחרי אדם לאורך זמן או לשחזר את ה-IP
+      `CREATE TABLE IF NOT EXISTS page_views (
+        id          BIGSERIAL PRIMARY KEY,
+        day         DATE NOT NULL,
+        visitor     CHAR(16) NOT NULL,
+        path        VARCHAR(200) NOT NULL,
+        source      VARCHAR(100),
+        device      VARCHAR(10),
+        is_entry    BOOLEAN NOT NULL DEFAULT false,
+        created_at  TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_page_views_day ON page_views(day)`,
     ];
     for (const sql of MIGRATIONS) {
       try { await pool.query(sql); } catch (e) { console.error('migration failed:', e.message); }
