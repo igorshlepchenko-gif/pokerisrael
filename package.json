@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "PokerIsrael.org — כל הפוקר בישראל במקום אחד",
   "engines": {
-    "node": ">=18"
+    "node": ">=22"
   },
   "scripts": {
     "build": "npm --prefix client install && npm --prefix client run build && npm --prefix server install",

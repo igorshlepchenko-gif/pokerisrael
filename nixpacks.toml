@@ -1,2 +1,4 @@
 [variables]
+# Node 22 LTS — Node 18 (ברירת המחדל הקודמת) הגיע לסוף חייו, וחלק מהחבילות דורשות 20+
+NIXPACKS_NODE_VERSION = "22"
 PUPPETEER_SKIP_CHROMIUM_DOWNLOAD = "true"
