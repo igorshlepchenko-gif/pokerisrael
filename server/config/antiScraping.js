@@ -34,15 +34,6 @@ module.exports = {
     /^\/api\/health$/,
   ],
 
-  // ── רשתות חסומות (לפי ASN) — אין להן גישה לנתוני הטורנירים ──
-  // טווחי הכתובות עצמם ב-config/blockedNetworks.json (נוצר ע"י scripts/updateBlockedNetworks.js).
-  // DataPacket/Datacamp (CDN77): המעתיק פעל משרתים שלהם באמסטרדם/ברלין/פריז/בוקרשט (אוקטובר 2026).
-  // חסום רק לנתונים (dataPaths) — הדפים עצמם נטענים, אבל רשימת הטורנירים ריקה.
-  // משתמש מחובר ובוט חיפוש מאומת לא נחסמים.
-  blockedAsns: [
-    { asn: 60068, name: 'Datacamp Limited (DataPacket / CDN77)' },
-  ],
-
   // ── מנועי חיפוש — מאומתים ב-reverse DNS (לא רק לפי User-Agent, שקל לזייף) ──
   // בוט מאומת לא נחסם, לא מוגבל בקצב ולא נדרש לטוקן דף.
   searchBots: [
