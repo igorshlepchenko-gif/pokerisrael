@@ -99,6 +99,31 @@ function isLoggedIn(req) {
 
 const isExempt = (req) => config.exemptPaths.some((re) => re.test(req.path));
 
+// ── רשתות חסומות (טווחי כתובות של ספקי אחסון, לפי ASN) ─────────────────────
+let blockedNets = new net.BlockList();
+function loadBlockedNetworks(data) {
+  const list = new net.BlockList();
+  let count = 0;
+  for (const { asn } of config.blockedAsns) {
+    for (const cidr of data?.asns?.[asn]?.prefixes || []) {
+      const [addr, bits] = cidr.split('/');
+      try { list.addSubnet(addr, Number(bits), net.isIPv6(addr) ? 'ipv6' : 'ipv4'); count++; } catch { /* טווח לא תקין */ }
+    }
+  }
+  blockedNets = list;
+  return count;
+}
+try {
+  const n = loadBlockedNetworks(require('../config/blockedNetworks.json'));
+  console.log(`[anti-scraping] ${n} blocked network ranges loaded`);
+} catch (err) {
+  console.error('[anti-scraping] blockedNetworks.json missing/invalid:', err.message);
+}
+const isBlockedNetwork = (ip) => {
+  if (!net.isIP(ip)) return false;
+  return blockedNets.check(ip, net.isIPv6(ip) ? 'ipv6' : 'ipv4');
+};
+
 // ── חסימות IP זמניות (מלכודת) ─────────────────────────────────────────────
 const blockedIps = new Map(); // ip → until (ms)
 
@@ -192,6 +217,17 @@ async function requirePageToken(req, res, next) {
 // dataLimiter + requirePageToken — רק על GET לנקודות הקצה שב-config.dataPaths
 function dataGuard(req, res, next) {
   if (!isDataRequest(req)) return next();
+  if (isBlockedNetwork(req.clientIp) && !isLoggedIn(req)) {
+    return isVerifiedSearchBot(req).then((bot) => {
+      if (bot) return dataGuardInner(req, res, next);
+      logEvent(req, 'blocked_network');
+      res.status(403).json({ code: 'BLOCKED_NETWORK', message: 'הגישה לנתונים חסומה מרשת זו' });
+    }).catch(next);
+  }
+  dataGuardInner(req, res, next);
+}
+
+function dataGuardInner(req, res, next) {
   dataLimiter(req, res, (err) => {
     if (err) return next(err);
     requirePageToken(req, res, next).catch(next);
@@ -239,6 +275,8 @@ module.exports = {
   _test: {
     setEventSink: (fn) => { eventSink = fn; },
     setCanaryLoader: (fn) => { canaryLoader = fn; canaryCache = { ids: [], until: 0 }; },
+    loadBlockedNetworks,
+    isBlockedNetwork,
     reset: () => { blockedIps.clear(); recentEvents.clear(); botCache.clear(); },
     isBlocked,
   },

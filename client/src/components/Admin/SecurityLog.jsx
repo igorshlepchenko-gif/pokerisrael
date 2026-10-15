@@ -4,6 +4,7 @@ import api from '../../utils/api';
 // יומן האבטחה — בקשות שנחסמו/חשודות (הגנה מפני scraping, server/middleware/antiScraping.js)
 const REASONS = {
   honeypot: '🪤 נכנס למלכודת',
+  blocked_network: '🏢 רשת חסומה (DataPacket)',
   blocked_ip: '⛔ IP חסום',
   blocked_user_agent: '🤖 כלי סקריפט',
   empty_user_agent: '🤖 בלי זיהוי דפדפן',

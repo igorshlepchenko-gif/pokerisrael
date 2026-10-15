@@ -168,6 +168,22 @@ test('fake Googlebot (no matching reverse DNS) is not exempt', async () => {
   assert.equal((await get('/api/tournaments', { ip, ua })).status, 403);
 });
 
+test('DataPacket (AS60068) addresses get no tournament data, but can still load pages', async () => {
+  const ip = '152.233.13.164'; // כתובת אמיתית מהיומן, אוקטובר 2026
+  assert.ok(anti._test.isBlockedNetwork(ip));
+  assert.ok(anti._test.isBlockedNetwork('89.222.123.193'));
+  assert.ok(!anti._test.isBlockedNetwork('84.229.161.38')); // ספק ביתי בישראל
+  const r = await get('/api/tournaments', { ip, headers: { [config.pageToken.header]: pageToken.issue() } });
+  assert.equal(r.status, 403);
+  assert.equal((await r.json()).code, 'BLOCKED_NETWORK');
+  assert.equal((await get('/', { ip })).status, 200);
+  // משתמש מחובר מאותה רשת (למשל דרך VPN) כן מקבל
+  const jwtToken = jwt.sign({ id: 1 }, process.env.JWT_SECRET);
+  assert.equal((await get('/api/tournaments', { ip, headers: { cookie: `pli_token=${jwtToken}` } })).status, 200);
+  await new Promise((res) => setImmediate(res));
+  assert.ok(events.some((e) => e.reason === 'blocked_network' && e.ip === ip));
+});
+
 test('robots.txt blocks AI crawlers, keeps Google/Bing, hides /api and the trap', async () => {
   const txt = await (await get('/robots.txt')).text();
   for (const bot of ['GPTBot', 'ClaudeBot', 'PerplexityBot', 'CCBot', 'Google-Extended', 'Bytespider']) {
