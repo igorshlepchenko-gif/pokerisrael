@@ -17,7 +17,7 @@ anti._test.setCanaryLoader(async () => [42]);
 
 function buildApp() {
   const app = express();
-  app.set('trust proxy', 1);
+  app.set('trust proxy', 2); // כמו בפרודקשן (Railway: לקוח, edge)
   app.use(anti.resolveClientIp);
   app.use(anti.guard);
   app.get('/robots.txt', (req, res) => res.type('text/plain').send(anti.robotsTxt()));
@@ -42,8 +42,10 @@ after(() => server.close());
 const BROWSER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36';
 // כל בדיקה מקבלת IP משלה (דרך X-Forwarded-For, שהשרת מאמין לו בדיוק בקפיצה אחת) כדי שמגבלות הקצב לא יתערבבו
 const freshIp = () => `10.0.${Math.floor(++ipCounter / 250)}.${ipCounter % 250 + 1}`;
+// כמו Railway: "<גולש>, <edge>" — ה-edge תמיד מאותו טווח, כדי לוודא שהוא לא נחשב ל-IP של הגולש
+const EDGE = '152.233.13.164';
 const get = (path, { ua = BROWSER_UA, ip = freshIp(), headers = {} } = {}) =>
-  fetch(base + path, { headers: { ...(ua !== null && { 'user-agent': ua }), 'x-forwarded-for': ip, ...headers } });
+  fetch(base + path, { headers: { ...(ua !== null && { 'user-agent': ua }), 'x-forwarded-for': `${ip}, ${EDGE}`, ...headers } });
 
 beforeEach(() => { events.length = 0; anti._test.reset(); });
 
@@ -147,12 +149,13 @@ test('honeypot blocks the IP for everything else', async () => {
   assert.ok(events.some((e) => e.reason === 'honeypot' && e.ip === ip));
 });
 
-test('X-Forwarded-For spoofing: only the hop our proxy added counts', async () => {
+test('client IP: the visitor, not the Railway edge, and not a spoofed entry', async () => {
   const realIp = freshIp();
-  // הלקוח שולח XFF מזויף; הפרוקסי מוסיף את ה-IP האמיתי בסוף — רק הוא נחשב
+  // גם אם גולש מצליח להכניס ערך מזויף בתחילת השרשרת — נספרים רק 2 הקפיצות האחרונות
   await get(config.trap.path, { ip: `1.2.3.4, ${realIp}` });
   assert.ok(anti._test.isBlocked(realIp));
   assert.ok(!anti._test.isBlocked('1.2.3.4'));
+  assert.ok(!anti._test.isBlocked(EDGE)); // שרת ה-edge המשותף לא נחסם
 });
 
 test('CF-Connecting-IP is ignored while not behind Cloudflare', async () => {

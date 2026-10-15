@@ -76,17 +76,6 @@ router.post('/pv', async (req, res) => {
   }
 });
 
-// TEMP: בדיקת שרשרת הפרוקסי של Railway (איזה כותרת מחזיקה את ה-IP האמיתי). להסיר אחרי הבדיקה.
-router.get('/whoami', (req, res) => {
-  res.set('Cache-Control', 'no-store').json({
-    ip: req.ip, ips: req.ips, clientIp: req.clientIp,
-    xff: req.get('x-forwarded-for') || null,
-    xRealIp: req.get('x-real-ip') || null,
-    xEnvoy: req.get('x-envoy-external-address') || null,
-    remote: req.socket.remoteAddress,
-  });
-});
-
 // ── סיכום לאדמין ──
 router.get('/summary', authenticate, requireRole('admin'), async (req, res) => {
   try {

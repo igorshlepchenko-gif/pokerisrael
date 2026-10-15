@@ -38,7 +38,11 @@ const { seedSiteAssets } = require('./utils/seedSiteAssets');
 const app = express();
 
 // ── Trust proxy (Railway / Heroku / nginx) ────────────────────────
-app.set('trust proxy', 1);
+// Railway: X-Forwarded-For מגיע בצורה "<IP של הגולש>, <שרת ה-edge של Railway>", והחיבור עצמו
+// מגיע מפרוקסי פנימי (100.64.x.x). לכן 2 קפיצות — אחרת req.ip הוא שרת ה-edge, וכל הגולשים
+// שעוברים דרכו נספרים כ-IP אחד (הגבלות קצב, חסימות, מונה הכניסות). Railway דורס כל
+// X-Forwarded-For שהגולש שולח בעצמו (נבדק 2026-10-15), כך שאי אפשר לזייף.
+app.set('trust proxy', 2);
 
 // ── Security headers ──────────────────────────────────────────────
 app.use(helmet({
