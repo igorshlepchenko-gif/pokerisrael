@@ -379,7 +379,7 @@ export default function Home() {
 
             {/* List view */}
             {viewMode === 'list' && (
-              <div className="card overflow-hidden">
+              <div className="card overflow-hidden pi-watermark">
                 {/* Table header */}
                 <div className="hidden md:grid tournament-list-grid gap-4 px-5 py-3 border-b border-slate-700 text-xs font-bold text-slate-400 uppercase tracking-wider">
                   <span>טורניר / מועדון</span>

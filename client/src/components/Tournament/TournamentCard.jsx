@@ -80,7 +80,7 @@ export default function TournamentCard({ t, onClick, brands = [] }) {
   return (
     <div
       onClick={onClick}
-      className={`card p-5 flex flex-col h-full hover:border-poker-green/50 transition-all duration-300 hover:shadow-poker-green/10 hover:shadow-2xl animate-slide-up group relative overflow-hidden cursor-pointer ${t.is_boosted ? 'border-amber-500/40 shadow-amber-500/5 shadow-xl' : ''}`}
+      className={`card p-5 flex flex-col h-full hover:border-poker-green/50 transition-all duration-300 hover:shadow-poker-green/10 hover:shadow-2xl animate-slide-up group relative overflow-hidden cursor-pointer pi-watermark ${t.is_boosted ? 'border-amber-500/40 shadow-amber-500/5 shadow-xl' : ''}`}
     >
 
       {/* Boost badge */}

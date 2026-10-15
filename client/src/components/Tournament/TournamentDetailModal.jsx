@@ -102,7 +102,7 @@ export default function TournamentDetailModal({ tournament: t, onClose, brands =
       />
 
       {/* Panel */}
-      <div className="modal-panel-h relative w-full sm:max-w-lg flex flex-col bg-slate-800 border border-slate-700 rounded-t-3xl sm:rounded-2xl shadow-2xl animate-slide-up overflow-hidden">
+      <div className="modal-panel-h relative w-full sm:max-w-lg flex flex-col bg-slate-800 border border-slate-700 rounded-t-3xl sm:rounded-2xl shadow-2xl animate-slide-up overflow-hidden pi-watermark">
 
         {/* Header sticky */}
         <div className="sticky top-0 z-10 bg-slate-800/95 backdrop-blur border-b border-slate-700 px-5 py-4 flex items-center justify-between gap-3 shrink-0">

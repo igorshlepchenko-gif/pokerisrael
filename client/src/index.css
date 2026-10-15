@@ -319,3 +319,20 @@ select option:hover {
   .holiday-shine::after { display: none; }
   .holiday-sparkle { opacity: 0.55; }
 }
+
+/* ── סימן מים "PokerIsrael.org" על רשימת הטורנירים, הכרטיסים וחלון פרטי הטורניר ──
+   שכבה שקופה מעל התוכן (pointer-events:none — לא חוסמת לחיצות). כל צילום מסך של
+   הנתונים נושא את שם האתר. העוצמה (fill-opacity ב-SVG) מכוונת כך שלא תפריע לקריאה. */
+.pi-watermark { position: relative; }
+.pi-watermark::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+  border-radius: inherit;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='280' height='150'%3E%3Ctext x='140' y='80' text-anchor='middle' transform='rotate(-18 140 75)' font-family='Arial,Helvetica,sans-serif' font-size='17' font-weight='700' fill='%2394a3b8' fill-opacity='0.14'%3EPokerIsrael.org%3C/text%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-position: center;
+}
+@media print { .pi-watermark::after { display: none; } }
