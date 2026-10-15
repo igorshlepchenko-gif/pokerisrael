@@ -166,7 +166,8 @@ exports.getAllVenues = async (req, res) => {
 exports.getAllTournaments = async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT t.id, t.name, t.status, t.start_time, t.cost, t.is_boosted, t.boost_label, t.is_canary,
+      SELECT t.id, t.name, t.status, t.start_time, t.estimated_end_time, t.is_recurring, t.cost,
+             t.is_boosted, t.boost_label, t.is_canary,
              v.name AS venue_name
       FROM tournaments t JOIN venues v ON t.venue_id = v.id
       WHERE t.status = 'approved' AND t.is_active = true

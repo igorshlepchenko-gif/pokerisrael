@@ -123,6 +123,7 @@ export default function AdminPanel() {
   const [users, setUsers] = useState([]);
   const [hlSearch, setHlSearch] = useState('');
   const [allTournaments, setAllTournaments] = useState([]);
+  const [showPastTournaments, setShowPastTournaments] = useState(false);
   const [allVenues, setAllVenues] = useState([]);
   const [editingVenue, setEditingVenue] = useState(null);
   const [editingTournament, setEditingTournament] = useState(null); // tournament id being edited
@@ -593,10 +594,19 @@ export default function AdminPanel() {
           {tab === 'tournaments' && (
             <div className="space-y-3">
               <p className="text-sm text-slate-500 mb-4">סמן טורנירים כ"מקודמים" — הם יופיעו ראשונים בתוצאות גם אם לא תואמים את הסינון של הגולש.</p>
+              {(() => {
+                const pastCount = allTournaments.filter(isPast).length;
+                return pastCount > 0 && (
+                  <label className="flex items-center gap-2 text-sm text-slate-400 cursor-pointer w-fit">
+                    <input type="checkbox" checked={showPastTournaments} onChange={e => setShowPastTournaments(e.target.checked)} />
+                    הצג גם טורנירים שעברו ({pastCount})
+                  </label>
+                );
+              })()}
               {allTournaments.length === 0 && (
                 <div className="card p-12 text-center text-slate-500">אין טורנירים מאושרים</div>
               )}
-              {allTournaments.map(t => {
+              {allTournaments.filter(t => showPastTournaments || !isPast(t)).map(t => {
                 const past = isPast(t);
                 const isEditing = editingTournament === t.id;
                 return (
