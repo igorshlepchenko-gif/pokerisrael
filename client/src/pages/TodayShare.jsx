@@ -178,7 +178,20 @@ export default function TodayShare() {
 
   useEffect(() => () => urlsRef.current.forEach((u) => URL.revokeObjectURL(u)), []);
 
-  const shareText = `♠️ ${title} — ${dateLabel}\nכל הטורנירים, הפרטים וההרשמה בלחיצה:\n${SITE}/?utm_source=whatsapp_daily`;
+  // נוסח הודעה לערוץ הוואטסאפ: פתיחה מתחלפת לפי התאריך (שלא ייראה אוטומטי), ובערב — "טורנירי מחר".
+  // הקישור מסומן utm_source=wa_channel כדי לראות בטאב "כניסות" כמה הגיעו מהערוץ.
+  const count = rows?.length || 0;
+  const weekday = dateLabel.split(',')[0];
+  const openers = dayOffset === 0 ? [
+    `☀️ בוקר טוב! אלה טורנירי היום ♠️\nמה בא לכם — באונטי, דיפ סטאק או משהו גדול?`,
+    `🃏 הלוח של היום מוכן — ${count} טורנירים בכל הארץ!`,
+    `🔥 ${weekday} בשולחנות — הנה מה שמחכה לכם היום:`,
+    `♠️ מי משחק הערב? כל הטורנירים במקום אחד 👇`,
+  ] : [
+    `🌙 מתכננים את מחר? הנה טורנירי מחר ♠️\nתפסו מקום מראש — יש טורנירים שמתמלאים מהר.`,
+  ];
+  const opener = openers[(target.day + target.month) % openers.length];
+  const shareText = `${opener}\n\n📲 פרטים והרשמה בלחיצה:\n${SITE}/?utm_source=wa_channel`;
   const files = () => images.map((im, i) => new File([im.blob], `pokerisrael-${ymd(target)}${images.length > 1 ? '-' + (i + 1) : ''}.png`, { type: 'image/png' }));
 
   const share = async () => {
@@ -203,7 +216,7 @@ export default function TodayShare() {
 
   const copyText = async () => {
     const lines = rows.map((r) => `${r.time}  ${r.name} — ${r.venue}${r.cost ? ` — ${r.cost}` : ''}`);
-    const text = `♠️ ${title} — ${dateLabel}\n\n${lines.join('\n')}\n\nפרטים והרשמה: ${SITE}/?utm_source=whatsapp_daily_text`;
+    const text = `♠️ ${title} — ${dateLabel}\n\n${lines.join('\n')}\n\nפרטים והרשמה: ${SITE}/?utm_source=wa_channel`;
     try { await navigator.clipboard.writeText(text); setMsg('הרשימה הועתקה — אפשר להדביק בוואטסאפ.'); } catch { setMsg('לא הצלחתי להעתיק'); }
   };
 
