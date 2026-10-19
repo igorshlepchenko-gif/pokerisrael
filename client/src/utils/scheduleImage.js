@@ -132,17 +132,33 @@ function headerArt(ctx, T, brandLogo) {
   playingCard(ctx, 205, 140, 120, 168, 0.12, T);
   chipStack(ctx, 110, 285, 5, 44, T);
   chipStack(ctx, 210, 295, 3, 40, T);
-  // לוגו האתר בטבעת מוזהבת (מעל הכותרת, ימין)
+  // לוגו האתר: הצ'יפ בתוך טבעת מוזהבת בלי רקע, והכיתוב על סרט מוזהב שעולה על תחתית הטבעת
   if (brandLogo) {
-    const cx = W - 140, cy = 110, r = 78;
+    const cx = W - 140, cy = 104, r = 80;
     ctx.save();
-    ctx.shadowColor = T.accentSoft; ctx.shadowBlur = 30;
-    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fillStyle = '#05070f'; ctx.fill();
-    ctx.shadowBlur = 0; ctx.lineWidth = 6; ctx.strokeStyle = lin(ctx, cx - r, cy - r, cx + r, cy + r, T.gold); ctx.stroke();
-    const s = r * 1.05;
-    ctx.drawImage(brandLogo, cx - s / 2, cy - s / 2 - 14, s, s);
-    ctx.fillStyle = lin(ctx, 0, cy + 26, 0, cy + 50, T.gold); ctx.font = `800 19px ${FONT.body}`; ctx.textAlign = 'center';
-    ctx.fillText('PokerIsrael', cx, cy + 50);
+    // טבעת בלבד (שקופה מבפנים) עם זוהר עדין
+    ctx.shadowColor = T.accentSoft; ctx.shadowBlur = 26;
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.lineWidth = 6; ctx.strokeStyle = lin(ctx, cx - r, cy - r, cx + r, cy + r, T.gold); ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.beginPath(); ctx.arc(cx, cy, r - 9, 0, Math.PI * 2);
+    ctx.lineWidth = 1.5; ctx.strokeStyle = T.accentSoft; ctx.stroke();
+    // הצ'יפ — גדול, ממורכז מעט מעל האמצע
+    const s = r * 1.42;
+    ctx.shadowColor = 'rgba(0,0,0,0.55)'; ctx.shadowBlur = 14;
+    ctx.drawImage(brandLogo, cx - s / 2, cy - s / 2 - 8, s, s);
+    ctx.shadowBlur = 0;
+    // סרט עם הכיתוב — חוצה את תחתית הטבעת
+    const label = 'PokerIsrael';
+    ctx.font = `900 24px ${FONT.body}`;
+    const tw = ctx.measureText(label).width, bw = tw + 44, bh = 38, by = cy + r - 22;
+    ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 12;
+    rr(ctx, cx - bw / 2, by, bw, bh, bh / 2);
+    ctx.fillStyle = lin(ctx, 0, by, 0, by + bh, [T.gold[0], T.gold[1], T.gold[2]]); ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.stroke();
+    ctx.fillStyle = '#0a0d1a'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(label, cx, by + bh / 2 + 1);
     ctx.restore();
   }
 }
