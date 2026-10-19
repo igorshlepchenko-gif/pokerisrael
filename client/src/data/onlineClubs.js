@@ -8,7 +8,7 @@ import generated from './onlineClubs.generated.json';
 
 // הסוכן שהאתר מפנה אליו (וואטסאפ בפורמט 972XXXXXXXXX). גם דיווח על פעילות חשודה מגיע אליו.
 // number = מספר הסוכן הראשי ב-ClubGG — זהה בכל הקלאבים, ברירת המחדל לכל קלאב בלי agentNumber משלו.
-export const AGENT = { name: 'פנדה', whatsapp: '972525700810', number: '50682245' };
+export const AGENT = { name: 'Pokeradmin24', whatsapp: '972525700810', number: '50682245' };
 
 export const STORE_LINKS = {
   ios: 'https://apps.apple.com/il/app/clubgg-poker/id1529839330',

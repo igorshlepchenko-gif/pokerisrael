@@ -228,7 +228,7 @@ function OnlinePokerPage() {
 
         {/* הסוכן */}
         <section aria-labelledby="agent-title" className="rounded-2xl border border-violet-500/40 bg-violet-950/30 p-5 flex flex-col sm:flex-row items-center gap-4 text-center sm:text-right">
-          <span className="w-14 h-14 shrink-0 rounded-2xl bg-violet-500/15 border border-violet-500/40 flex items-center justify-center text-3xl" aria-hidden="true">🐼</span>
+          <span className="w-14 h-14 shrink-0 rounded-2xl bg-violet-500/15 border border-violet-500/40 flex items-center justify-center text-3xl" aria-hidden="true">🃏</span>
           <div className="flex-1 min-w-0">
             <h2 id="agent-title" className="font-black text-white text-lg">הסוכן: {AGENT.name}</h2>
             <p className="text-sm text-slate-400">ההצטרפות לכל הקלאבים ול-7XL עוברת דרכו — הוא מאשר אתכם, עוזר בהתקנה ועונה על שאלות.</p>
@@ -237,7 +237,7 @@ function OnlinePokerPage() {
             target="_blank" rel="noopener noreferrer"
             onClick={() => logOnlineClick('whatsapp', null, 'online_page_agent')}
             className="shrink-0 inline-flex items-center justify-center gap-2 min-h-[44px] px-5 rounded-xl text-sm font-bold text-white bg-[#25D366] hover:bg-[#1da851] transition-colors">
-            💬 וואטסאפ ל{AGENT.name}
+            💬 וואטסאפ ל-{AGENT.name}
           </a>
         </section>
 
@@ -298,7 +298,7 @@ function OnlinePokerPage() {
           <ol className="text-sm text-slate-400 space-y-1.5 list-decimal pr-5 mb-4">
             <li>מורידים את האפליקציה (קישור אחד לכל המכשירים).</li>
             <li>נרשמים לחשבון חדש.</li>
-            <li>שולחים הודעה ל{AGENT.name} בוואטסאפ והוא משייך אתכם ומלווה אתכם.</li>
+            <li>שולחים הודעה ל-{AGENT.name} בוואטסאפ והוא משייך אתכם ומלווה אתכם.</li>
           </ol>
           <div className="flex flex-wrap gap-2">
             <a href={SEVEN_XL.downloadUrl} target="_blank" rel="noopener noreferrer"

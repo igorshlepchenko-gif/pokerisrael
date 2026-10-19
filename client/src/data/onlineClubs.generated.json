@@ -62,15 +62,7 @@
       "image": "/online-clubs/promos/dgpc-folder-1.jpg",
       "width": 900,
       "height": 600,
-      "alt": "DGPC — פרסום 1"
-    },
-    {
-      "id": "dgpc-folder-2",
-      "clubId": "dgpc",
-      "image": "/online-clubs/promos/dgpc-folder-2.jpg",
-      "width": 900,
-      "height": 1095,
-      "alt": "DGPC — פרסום 2"
+      "alt": "DGPC — פרסום"
     }
   ]
 }
