@@ -34,6 +34,7 @@ const importRoutes         = require('./routes/imports');
 const agentRoutes          = require('./routes/agent');
 const abRoutes = require('./routes/ab');
 const analyticsRoutes = require('./routes/analytics');
+const pushRoutes = require('./routes/push');
 const { seedSiteAssets } = require('./utils/seedSiteAssets');
 
 const app = express();
@@ -165,6 +166,7 @@ app.use('/api/imports',       importRoutes);
 app.use('/api/agent',         agentRoutes);
 app.use('/api/ab',            abRoutes);
 app.use('/api/analytics',     analyticsRoutes);
+app.use('/api/push',          pushRoutes);
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', message: 'Poker Live Israel API' }));
 
@@ -301,6 +303,14 @@ ensureSchema().then(() => {
     cron.schedule(process.env.HOUSEDAROM_LETSPOKER_SYNC_CRON || '0 0,5,10,15,20 * * *', () => {
       console.log('[letsPokerSync] running housedarom sync…');
       syncLetsPoker('housedarom').catch(e => console.error('[letsPokerSync:housedarom] run failed:', e.message));
+    }, { timezone: 'Asia/Jerusalem' });
+
+    // התראת בוקר לאדמין: "טורנירי היום מוכנים לשיתוף" → /today (services/webPush.js)
+    const { sendDailyShareReminder } = require('./services/webPush');
+    cron.schedule(process.env.PUSH_DAILY_CRON || '0 8 * * *', () => {
+      sendDailyShareReminder()
+        .then(r => console.log('[push] daily share reminder:', JSON.stringify(r)))
+        .catch(e => console.error('[push] daily share reminder failed:', e.message));
     }, { timezone: 'Asia/Jerusalem' });
   });
 

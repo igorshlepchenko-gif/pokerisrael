@@ -5,6 +5,7 @@ import VenueEditForm from '../components/VenueEditForm';
 import LocationsManager from '../components/Admin/LocationsManager';
 import AbResults from '../components/Admin/AbResults';
 import SecurityLog from '../components/Admin/SecurityLog';
+import PushSetup from '../components/Admin/PushSetup';
 import VisitsReport from '../components/Admin/VisitsReport';
 import TournamentEditForm from '../components/TournamentEditForm';
 
@@ -395,7 +396,8 @@ export default function AdminPanel() {
             {totalPending}
           </span>
         )}
-        <a href="/today" className="mr-auto text-sm font-bold py-1.5 px-4 rounded-xl bg-[#25D366]/15 text-[#4ade80] border border-[#25D366]/30 hover:bg-[#25D366]/25">
+        <div className="mr-auto"><PushSetup /></div>
+        <a href="/today" className=" text-sm font-bold py-1.5 px-4 rounded-xl bg-[#25D366]/15 text-[#4ade80] border border-[#25D366]/30 hover:bg-[#25D366]/25">
           📲 תמונת טורנירי היום
         </a>
       </div>

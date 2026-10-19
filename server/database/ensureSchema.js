@@ -292,6 +292,20 @@ async function ensureSchema() {
         PRIMARY KEY (day, ip)
       )`,
       `CREATE INDEX IF NOT EXISTS idx_watermark_codes_code ON watermark_codes(code)`,
+      // התראות דחיפה לאדמין (services/webPush.js) — מפתחות VAPID + מנויים
+      `CREATE TABLE IF NOT EXISTS app_settings (
+        key    VARCHAR(100) PRIMARY KEY,
+        value  TEXT NOT NULL
+      )`,
+      `CREATE TABLE IF NOT EXISTS push_subscriptions (
+        endpoint    TEXT PRIMARY KEY,
+        p256dh      TEXT NOT NULL,
+        auth        TEXT NOT NULL,
+        user_id     INT,
+        user_agent  VARCHAR(300),
+        created_at  TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        last_ok     TIMESTAMP WITH TIME ZONE
+      )`,
       // חסימת IP ידנית מהאדמין — רק לנתוני הטורנירים (הדפים עצמם נטענים)
       `CREATE TABLE IF NOT EXISTS blocked_ips (
         ip          VARCHAR(64) PRIMARY KEY,
