@@ -4,7 +4,7 @@ import { LESSONS } from '../data/lessons';
 import { COMMUNITIES } from '../data/communities';
 import { PODCASTS, getSpotifyEmbedUrl } from '../data/podcasts';
 import { shuffleArray } from '../utils/shuffle';
-import { activePromos } from '../data/onlineClubs';
+import { activePromos, featuredPromoId } from '../data/onlineClubs';
 import { useOnlineVisible } from '../utils/onlineAccess';
 
 const ROTATE_MS = 6000;
@@ -96,7 +96,10 @@ function buildSlides(showOnline) {
   };
 
   // פרסומי השבוע של הקלאבים (יורדים לבד כשפג תוקפם — ראו PROMOS)
-  const promoSlides = activePromos().map(p => ({
+  const promos = activePromos();
+  const featuredId = featuredPromoId(promos);
+  const promoSlides = promos.map(p => ({
+    promoId: p.id,
     image: p.image,
     title: p.alt,
     subtitle: '🌐 אונליין · 18+',
@@ -105,6 +108,9 @@ function buildSlides(showOnline) {
   }));
 
   const pool = shuffleArray([...lessonSlides, ...communitySlides, ...podcastSlides, handLoggerSlide, ...(showOnline ? [onlineSlide, ...promoSlides] : [])]);
+  // טורניר הבוקר של Ludus (onlineClubs.js → featuredPromoId) — השקופית הראשונה
+  const featuredIdx = featuredId ? pool.findIndex(s => s.promoId === featuredId) : -1;
+  if (featuredIdx > 0) pool.unshift(...pool.splice(featuredIdx, 1));
   const withVideo = [];
   pool.forEach((slide, i) => {
     withVideo.push(slide);

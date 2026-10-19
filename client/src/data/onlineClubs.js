@@ -52,9 +52,42 @@ export const PROMOS = generated.promos;
 function israelToday() {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jerusalem' }).format(new Date());
 }
+// קלאבים שהפרסומים שלהם מגיעים מתיקיית Google Drive ומתעדכנים בשרת כמה פעמים ביום
+// (server/services/drivePromos.js). הפרסומים שלהם מהאקסל מתעלמים — מה שבתיקייה קובע.
+export const DRIVE_PROMO_CLUBS = ['ludus'];
+
+// הרשימה העדכנית מוטמעת ב-index.html ע"י השרת (<script id="pli-promos" type="application/json">)
+function drivePromos() {
+  try {
+    const el = typeof document !== 'undefined' && document.getElementById('pli-promos');
+    const list = el ? JSON.parse(el.textContent || '[]') : [];
+    return Array.isArray(list) ? list.filter(p => p && p.image && DRIVE_PROMO_CLUBS.includes(p.clubId)) : [];
+  } catch {
+    return [];
+  }
+}
+
+// "טורניר הבוקר" של Ludus: בין 10:00 ל-14:00 (שעון ישראל) הפרסום שלו מוקפץ ראשון ב-1 מכל 4
+// טעינות דף. ההגרלה נעשית פעם אחת לטעינה, כך שכל מיקומי הפרסום באותו דף מסכימים.
+const MORNING_FEATURE = { clubId: 'ludus', fromHour: 10, toHour: 14, chance: 0.25 };
+let featuredDecision;
+export function featuredPromoId(promos) {
+  if (featuredDecision === undefined) {
+    const hour = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jerusalem', hour: '2-digit', hourCycle: 'h23' }).format(new Date()));
+    featuredDecision = hour >= MORNING_FEATURE.fromHour && hour < MORNING_FEATURE.toHour && Math.random() < MORNING_FEATURE.chance;
+  }
+  if (!featuredDecision) return null;
+  return promos.find(p => p.clubId === MORNING_FEATURE.clubId)?.id || null;
+}
+
 export function activePromos() {
   const today = israelToday();
-  return PROMOS.filter(p => (!p.validFrom || p.validFrom <= today) && (!p.validTo || today <= p.validTo));
+  const list = PROMOS
+    .filter(p => !DRIVE_PROMO_CLUBS.includes(p.clubId))
+    .filter(p => (!p.validFrom || p.validFrom <= today) && (!p.validTo || today <= p.validTo))
+    .concat(drivePromos());
+  const featured = featuredPromoId(list);
+  return featured ? [list.find(p => p.id === featured), ...list.filter(p => p.id !== featured)] : list;
 }
 
 export const ACTIVE_CLUBS = CLUBS;

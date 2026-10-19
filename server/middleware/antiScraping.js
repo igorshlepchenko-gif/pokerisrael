@@ -253,9 +253,13 @@ function watermarkFor(ip, ua) {
 }
 
 // ── הזרקת טוקן + קישור מלכודת ל-index.html ────────────────────────────────
-function renderIndexHtml(html, { canaryIds = [], ip = null, ua = '' } = {}) {
+function renderIndexHtml(html, { canaryIds = [], ip = null, ua = '', promos = [] } = {}) {
   const token = pageToken.issue({ canaryIds, wm: watermarkFor(ip, ua) });
-  const meta = `<meta name="${config.pageToken.metaName}" content="${token}" />`;
+  // פרסומי אונליין שמתעדכנים מהשרת (services/drivePromos.js) — בלוק נתונים, לא סקריפט שרץ
+  // (CSP מתיר אותו), ו-< מוברח כדי שתוכן לא יוכל לסגור את התגית
+  const promosJson = JSON.stringify(promos).replace(/</g, '\\u003c');
+  const meta = `<meta name="${config.pageToken.metaName}" content="${token}" />\n` +
+    `<script id="pli-promos" type="application/json">${promosJson}</script>`;
   // מחוץ למסך, מוסתר מקוראי מסך ומניווט מקלדת — בני אדם לא נתקלים בו
   const trapLink = `<a href="${config.trap.path}" rel="nofollow" tabindex="-1" aria-hidden="true" ` +
     `style="position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden">Tournament data export</a>`;

@@ -14,6 +14,11 @@ router.patch('/tournaments/:id/reject', ctrl.rejectTournament);
 router.patch('/tournaments/:id/boost', ctrl.boostTournament);
 router.patch('/tournaments/:id/canary', ctrl.toggleCanary);
 router.get('/security-events', ctrl.getSecurityEvents);
+// סנכרון מיידי של פרסומי Drive (Ludus) — במקום לחכות לשעה הבאה בתזמון
+router.post('/drive-promos/sync', async (req, res) => {
+  try { res.json(await require('../services/drivePromos').syncDrivePromos()); }
+  catch (err) { res.status(500).json({ message: err.message }); }
+});
 router.get('/watermark/:code', ctrl.lookupWatermark);
 router.get('/blocked-ips', ctrl.getBlockedIps);
 router.post('/blocked-ips', ctrl.blockIp);
