@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import api from '../../utils/api';
 import { parsePastedCoords } from '../../utils/nearby';
 
@@ -15,6 +15,13 @@ export default function LocationsManager() {
   const [editing, setEditing] = useState(null);
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
+  const formRef = useRef(null);
+
+  // הטופס יושב בראש המסך; בלי גלילה אליו, לחיצה על "הוסף מיקום" בשורה נמוכה
+  // נראתה כאילו לא קרה כלום
+  useEffect(() => {
+    if (editing) formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [editing]);
 
   const load = async () => {
     setLoading(true);
@@ -60,6 +67,14 @@ export default function LocationsManager() {
     <div className="space-y-6">
       {msg && <div className="bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 rounded-xl px-4 py-2 text-sm">{msg}</div>}
       {err && <div className="bg-red-500/15 border border-red-500/40 text-red-300 rounded-xl px-4 py-2 text-sm">{err}</div>}
+
+      {/* key: מעבר מכתובת לכתובת בזמן שהטופס פתוח חייב לאפס אותו, אחרת נשארת הכתובת הקודמת */}
+      {editing && (
+        <div ref={formRef}>
+          <LocationForm key={`${editing.id ?? 'new'}|${editing.address}`} initial={editing}
+            onSave={save} onCancel={() => setEditing(null)} />
+        </div>
+      )}
 
       {/* כתובות חסרות — החלק שבאמת דורש פעולה */}
       {data.unmapped.length > 0 && (
@@ -122,8 +137,6 @@ export default function LocationsManager() {
           + מיקום חדש
         </button>
       </div>
-
-      {editing && <LocationForm initial={editing} onSave={save} onCancel={() => setEditing(null)} />}
 
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
