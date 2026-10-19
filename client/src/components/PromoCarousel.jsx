@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { activePromos, CLUBS, PROMO_TAG } from '../data/onlineClubs';
@@ -23,6 +23,7 @@ export function PromoListRow({ source }) {
       <div className="flex -space-x-3 space-x-reverse shrink-0">
         {promos.slice(0, 3).map(p => (
           <img key={p.id} src={p.image} alt="" loading="lazy"
+            onError={(e) => { e.currentTarget.style.display = 'none'; }}
             className="w-14 h-[4.5rem] object-cover rounded-lg border-2 border-slate-900 shadow-lg" />
         ))}
       </div>
@@ -47,7 +48,11 @@ export function PromoListRow({ source }) {
 const TURN_MS = 900;
 
 export default function PromoCarousel({ source, to = '/online', hrefFor = null, className = '' }) {
-  const [promos] = useState(() => activePromos());
+  const [allPromos] = useState(() => activePromos());
+  // פרסום שהתמונה שלו לא נטענת (למשל נמחק מהשרת בזמן שהדף היה פתוח) — יורד מהסבב במקום מסגרת ריקה
+  const [brokenIds, setBrokenIds] = useState(() => new Set());
+  const promos = useMemo(() => allPromos.filter(p => !brokenIds.has(p.id)), [allPromos, brokenIds]);
+  const markBroken = (id) => setBrokenIds(prev => (prev.has(id) ? prev : new Set(prev).add(id)));
   const visible = useOnlineVisible();
   const [index, setIndex] = useState(0);
   const [turning, setTurning] = useState(null); // { from, dir: 'next' | 'prev' } בזמן דפדוף
@@ -61,13 +66,18 @@ export default function PromoCarousel({ source, to = '/online', hrefFor = null, 
   const swipedAt = useRef(0); // החלקה לא נחשבת כהקשה — שלא תפתח את ההגדלה בטעות
   zoomedRef.current = zoomed;
   const total = promos.length;
+  useEffect(() => {
+    if (index >= total && total > 0) { indexRef.current = 0; setIndex(0); setTurning(null); }
+  }, [index, total]);
 
   useEffect(() => () => { clearTimeout(turnTimer.current); clearTimeout(resumeTimer.current); }, []);
 
   // טעינה מראש של כל הפוסטרים — כדי שהעמוד שנחשף בדפדוף כבר יהיה מוכן ולא יהבהב
   useEffect(() => {
-    promos.forEach(p => { const img = new Image(); img.src = p.image; });
-  }, [promos]);
+    // וגם מזהה מראש פרסום שהקובץ שלו חסר — יורד מהסבב עוד לפני שמגיעים אליו
+    allPromos.forEach(p => { const img = new Image(); img.onerror = () => markBroken(p.id); img.src = p.image; });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allPromos]);
 
   const goTo = (next, dir) => {
     if (next === indexRef.current) return;
@@ -94,7 +104,7 @@ export default function PromoCarousel({ source, to = '/online', hrefFor = null, 
 
   if (!visible || total === 0) return null;
 
-  const promo = promos[index];
+  const promo = promos[index] || promos[0];
   const club = CLUBS.find(c => c.id === promo.clubId);
 
   // במגע אין "העכבר יצא" — עוצרים בזמן המגע וממשיכים לבד 8 שניות אחרי המגע האחרון
@@ -140,7 +150,7 @@ export default function PromoCarousel({ source, to = '/online', hrefFor = null, 
         {/* העמוד הנוכחי — מתחת לעמוד שמתהפך. לחיצה = פתיחה בגודל מלא */}
         <button type="button" onClick={openZoom} className="absolute inset-0 w-full h-full cursor-zoom-in"
           aria-label={`הגדלת הפרסום: ${promo.alt}`}>
-          <PromoPage promo={promo} />
+          <PromoPage promo={promo} onBroken={markBroken} />
         </button>
 
         {/* העמוד היוצא — מסתובב סביב השדרה ומתכהה קלות, כמו דף שמתרומם מהספר */}
@@ -148,7 +158,7 @@ export default function PromoCarousel({ source, to = '/online', hrefFor = null, 
           <div key={`${turning.from}-${index}`}
             className={`absolute inset-0 z-10 pointer-events-none ${turnNext ? 'animate-page-turn-next' : 'animate-page-turn-prev'}`}
             style={{ transformOrigin: turnNext ? 'right center' : 'left center', backfaceVisibility: 'hidden', willChange: 'transform' }}>
-            <PromoPage promo={leaving} />
+            <PromoPage promo={leaving} onBroken={markBroken} />
             <div className="absolute inset-0 animate-page-shade"
               style={{ background: `linear-gradient(${turnNext ? 'to left' : 'to right'}, rgba(0,0,0,0.05), rgba(0,0,0,0.8))` }} />
           </div>
@@ -177,12 +187,12 @@ export default function PromoCarousel({ source, to = '/online', hrefFor = null, 
 }
 
 // עמוד אחד בקרוסלה: הפלייר עצמו במלואו (contain), ומאחוריו אותו פלייר מוגדל ומטושטש שממלא את הריבוע
-function PromoPage({ promo }) {
+function PromoPage({ promo, onBroken }) {
   return (
     <div className="absolute inset-0 overflow-hidden bg-black">
       <img src={promo.image} alt="" aria-hidden="true" draggable="false"
         className="absolute inset-0 w-full h-full object-cover scale-125 blur-2xl opacity-60" />
-      <img src={promo.image} alt={promo.alt} draggable="false"
+      <img src={promo.image} alt={promo.alt} draggable="false" onError={() => onBroken?.(promo.id)}
         className="relative w-full h-full object-contain drop-shadow-[0_8px_24px_rgba(0,0,0,0.7)]" />
     </div>
   );
