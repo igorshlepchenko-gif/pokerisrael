@@ -2,19 +2,15 @@ import { useState, useEffect, useRef } from 'react';
 import api from '../utils/api';
 import { splitCanaries } from '../utils/pageToken';
 import { israelWallClock, zonedTimeToUTC, tzParts, startInstant, IL_TZ } from '../utils/whatsapp';
-import logoUrl from '../assets/logo.svg';
+import chipUrl from '../assets/chip.svg';
+import { drawSchedule, splitTitle, THEMES, FONTS_TO_LOAD } from '../utils/scheduleImage';
 
 // "טורנירי היום" — תמונה ממותגת לשיתוף בוואטסאפ/אינסטגרם, נוצרת בדפדפן (canvas).
 // כל שיתוף מפיץ את PokerIsrael.org; טורנירי פיתיון (canary) לא נכנסים לתמונה.
 
 const SITE = 'https://www.pokerisrael.org';
-const W = 1080;                    // רוחב קבוע; הגובה לפי מספר הטורנירים (ריבוע עד 4:5)
 const ROWS_PER_IMAGE = 10;
-const TOP = 340, ROW_H = 76, GAP = 12, FOOTER = 110;
-const imageHeight = (n) => Math.max(1080, TOP + n * (ROW_H + GAP) - GAP + 40 + FOOTER);
-const FONTS = ['900 76px Heebo', '800 38px Heebo', '700 31px Heebo', '600 22px Heebo', '500 24px Heebo'];
-const C = { bg1: '#06091a', bg2: '#0b1a4a', card: 'rgba(255,255,255,0.06)', line: 'rgba(148,163,184,0.18)',
-  white: '#f8fafc', muted: '#94a3b8', blue: '#60a5fa', cyan: '#22d3ee', amber: '#fbbf24', accent: '#1d4ed8' };
+const THEME_KEY = 'pli_share_theme';
 
 const ymd = (p) => `${p.year}-${String(p.month).padStart(2, '0')}-${String(p.day).padStart(2, '0')}`;
 
@@ -37,79 +33,22 @@ function occurrenceOn(t, target /* {year,month,day,weekday} */) {
 const timeIL = (d) => d.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', timeZone: IL_TZ });
 const money = (n) => (n || n === 0) && Number(n) > 0 ? `₪${Number(n).toLocaleString('he-IL')}` : '';
 
-function fit(ctx, text, maxW) {
-  if (ctx.measureText(text).width <= maxW) return text;
-  let s = text;
-  while (s.length > 1 && ctx.measureText(s + '…').width > maxW) s = s.slice(0, -1);
-  return s + '…';
-}
-
-function roundRect(ctx, x, y, w, h, r) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
-  ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
-}
-
-async function drawImage({ rows, title, dateLabel, page, pages, logo }) {
-  const H = imageHeight(rows.length);
-  const cv = document.createElement('canvas');
-  cv.width = W; cv.height = H;
-  const ctx = cv.getContext('2d');
-  ctx.direction = 'rtl';
-
-  const g = ctx.createLinearGradient(0, 0, W * 0.4, H);
-  g.addColorStop(0, C.bg2); g.addColorStop(1, C.bg1);
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-
-  // כותרת
-  // לוגו ממורכז למעלה (לא בצד ימין — שלא יתנגש בכותרת המיושרת לימין)
-  if (logo) { const lw = 340, lh = lw * (logo.height / logo.width || 0.25); ctx.drawImage(logo, (W - lw) / 2, 40, lw, lh); }
-  ctx.textAlign = 'right';
-  ctx.fillStyle = C.white; ctx.font = '900 76px Heebo';
-  ctx.fillText(title, W - 64, 230);
-  ctx.fillStyle = C.cyan; ctx.font = '700 38px Heebo';
-  ctx.fillText(dateLabel + (pages > 1 ? `   (${page}/${pages})` : ''), W - 64, 290);
-
-  // שורות
-  const rowH = ROW_H;
-  rows.forEach((r, i) => {
-    const y = TOP + i * (rowH + GAP);
-    ctx.fillStyle = C.card; roundRect(ctx, 48, y, W - 96, rowH, 18); ctx.fill();
-    const mid = y + rowH / 2;
-    // שעה (ימין)
-    ctx.textAlign = 'right'; ctx.fillStyle = C.cyan; ctx.font = '800 38px Heebo';
-    ctx.fillText(r.time, W - 76, mid + 13);
-    // שם + מועדון
-    ctx.fillStyle = C.white; ctx.font = '700 31px Heebo';
-    ctx.fillText(fit(ctx, r.name, 520), W - 210, mid - 4);
-    ctx.fillStyle = C.blue; ctx.font = '500 24px Heebo';
-    ctx.fillText(fit(ctx, r.venue, 520), W - 210, mid + 28);
-    // כניסה + GTD (שמאל)
-    ctx.textAlign = 'left';
-    ctx.fillStyle = C.amber; ctx.font = '800 32px Heebo';
-    ctx.fillText(r.cost || '', 80, r.gtd ? mid - 2 : mid + 11);
-    if (r.gtd) { ctx.fillStyle = C.muted; ctx.font = '600 22px Heebo'; ctx.fillText(`GTD ${r.gtd}`, 80, mid + 28); }
-  });
-
-  // תחתית
-  ctx.fillStyle = C.accent; ctx.fillRect(0, H - FOOTER, W, FOOTER);
-  ctx.textAlign = 'center'; ctx.fillStyle = C.white; ctx.font = '700 36px Heebo';
-  ctx.fillText('כל הפרטים וההרשמה בלחיצה:  PokerIsrael.org', W / 2, H - 45);
-
-  return new Promise((res) => cv.toBlob(res, 'image/png'));
-}
-
-function loadLogo() {
+function loadImage(src) {
   return new Promise((res) => {
+    if (!src) return res(null);
     const img = new Image();
     img.onload = () => res(img);
     img.onerror = () => res(null);
-    img.src = logoUrl;
+    img.src = src;
   });
 }
 
+const toBlob = (canvas) => new Promise((res) => canvas.toBlob(res, 'image/png'));
+
 export default function TodayShare() {
   const [dayOffset, setDayOffset] = useState(0);
+  const [theme, setTheme] = useState(() => { try { return THEMES[localStorage.getItem(THEME_KEY)] ? localStorage.getItem(THEME_KEY) : 'gold'; } catch { return 'gold'; } });
+  const chooseTheme = (k) => { setTheme(k); try { localStorage.setItem(THEME_KEY, k); } catch { /* ignore */ } };
   const [rows, setRows] = useState(null);
   const [images, setImages] = useState([]); // [{blob, url}]
   const [msg, setMsg] = useState('');
@@ -145,6 +84,9 @@ export default function TodayShare() {
           time: timeIL(at),
           name: t.name,
           venue: (t.tournament_type === 'online' ? '🌐 ' : '') + (t.venue_name || t.platform || ''),
+          logoUrl: t.venue_logo || null,
+          stack: Number(t.starting_stack) > 0 ? Number(t.starting_stack).toLocaleString('he-IL') : '',
+          levelMin: Number(t.level_duration) > 0 ? Number(t.level_duration) : '',
           cost: money(t.cost),
           gtd: Number(t.gtd) > 0 ? `₪${Number(t.gtd).toLocaleString('he-IL')}` : '',
         }));
@@ -159,12 +101,19 @@ export default function TodayShare() {
     if (!rows || rows.length === 0) return;
     let alive = true;
     (async () => {
-      await Promise.all(FONTS.map((f) => document.fonts.load(f, 'אב12₪').catch(() => {})));
-      const logo = await loadLogo();
-      const pages = Math.ceil(rows.length / ROWS_PER_IMAGE);
+      await Promise.all(FONTS_TO_LOAD.map((f) => document.fonts.load(f, 'אבג12₪').catch(() => {})));
+      const brandLogo = await loadImage(chipUrl);
+      const logos = {};
+      await Promise.all([...new Set(rows.map((r) => r.logoUrl).filter(Boolean))].map(async (u) => { logos[u] = await loadImage(u); }));
+      const drawRows = rows.map((r) => ({ ...r, ...splitTitle(r.name), logo: logos[r.logoUrl] || null }));
+      const pages = Math.ceil(drawRows.length / ROWS_PER_IMAGE);
       const out = [];
       for (let i = 0; i < pages; i++) {
-        const blob = await drawImage({ rows: rows.slice(i * ROWS_PER_IMAGE, (i + 1) * ROWS_PER_IMAGE), title, dateLabel, page: i + 1, pages, logo });
+        const canvas = drawSchedule(document.createElement('canvas'), {
+          rows: drawRows.slice(i * ROWS_PER_IMAGE, (i + 1) * ROWS_PER_IMAGE),
+          title, dateLabel: dateLabel.replace(', ', ' | '), page: i + 1, pages, theme, brandLogo,
+        });
+        const blob = await toBlob(canvas);
         out.push({ blob, url: URL.createObjectURL(blob) });
       }
       if (!alive) return out.forEach((o) => URL.revokeObjectURL(o.url));
@@ -174,7 +123,7 @@ export default function TodayShare() {
     })();
     return () => { alive = false; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows]);
+  }, [rows, theme]);
 
   useEffect(() => () => urlsRef.current.forEach((u) => URL.revokeObjectURL(u)), []);
 
@@ -232,6 +181,18 @@ export default function TodayShare() {
           <button key={off} onClick={() => setDayOffset(off)}
             className={`px-4 py-2 rounded-lg text-sm font-semibold ${dayOffset === off ? 'bg-poker-green text-white' : 'bg-slate-800 text-slate-300'}`}>
             {label}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 mb-5">
+        <span className="text-sm text-slate-400">עיצוב:</span>
+        {Object.entries(THEMES).map(([k, t]) => (
+          <button key={k} onClick={() => chooseTheme(k)}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold border ${theme === k ? 'border-white/60 text-white' : 'border-slate-700 text-slate-400'}`}
+            style={{ background: `linear-gradient(135deg, ${t.bg[0]}, ${t.bg[1]})` }}>
+            <span className="w-3 h-3 rounded-full" style={{ background: t.accent }} />
+            {t.label}
           </button>
         ))}
       </div>
