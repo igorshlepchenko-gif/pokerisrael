@@ -186,12 +186,16 @@ function LocationForm({ initial, onSave, onCancel }) {
     longitude: initial.longitude ?? '',
     notes: initial.notes || '',
   });
-  const [paste, setPaste] = useState('');
+  // בעריכת מיקום קיים שדה ההדבקה מתחיל עם הקואורדינטות הקיימות, כדי שאפשר לשמור בלי להדביק מחדש
+  const [paste, setPaste] = useState(
+    initial.latitude !== '' && initial.latitude != null ? `${initial.latitude}, ${initial.longitude}` : '');
   const [pasteErr, setPasteErr] = useState('');
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
+  const hasCoords = form.latitude !== '' && form.longitude !== '';
 
   const applyPaste = (text) => {
     setPaste(text);
+    setForm(p => ({ ...p, latitude: '', longitude: '' }));
     if (!text.trim()) { setPasteErr(''); return; }
     const c = parsePastedCoords(text);
     if (c) {
@@ -204,7 +208,11 @@ function LocationForm({ initial, onSave, onCancel }) {
 
   return (
     <form
-      onSubmit={e => { e.preventDefault(); onSave(form); }}
+      onSubmit={e => {
+        e.preventDefault();
+        if (!hasCoords) { setPasteErr(pasteErr || 'צריך להדביק קישור מ-Google Maps כדי לזהות את המיקום'); return; }
+        onSave(form);
+      }}
       className="border border-blue-500/40 bg-blue-500/5 rounded-xl p-4 space-y-3"
     >
       <div className="grid sm:grid-cols-2 gap-3">
@@ -225,20 +233,12 @@ function LocationForm({ initial, onSave, onCancel }) {
           <input value={form.notes} onChange={e => set('notes', e.target.value)} className="input-field text-sm" />
         </div>
         <div className="sm:col-span-2">
-          <label className="block text-xs text-slate-400 mb-1">הדבק קישור מ-Google Maps</label>
+          <label className="block text-xs text-slate-400 mb-1">הדבק קישור מ-Google Maps *</label>
           <input value={paste} onChange={e => applyPaste(e.target.value)}
-            className="input-field text-sm" placeholder="קישור, או 31.9730, 34.7925" />
-          {pasteErr && <p className="text-amber-400 text-[11px] mt-1">{pasteErr}</p>}
-        </div>
-        <div>
-          <label className="block text-xs text-slate-400 mb-1">קו רוחב *</label>
-          <input type="number" step="any" value={form.latitude} onChange={e => set('latitude', e.target.value)}
-            className="input-field text-sm" required placeholder="31.9730" />
-        </div>
-        <div>
-          <label className="block text-xs text-slate-400 mb-1">קו אורך *</label>
-          <input type="number" step="any" value={form.longitude} onChange={e => set('longitude', e.target.value)}
-            className="input-field text-sm" required placeholder="34.7925" />
+            className="input-field text-sm" required placeholder="קישור מ-Google Maps" />
+          {pasteErr
+            ? <p className="text-amber-400 text-[11px] mt-1">{pasteErr}</p>
+            : hasCoords && <p className="text-emerald-400 text-[11px] mt-1">✓ המיקום זוהה</p>}
         </div>
       </div>
       <div className="flex gap-2">
