@@ -1,9 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LESSONS } from '../data/lessons';
 import { COMMUNITIES } from '../data/communities';
 import { PODCASTS, getSpotifyEmbedUrl } from '../data/podcasts';
 import { shuffleArray } from '../utils/shuffle';
+import { activePromos } from '../data/onlineClubs';
+import { useOnlineVisible } from '../utils/onlineAccess';
 
 const ROTATE_MS = 6000;
 const LESSON_ACCENT = '#f59e0b';
@@ -13,7 +15,7 @@ const TYPE_LABEL  = { whatsapp: 'קהילת וואטסאפ', telegram: 'קהיל
 
 // שואב אוטומטית מכל מקורות התוכן באתר — כל קורס/קהילה/פודקאסט שקיים כרגע
 // (וכל דבר עתידי שיתווסף) מופיע כאן בלי צורך לעדכן את הרכיב הזה בנפרד.
-function buildSlides() {
+function buildSlides(showOnline) {
   const lessonSlides = LESSONS.map(l => ({
     image: l.logo || null,
     logoFit: l.logoFit,
@@ -84,7 +86,25 @@ function buildSlides() {
 
   // סדר אקראי בכל טעינת דף (כמו בעמודי פודקאסטים/קהילות/לימודים) — והסרטון המיוחד
   // מוזרק במיקום קבוע, כל חמישית שקופית, כדי שיופיע בתדירות ידועה ולא רק בהזדמנות
-  const pool = shuffleArray([...lessonSlides, ...communitySlides, ...podcastSlides, handLoggerSlide]);
+  // פוקר אונליין — רק כשיש קלאבים פעילים (אחרת השקופית הייתה מפנה לעמוד ריק)
+  const onlineSlide = {
+    emoji: '🌐',
+    title: 'פוקר אונליין — מגוון קלאבים בכניסה אחת',
+    subtitle: '🌐 אונליין · 18+',
+    to: '/online',
+    accent: '#7c3aed',
+  };
+
+  // פרסומי השבוע של הקלאבים (יורדים לבד כשפג תוקפם — ראו PROMOS)
+  const promoSlides = activePromos().map(p => ({
+    image: p.image,
+    title: p.alt,
+    subtitle: '🌐 אונליין · 18+',
+    to: '/online',
+    accent: '#7c3aed',
+  }));
+
+  const pool = shuffleArray([...lessonSlides, ...communitySlides, ...podcastSlides, handLoggerSlide, ...(showOnline ? [onlineSlide, ...promoSlides] : [])]);
   const withVideo = [];
   pool.forEach((slide, i) => {
     withVideo.push(slide);
@@ -116,9 +136,12 @@ function SlideImage({ slide }) {
 }
 
 export default function ServiceShowcase() {
-  // מחושב פעם אחת בכל טעינת הרכיב — לא ברמת המודול — כדי שהסדר האקראי יתחדש בכל ביקור
-  const [SLIDES] = useState(() => buildSlides());
+  // מחושב פעם אחת בכל טעינת הרכיב — לא ברמת המודול — כדי שהסדר האקראי יתחדש בכל ביקור.
+  // נבנה מחדש רק אם הנראות של שקופיות האונליין משתנה (המשתמש נטען והתברר שהוא אדמין)
+  const showOnline = useOnlineVisible();
+  const SLIDES = useMemo(() => buildSlides(showOnline), [showOnline]);
   const [index, setIndex] = useState(0);
+  useEffect(() => { setIndex(i => (i < SLIDES.length ? i : 0)); }, [SLIDES]);
   const [playingEmbed, setPlayingEmbed] = useState(false);
   const pausedRef = useRef(false);
   const navigate = useNavigate();

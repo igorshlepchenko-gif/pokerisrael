@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, Fragment } from 'react';
 import api from '../utils/api';
 import { splitCanaries } from '../utils/pageToken';
 import TournamentCard from '../components/Tournament/TournamentCard';
@@ -14,6 +14,8 @@ import { useAuth } from '../context/AuthContext';
 import { getVariant, trackAb } from '../utils/ab';
 import NearbyPromoVideo from '../components/NearbyPromoVideo';
 import LiveTournamentsBanner from '../components/LiveTournamentsBanner';
+import { OnlineEmptyCard } from '../components/OnlinePromo';
+import PromoCarousel, { PromoListRow, PROMO_SLOT_AFTER } from '../components/PromoCarousel';
 
 // עטיפה לטורנירי פיתיון: מחוץ למסך, מוסתר מקוראי מסך, לא ניתן לפוקוס/לחיצה,
 // ו-data-nosnippet כדי שגוגל לא יציג את הטקסט שלהם בתוצאות חיפוש
@@ -318,6 +320,7 @@ export default function Home() {
             <div className="text-6xl mb-4 opacity-20">🃏</div>
             <h3 className="text-xl font-semibold text-slate-400 mb-2">לא נמצאו טורנירים</h3>
             <p className="text-slate-500 text-sm">נסה לשנות את פרמטרי החיפוש</p>
+            <OnlineEmptyCard source="home_empty" title="אין טורניר לייב בסינון הזה? באונליין תמיד יש משחק" className="mt-8" />
           </div>
         ) : (
           <>
@@ -367,7 +370,10 @@ export default function Home() {
             {viewMode === 'grid' && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {tournaments.map((t, i) => (
-                  <TournamentCard key={t.id} t={t} index={i} onClick={() => setSelectedTournament(t)} brands={allBrands} />
+                  <Fragment key={t.id}>
+                    <TournamentCard t={t} index={i} onClick={() => setSelectedTournament(t)} brands={allBrands} />
+                    {i === Math.min(PROMO_SLOT_AFTER, tournaments.length) - 1 && <PromoCarousel source="home_grid" />}
+                  </Fragment>
                 ))}
                 {hiddenTournaments.map((t, i) => (
                   <div key={`h${t.id}`} {...HIDDEN_PROPS}>
@@ -390,7 +396,10 @@ export default function Home() {
                 </div>
                 <div className="divide-y divide-slate-700/50">
                   {tournaments.map((t, i) => (
-                    <TournamentListRow key={t.id} t={t} index={i} onClick={() => setSelectedTournament(t)} />
+                    <Fragment key={t.id}>
+                      <TournamentListRow t={t} index={i} onClick={() => setSelectedTournament(t)} />
+                      {i === Math.min(PROMO_SLOT_AFTER, tournaments.length) - 1 && <PromoListRow source="home_list" />}
+                    </Fragment>
                   ))}
                   {hiddenTournaments.map((t, i) => (
                     <div key={`h${t.id}`} {...HIDDEN_PROPS}>

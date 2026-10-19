@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import LateRegCountdown from '../LateRegCountdown';
+import { OnlineEmptyCard } from '../OnlinePromo';
 import api from '../../utils/api';
 import {
   formatTime, formatDate, formatCost, venueDisplayName,
@@ -131,6 +132,7 @@ export default function NearbyTournamentModal({ onClose, onShowDetails }) {
               <p className="text-slate-500 text-sm">
                 ההצעות כוללות טורנירים שמתחילים בשעות הקרובות, או שההרשמה המאוחרת אליהם עדיין פתוחה.
               </p>
+              <OnlineEmptyCard source="nearby_empty" title="אין טורניר קרוב בשעה הזו — באונליין תמיד יש משחק" className="mt-5" />
             </Centered>
           )}
 

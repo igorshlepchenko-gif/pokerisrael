@@ -3,6 +3,7 @@ import { formatTime, formatDate, formatCost, DAYS_HE, buildWhatsAppLink, getStag
 import { useAuth } from '../../context/AuthContext';
 import { logRegistration } from '../../utils/api';
 import RegistrationModal from './RegistrationModal';
+import { OnlineNudge } from '../OnlinePromo';
 
 /* סוג הטורניר קובע את סימן הקלף — לא אקראי, כדי שהעיצוב יעביר מידע אמיתי */
 const TYPE_SUITS = {
@@ -335,6 +336,8 @@ export default function TournamentCard({ t, onClick, brands = [] }) {
               : (t.tournament_type === 'cash' || t.tournament_type === 'online_cash' ? 'הצטרפות למשחק' : 'הרשמה לטורניר')}
         </button>
       )}
+
+      {lateRegClosed && <OnlineNudge source="card_closed" className="mt-2" />}
 
       {venueRegUrl && (
         <a

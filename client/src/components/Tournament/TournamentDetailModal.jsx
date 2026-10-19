@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { logRegistration } from '../../utils/api';
 import RegistrationModal from './RegistrationModal';
 import { wazeLink, googleMapsLink, tournamentCoords, navAddress } from '../../utils/nearby';
+import { OnlineNudge } from '../OnlinePromo';
 
 export default function TournamentDetailModal({ tournament: t, onClose, brands = [] }) {
   const matchedBrand = brands.find(b =>
@@ -415,6 +416,8 @@ export default function TournamentDetailModal({ tournament: t, onClose, brands =
                   : (t.tournament_type === 'cash' || t.tournament_type === 'online_cash' ? 'הצטרפות למשחק בוואטסאפ' : 'הרשמה לטורניר בוואטסאפ')}
             </button>
           )}
+
+          {lateRegClosed && <OnlineNudge source="modal_closed" />}
 
           {venueRegUrl && (
             <a

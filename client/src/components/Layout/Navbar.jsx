@@ -4,9 +4,11 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import logoSvg from '../../assets/logo.svg';
 import IsraelClock from './IsraelClock';
+import { useOnlineVisible } from '../../utils/onlineAccess';
 
 export default function Navbar() {
   const { user, logout } = useAuth();
+  const onlineVisible = useOnlineVisible();
   const { isDark, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
@@ -21,6 +23,7 @@ export default function Navbar() {
     { to: '/podcasts', label: '🎙️ פודקאסטים', show: true },
     { to: '/communities', label: '👥 קהילות', show: true },
     { to: '/lessons', label: '🎓 לימודי פוקר', show: true },
+    { to: '/online', label: '🌐 פוקר אונליין', show: onlineVisible },
     { to: '/hands', label: '🃏 הידיים שלי', show: !!user },
     { to: '/dashboard', label: 'ניהול', show: user && (user.role === 'venue_owner' || user.role === 'admin') },
     { to: '/admin', label: 'ניהול מערכת', show: user?.role === 'admin', amber: true },

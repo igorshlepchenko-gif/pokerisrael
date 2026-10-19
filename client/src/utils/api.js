@@ -64,4 +64,13 @@ export function logInquiry(payload) {
   api.post('/inquiries', payload).catch(() => {}); // דפדפן ישן ללא תמיכה ב-sendBeacon
 }
 
+// לוג פעולה בעמוד פוקר אונליין / בפרסומים שמפנים אליו (העתקת מספר מועדון/סוכן,
+// לחיצה על חנות/וואטסאפ/פרסום) — אנונימי, בלי פרטים אישיים. אותו דפוס sendBeacon.
+export function logOnlineClick(action, clubId = null, source = null) {
+  const payload = { action, club_id: clubId, source };
+  const body = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+  if (navigator.sendBeacon && navigator.sendBeacon('/api/online-clicks', body)) return;
+  api.post('/online-clicks', payload).catch(() => {});
+}
+
 export default api;

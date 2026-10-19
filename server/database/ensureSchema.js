@@ -234,6 +234,16 @@ async function ensureSchema() {
       )`,
       `CREATE INDEX IF NOT EXISTS idx_inquiry_logs_lesson  ON inquiry_logs(lesson_id)`,
       `CREATE INDEX IF NOT EXISTS idx_inquiry_logs_created ON inquiry_logs(created_at DESC)`,
+      // יומן פעולות בעמוד פוקר אונליין ובפרסומים שמפנים אליו — אנונימי (בלי שם/טלפון),
+      // רק כדי למדוד אילו קלאבים ואילו מיקומי פרסום מביאים שחקנים
+      `CREATE TABLE IF NOT EXISTS online_click_logs (
+        id          SERIAL PRIMARY KEY,
+        action      VARCHAR(30) NOT NULL,
+        club_id     VARCHAR(100),
+        source      VARCHAR(50),
+        created_at  TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_online_click_logs_created ON online_click_logs(created_at DESC)`,
       // ── הגנה מפני scraping (middleware/antiScraping.js) ──
       // טורניר "פיתיון": מוחזר ב-API אבל מוסתר מגולשים בדף — אם מופיע באתר אחר, הועתק מאיתנו
       `ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS is_canary BOOLEAN NOT NULL DEFAULT false`,

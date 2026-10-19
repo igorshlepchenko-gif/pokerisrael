@@ -3,6 +3,7 @@ import { buildWhatsAppLink, formatTime, formatDate, formatCost, DAYS_HE, getStag
 import { useAuth } from '../../context/AuthContext';
 import { logRegistration } from '../../utils/api';
 import RegistrationModal from './RegistrationModal';
+import { OnlineNudge } from '../OnlinePromo';
 
 export default function TournamentListRow({ t, index, onClick }) {
   const { user } = useAuth();
@@ -156,6 +157,7 @@ export default function TournamentListRow({ t, index, onClick }) {
             <WaIcon /> {registerLabel}
           </button>
         )}
+        {lateRegClosed && <OnlineNudge source="row_closed" />}
         {venueRegUrl && (
           <a href={venueRegUrl} target="_blank" rel="noopener noreferrer"
             onClick={(e) => e.stopPropagation()}
@@ -304,6 +306,7 @@ export default function TournamentListRow({ t, index, onClick }) {
               <WaIcon /> הרשמה
             </button>
           )}
+          {lateRegClosed && <OnlineNudge source="row_closed" compact />}
           {venueRegUrl && (
             <a href={venueRegUrl} target="_blank" rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}

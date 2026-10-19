@@ -34,6 +34,10 @@ export default {
         'rise':       'riseFade 2.4s ease-in-out infinite',
         'gradient-text': 'gradientText 5s ease infinite',
         'showcase-progress': 'showcaseProgress 6s linear forwards',
+        // דפדוף עמוד בקרוסלת הפרסומים — העמוד היוצא מסתובב סביב "שדרת הספר"
+        'page-turn-next': 'pageTurnNext 0.9s cubic-bezier(0.45, 0, 0.25, 1) forwards',
+        'page-turn-prev': 'pageTurnPrev 0.9s cubic-bezier(0.45, 0, 0.25, 1) forwards',
+        'page-shade':     'pageShade 0.9s ease-in-out forwards',
       },
       keyframes: {
         fadeIn:     { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
@@ -45,6 +49,9 @@ export default {
         riseFade:   { '0%': { transform: 'translateY(0)', opacity: '0' }, '20%': { opacity: '1' }, '100%': { transform: 'translateY(-24px)', opacity: '0' } },
         gradientText: { '0%,100%': { backgroundPosition: '0% 50%' }, '50%': { backgroundPosition: '100% 50%' } },
         showcaseProgress: { '0%': { width: '0%' }, '100%': { width: '100%' } },
+        pageTurnNext: { '0%': { transform: 'rotateY(0deg)' }, '100%': { transform: 'rotateY(-92deg)' } },
+        pageTurnPrev: { '0%': { transform: 'rotateY(0deg)' }, '100%': { transform: 'rotateY(92deg)' } },
+        pageShade:    { '0%': { opacity: '0' }, '100%': { opacity: '0.55' } },
       },
     },
   },
