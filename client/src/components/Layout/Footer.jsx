@@ -13,6 +13,8 @@ export default function Footer() {
         <Link to="/accessibility" className="text-slate-500 hover:text-blue-400 transition-colors">הצהרת נגישות</Link>
         <span className="text-slate-700">·</span>
         <Link to="/terms" className="text-slate-500 hover:text-blue-400 transition-colors">תנאי שימוש</Link>
+        <span className="text-slate-700">·</span>
+        <Link to="/today" className="text-slate-500 hover:text-blue-400 transition-colors">📲 טורנירי היום לשיתוף</Link>
       </div>
       <p className="text-xs mt-2 text-slate-600">© {new Date().getFullYear()} PokerIsrael.org · כל הזכויות שמורות</p>
 

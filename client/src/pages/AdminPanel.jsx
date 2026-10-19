@@ -395,6 +395,9 @@ export default function AdminPanel() {
             {totalPending}
           </span>
         )}
+        <a href="/today" className="mr-auto text-sm font-bold py-1.5 px-4 rounded-xl bg-[#25D366]/15 text-[#4ade80] border border-[#25D366]/30 hover:bg-[#25D366]/25">
+          📲 תמונת טורנירי היום
+        </a>
       </div>
 
       {/* Tabs */}

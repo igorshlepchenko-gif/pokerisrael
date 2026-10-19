@@ -11,6 +11,7 @@ import Dashboard from './pages/Dashboard';
 import AdminPanel from './pages/AdminPanel';
 import Privacy from './pages/Privacy';
 import Terms from './pages/Terms';
+import TodayShare from './pages/TodayShare';
 import Accessibility from './pages/Accessibility';
 import HandHistoryPage from './pages/HandHistoryPage';
 import Rules from './pages/Rules';
@@ -51,6 +52,7 @@ function AppRoutes() {
           <Route path="/lessons" element={<Lessons />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/terms" element={<Terms />} />
+          <Route path="/today" element={<TodayShare />} />
           <Route path="/accessibility" element={<Accessibility />} />
           <Route path="/dashboard" element={
             <ProtectedRoute roles={['venue_owner', 'admin']}>
