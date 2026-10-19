@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import api from '../../utils/api';
+import CopierTools from './CopierTools';
 
 // יומן האבטחה — בקשות שנחסמו/חשודות (הגנה מפני scraping, server/middleware/antiScraping.js)
 const REASONS = {
   honeypot: '🪤 נכנס למלכודת',
   blocked_ip: '⛔ IP חסום',
+  blocked_ip_manual: '⛔ חסום ידנית (מהאדמין)',
   blocked_user_agent: '🤖 כלי סקריפט',
   empty_user_agent: '🤖 בלי זיהוי דפדפן',
   rate_limit_data: '🚦 יותר מדי בקשות נתונים',
@@ -32,6 +34,8 @@ export default function SecurityLog() {
 
   return (
     <div className="space-y-6">
+      <CopierTools />
+
       <div className="flex items-center justify-between flex-wrap gap-3">
         <p className="text-sm text-slate-400">
           בקשות שנחסמו או נראו חשודות (העתקת נתונים אוטומטית). כל IP + סיבה נרשמים פעם אחת בדקה; נשמר 30 יום.

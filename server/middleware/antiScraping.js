@@ -6,6 +6,7 @@
 // מגבלות הקצב והחסימות נשמרות בזיכרון התהליך — מתאפס בכל דפלוי/הפעלה מחדש,
 // ומתאים לשרת יחיד (Railway רץ עם מופע אחד). היומן עצמו נשמר ב-DB (security_events).
 const dns = require('dns').promises;
+const crypto = require('crypto');
 const net = require('net');
 const jwt = require('jsonwebtoken');
 const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
@@ -177,6 +178,19 @@ function makeLimiter({ windowMs, max }, reason) {
 const pageLimiter = makeLimiter(config.rateLimits.pages, 'rate_limit_pages');
 const dataLimiter = makeLimiter(config.rateLimits.data, 'rate_limit_data');
 
+// ── חסימת IP ידנית (מהאדמין, טבלת blocked_ips) — רק לנתוני הטורנירים ──
+// נטען מה-DB פעם בדקה ובכל שינוי מהאדמין; בדיקה בזיכרון בכל בקשה.
+let manualBlocks = new Set();
+let blocksLoader = async () => {
+  const pool = require('../config/db');
+  const r = await pool.query('SELECT ip FROM blocked_ips WHERE expires_at IS NULL OR expires_at > NOW()');
+  return r.rows.map((x) => x.ip);
+};
+async function reloadManualBlocks() {
+  try { manualBlocks = new Set(await blocksLoader()); } catch (err) { console.error('[anti-scraping] blocked_ips load failed:', err.message); }
+}
+if (process.env.NODE_ENV !== 'test') setInterval(reloadManualBlocks, 60 * 1000).unref();
+
 const isDataRequest = (req) => req.method === 'GET' && config.dataPaths.includes(req.path);
 
 // ── טוקן דף על נקודות הקצה של הנתונים ─────────────────────────────────────
@@ -192,15 +206,55 @@ async function requirePageToken(req, res, next) {
 // dataLimiter + requirePageToken — רק על GET לנקודות הקצה שב-config.dataPaths
 function dataGuard(req, res, next) {
   if (!isDataRequest(req)) return next();
+  if (manualBlocks.has(req.clientIp) && !isLoggedIn(req)) {
+    logEvent(req, 'blocked_ip_manual');
+    return res.status(403).json({ code: 'BLOCKED', message: 'אין גישה' });
+  }
   dataLimiter(req, res, (err) => {
     if (err) return next(err);
     requirePageToken(req, res, next).catch(next);
   });
 }
 
+// ── קוד אישי בסימן המים ──────────────────────────────────────────────────
+// דטרמיניסטי ל-(יום, IP): אותו גולש מקבל אותו קוד כל היום, והמיפוי נשמר בטבלה
+// watermark_codes כדי שאפשר יהיה לחפש קוד מתוך צילום מסך ולמצוא את ה-IP.
+const israelDay = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jerusalem' });
+function watermarkCode(day, ip) {
+  const { alphabet, length } = config.watermark;
+  const h = crypto.createHmac('sha256', process.env.JWT_SECRET || 'wm').update(`wm:${day}:${ip}`).digest();
+  let out = '';
+  for (let i = 0; i < length; i++) out += alphabet[h[i] % alphabet.length];
+  return out;
+}
+const recordedWm = new Map(); // `${day}|${ip}` → ms — לא לכתוב ל-DB בכל טעינת דף
+let wmSink = async ({ code, day, ip, ua }) => {
+  const pool = require('../config/db');
+  await pool.query(
+    `INSERT INTO watermark_codes (code, day, ip, user_agent) VALUES ($1,$2,$3,$4)
+     ON CONFLICT (day, ip) DO UPDATE SET last_seen = NOW(), views = watermark_codes.views + 1,
+       user_agent = EXCLUDED.user_agent`,
+    [code, day, ip, ua]
+  );
+};
+function watermarkFor(ip, ua) {
+  if (!ip) return null;
+  const day = israelDay();
+  const code = watermarkCode(day, ip);
+  const key = `${day}|${ip}`;
+  if (Date.now() - (recordedWm.get(key) || 0) > 10 * 60 * 1000) { // עדכון לכל היותר פעם ב-10 דק' לגולש
+    if (recordedWm.size > 20000) recordedWm.clear();
+    recordedWm.set(key, Date.now());
+    Promise.resolve()
+      .then(() => wmSink({ code, day, ip, ua: (ua || '').slice(0, config.log.maxUserAgentLength) }))
+      .catch((err) => console.error('[anti-scraping] watermark record failed:', err.message));
+  }
+  return code;
+}
+
 // ── הזרקת טוקן + קישור מלכודת ל-index.html ────────────────────────────────
-function renderIndexHtml(html, { canaryIds = [] } = {}) {
-  const token = pageToken.issue({ canaryIds });
+function renderIndexHtml(html, { canaryIds = [], ip = null, ua = '' } = {}) {
+  const token = pageToken.issue({ canaryIds, wm: watermarkFor(ip, ua) });
   const meta = `<meta name="${config.pageToken.metaName}" content="${token}" />`;
   // מחוץ למסך, מוסתר מקוראי מסך ומניווט מקלדת — בני אדם לא נתקלים בו
   const trapLink = `<a href="${config.trap.path}" rel="nofollow" tabindex="-1" aria-hidden="true" ` +
@@ -234,12 +288,16 @@ module.exports = {
   dataGuard,
   renderIndexHtml,
   getCanaryIds,
+  reloadManualBlocks,
+  watermarkCode,
   logEvent,
   // לבדיקות
   _test: {
     setEventSink: (fn) => { eventSink = fn; },
     setCanaryLoader: (fn) => { canaryLoader = fn; canaryCache = { ids: [], until: 0 }; },
-    reset: () => { blockedIps.clear(); recentEvents.clear(); botCache.clear(); },
+    setWatermarkSink: (fn) => { wmSink = fn; },
+    setBlocksLoader: (fn) => { blocksLoader = fn; },
+    reset: () => { blockedIps.clear(); recentEvents.clear(); botCache.clear(); recordedWm.clear(); },
     isBlocked,
   },
 };

@@ -22,12 +22,13 @@ function canaryHash(sid, tournamentId) {
   return crypto.createHash('sha256').update(`${sid}:${tournamentId}`).digest('hex').slice(0, 16);
 }
 
-function issue({ canaryIds = [], now = Date.now() } = {}) {
+function issue({ canaryIds = [], wm = null, now = Date.now() } = {}) {
   const sid = crypto.randomBytes(9).toString('base64url');
   const payload = {
     s: sid,
     e: Math.floor(now / 1000) + config.pageToken.ttlSeconds,
     h: canaryIds.map((id) => canaryHash(sid, id)),
+    ...(wm && { w: wm }), // קוד סימן המים של הגולש (middleware/antiScraping.js → watermarkCode)
   };
   const body = b64url(JSON.stringify(payload));
   return `${body}.${sign(body)}`;

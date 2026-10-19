@@ -119,6 +119,65 @@ exports.toggleCanary = async (req, res) => {
   }
 };
 
+// חיפוש קוד מסימן המים (מתוך צילום מסך) → IP, דפדפן, מתי
+exports.lookupWatermark = async (req, res) => {
+  try {
+    const code = String(req.params.code || '').toUpperCase().replace(/[^0-9A-Z]/g, '').slice(0, 5);
+    if (code.length !== 5) return res.status(400).json({ message: 'קוד לא תקין — 5 תווים' });
+    const r = await pool.query(
+      `SELECT w.code, w.day::text AS day, w.ip, w.user_agent, w.views, w.first_seen, w.last_seen,
+              (b.ip IS NOT NULL) AS blocked
+       FROM watermark_codes w LEFT JOIN blocked_ips b ON b.ip = w.ip
+       WHERE w.code = $1 ORDER BY w.day DESC`,
+      [code]
+    );
+    res.json({ code, matches: r.rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'שגיאת שרת' });
+  }
+};
+
+exports.getBlockedIps = async (req, res) => {
+  try {
+    const r = await pool.query(`SELECT ip, reason, created_at, expires_at FROM blocked_ips
+      WHERE expires_at IS NULL OR expires_at > NOW() ORDER BY created_at DESC`);
+    res.json(r.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'שגיאת שרת' });
+  }
+};
+
+exports.blockIp = async (req, res) => {
+  try {
+    const ip = String(req.body.ip || '').trim();
+    if (!require('net').isIP(ip)) return res.status(400).json({ message: 'כתובת IP לא תקינה' });
+    const days = Math.min(365, Math.max(1, parseInt(req.body.days) || 30));
+    await pool.query(
+      `INSERT INTO blocked_ips (ip, reason, expires_at) VALUES ($1, $2, NOW() + make_interval(days => $3))
+       ON CONFLICT (ip) DO UPDATE SET reason = EXCLUDED.reason, expires_at = EXCLUDED.expires_at, created_at = NOW()`,
+      [ip, String(req.body.reason || '').slice(0, 200) || null, days]
+    );
+    await require('../middleware/antiScraping').reloadManualBlocks();
+    res.json({ message: `ה-IP נחסם ל-${days} ימים` });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'שגיאת שרת' });
+  }
+};
+
+exports.unblockIp = async (req, res) => {
+  try {
+    await pool.query('DELETE FROM blocked_ips WHERE ip = $1', [req.params.ip]);
+    await require('../middleware/antiScraping').reloadManualBlocks();
+    res.json({ message: 'החסימה הוסרה' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'שגיאת שרת' });
+  }
+};
+
 // יומן האבטחה — סיכום לפי IP (24 שעות / 7 ימים) + 200 האירועים האחרונים
 exports.getSecurityEvents = async (req, res) => {
   try {

@@ -132,7 +132,9 @@ app.use(antiScraping.dataGuard);
 // בפיתוח (Vite מגיש את index.html, לא השרת) — הדפדפן מבקש טוקן כאן במקום מה-<meta>
 if (process.env.NODE_ENV !== 'production') {
   app.get('/api/page-token', async (req, res) => {
-    const html = antiScraping.renderIndexHtml('<head></head>', { canaryIds: await antiScraping.getCanaryIds() });
+    const html = antiScraping.renderIndexHtml('<head></head>', {
+      canaryIds: await antiScraping.getCanaryIds(), ip: req.clientIp, ua: req.get('user-agent'),
+    });
     res.json({ token: html.match(/content="([^"]+)"/)[1] });
   });
 }
@@ -199,7 +201,9 @@ if (process.env.NODE_ENV === 'production') {
   const indexHtml = fs.readFileSync(path.join(clientDist, 'index.html'), 'utf8');
   app.get(/^(?!\/api|\/uploads).*/, antiScraping.pageLimiter, async (req, res, next) => {
     try {
-      const html = antiScraping.renderIndexHtml(indexHtml, { canaryIds: await antiScraping.getCanaryIds() });
+      const html = antiScraping.renderIndexHtml(indexHtml, {
+        canaryIds: await antiScraping.getCanaryIds(), ip: req.clientIp, ua: req.get('user-agent'),
+      });
       res.set('Cache-Control', 'no-store').type('html').send(html);
     } catch (err) { next(err); }
   });
@@ -226,6 +230,9 @@ const cleanOldLogs = async () => {
       [antiScrapingConfig.log.retentionDays]
     );
     if (sec.rowCount > 0) console.log(`[CLEANUP] נמחקו ${sec.rowCount} רשומות ישנות מיומן האבטחה`);
+    // קודי סימן מים (IP) — 30 יום; חסימות ידניות שפג תוקפן
+    await pool.query(`DELETE FROM watermark_codes WHERE day < CURRENT_DATE - $1::int`, [antiScrapingConfig.watermark.retentionDays]);
+    await pool.query(`DELETE FROM blocked_ips WHERE expires_at IS NOT NULL AND expires_at < NOW()`);
     // מונה כניסות — שומרים קצת יותר משנה לצורך השוואה שנתית
     await pool.query(
       `DELETE FROM page_views WHERE day < CURRENT_DATE - $1::int`,
@@ -240,6 +247,7 @@ const PORT = process.env.PORT || 5000;
 // יצירת טבלאות אוטומטית בהפעלה הראשונה, ואז הפעלת השרת
 const ensureSchema = require('./database/ensureSchema');
 ensureSchema().then(() => {
+  antiScraping.reloadManualBlocks();
   seedSiteAssets();
   cleanOldLogs();
   setInterval(cleanOldLogs, 24 * 60 * 60 * 1000);

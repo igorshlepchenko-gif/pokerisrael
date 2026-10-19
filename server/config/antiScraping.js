@@ -118,6 +118,15 @@ module.exports = {
     retentionDays: 400,
   },
 
+  // ── קוד אישי בסימן המים (טבלת watermark_codes) ──
+  // כל גולש מקבל קוד קצר ליד "PokerIsrael.org" — קבוע לאותו IP באותו יום. צילום מסך
+  // שפורסם במקום אחר → מקלידים את הקוד באדמין (טאב אבטחה) ורואים IP + זמן.
+  watermark: {
+    retentionDays: 30,
+    alphabet: '23456789ABCDEFGHJKMNPQRSTUVWXYZ', // בלי 0/O/1/I/L שקל לבלבל בצילום
+    length: 5,
+  },
+
   // ── יומן אבטחה (טבלת security_events) ──
   log: {
     retentionDays: 30,

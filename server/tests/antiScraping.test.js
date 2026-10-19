@@ -14,6 +14,8 @@ const anti = require('../middleware/antiScraping');
 const events = [];
 anti._test.setEventSink(async (e) => { events.push(e); });
 anti._test.setCanaryLoader(async () => [42]);
+const wmRecords = [];
+anti._test.setWatermarkSink(async (r) => { wmRecords.push(r); });
 
 function buildApp() {
   const app = express();
@@ -29,7 +31,7 @@ function buildApp() {
   app.post('/api/agent/whatsapp-webhook', (req, res) => res.json({ ok: true }));
   app.get(/^(?!\/api).*/, anti.pageLimiter, async (req, res) =>
     res.type('html').send(anti.renderIndexHtml('<html><head></head><body><div id="root"></div></body></html>',
-      { canaryIds: await anti.getCanaryIds() })));
+      { canaryIds: await anti.getCanaryIds(), ip: req.clientIp, ua: req.get('user-agent') })));
   return app;
 }
 
@@ -169,6 +171,39 @@ test('fake Googlebot (no matching reverse DNS) is not exempt', async () => {
   const ip = freshIp();
   const ua = 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)';
   assert.equal((await get('/api/tournaments', { ip, ua })).status, 403);
+});
+
+test('watermark code: 5 unambiguous chars, stable per IP+day, recorded, carried in the page token', async () => {
+  const c = anti.watermarkCode('2026-10-19', '84.229.1.2');
+  assert.match(c, /^[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{5}$/);
+  assert.equal(c, anti.watermarkCode('2026-10-19', '84.229.1.2'));
+  assert.notEqual(c, anti.watermarkCode('2026-10-20', '84.229.1.2'));
+  assert.notEqual(c, anti.watermarkCode('2026-10-19', '84.229.1.3'));
+
+  const ip = freshIp();
+  const html = await (await get('/', { ip })).text();
+  const token = html.match(/name="pli-pt" content="([^"]+)"/)[1];
+  const payload = JSON.parse(Buffer.from(token.split('.')[0], 'base64url').toString());
+  const day = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jerusalem' });
+  assert.equal(payload.w, anti.watermarkCode(day, ip));
+  await new Promise((res) => setImmediate(res));
+  assert.ok(wmRecords.some((r) => r.ip === ip && r.code === payload.w && r.day === day));
+});
+
+test('manual IP block (admin): no tournament data for that IP only; logged-in users unaffected', async () => {
+  const bad = freshIp();
+  anti._test.setBlocksLoader(async () => [bad]);
+  await anti.reloadManualBlocks();
+  const headers = { [config.pageToken.header]: pageToken.issue() };
+  const r = await get('/api/tournaments', { ip: bad, headers });
+  assert.equal(r.status, 403);
+  assert.equal((await r.json()).code, 'BLOCKED');
+  assert.equal((await get('/', { ip: bad })).status, 200); // הדף עצמו נטען
+  assert.equal((await get('/api/tournaments', { headers })).status, 200); // IP אחר
+  const jwtToken = jwt.sign({ id: 1 }, process.env.JWT_SECRET);
+  assert.equal((await get('/api/tournaments', { ip: bad, headers: { cookie: `pli_token=${jwtToken}` } })).status, 200);
+  anti._test.setBlocksLoader(async () => []);
+  await anti.reloadManualBlocks();
 });
 
 test('robots.txt blocks AI crawlers, keeps Google/Bing, hides /api and the trap', async () => {

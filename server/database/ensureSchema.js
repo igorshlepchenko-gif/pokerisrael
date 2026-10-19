@@ -270,6 +270,25 @@ async function ensureSchema() {
         created_at  TIMESTAMP WITH TIME ZONE DEFAULT NOW()
       )`,
       `CREATE INDEX IF NOT EXISTS idx_page_views_day ON page_views(day)`,
+      // קוד אישי בסימן המים → IP (middleware/antiScraping.js). נמחק אחרי 30 יום
+      `CREATE TABLE IF NOT EXISTS watermark_codes (
+        day         DATE NOT NULL,
+        ip          VARCHAR(64) NOT NULL,
+        code        CHAR(5) NOT NULL,
+        user_agent  VARCHAR(300),
+        views       INT NOT NULL DEFAULT 1,
+        first_seen  TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        last_seen   TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        PRIMARY KEY (day, ip)
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_watermark_codes_code ON watermark_codes(code)`,
+      // חסימת IP ידנית מהאדמין — רק לנתוני הטורנירים (הדפים עצמם נטענים)
+      `CREATE TABLE IF NOT EXISTS blocked_ips (
+        ip          VARCHAR(64) PRIMARY KEY,
+        reason      VARCHAR(200),
+        created_at  TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        expires_at  TIMESTAMP WITH TIME ZONE
+      )`,
     ];
     for (const sql of MIGRATIONS) {
       try { await pool.query(sql); } catch (e) { console.error('migration failed:', e.message); }

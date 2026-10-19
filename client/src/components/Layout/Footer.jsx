@@ -11,6 +11,8 @@ export default function Footer() {
         <Link to="/privacy" className="text-slate-500 hover:text-blue-400 transition-colors">מדיניות פרטיות</Link>
         <span className="text-slate-700">·</span>
         <Link to="/accessibility" className="text-slate-500 hover:text-blue-400 transition-colors">הצהרת נגישות</Link>
+        <span className="text-slate-700">·</span>
+        <Link to="/terms" className="text-slate-500 hover:text-blue-400 transition-colors">תנאי שימוש</Link>
       </div>
       <p className="text-xs mt-2 text-slate-600">© {new Date().getFullYear()} PokerIsrael.org · כל הזכויות שמורות</p>
 

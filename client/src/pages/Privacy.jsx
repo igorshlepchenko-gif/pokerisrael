@@ -1,5 +1,5 @@
 export default function Privacy() {
-  const updated = '14/10/2026';
+  const updated = '19/10/2026';
   return (
     <div className="max-w-3xl mx-auto px-4 py-10 text-slate-300 leading-relaxed" dir="rtl">
       <header className="mb-8 pb-6 border-b border-slate-800">
@@ -66,6 +66,11 @@ export default function Privacy() {
           לצורך הגנה על האתר מפני שימוש לרעה (כגון העתקה אוטומטית של תוכן או ניסיונות פריצה), אנו
           מתעדים בקשות שנחסמו או שנראו חשודות — כתובת IP, סוג הדפדפן והדף שאליו נשלחה הבקשה. תיעוד
           זה נמחק אוטומטית לאחר 30 יום.
+        </p>
+        <p className="mt-2">
+          כדי לזהות העתקה של מידע מהאתר, רשימות הטורנירים מסומנות בסימן מים הכולל קוד קצר. הקוד נשמר
+          יחד עם כתובת ה-IP וסוג הדפדפן של הגולש שקיבל אותו, משמש רק לבירור מקרים של העתקה או פרסום מחדש
+          של תוכן האתר, ונמחק אוטומטית לאחר 30 יום.
         </p>
       </Section>
 

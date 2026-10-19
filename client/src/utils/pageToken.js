@@ -21,6 +21,20 @@ function isFresh(t) {
   return !!p && p.e - REFRESH_MARGIN_SEC > Date.now() / 1000;
 }
 
+// סימן המים עם הקוד האישי של הגולש (payload.w) — מחליף את סימן המים הכללי שב-index.css
+// דרך משתנה ה-CSS ‎--pi-wm. הקוד מזהה (בצד השרת) IP + תאריך של מי שצילם מסך.
+let appliedWm = null;
+function applyWatermark(t) {
+  const code = t && decode(t)?.w;
+  if (!code || code === appliedWm || !/^[0-9A-Z]{5}$/.test(code)) return;
+  appliedWm = code;
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='320' height='150'>` +
+    `<text x='160' y='80' text-anchor='middle' transform='rotate(-18 160 75)' ` +
+    `font-family='Arial,Helvetica,sans-serif' font-size='17' font-weight='700' ` +
+    `fill='#94a3b8' fill-opacity='0.14'>PokerIsrael.org · ${code}</text></svg>`;
+  document.documentElement.style.setProperty('--pi-wm', `url("data:image/svg+xml,${encodeURIComponent(svg)}")`);
+}
+
 export function refreshPageToken() {
   if (!pending) {
     pending = (async () => {
@@ -39,6 +53,7 @@ export function refreshPageToken() {
       } finally {
         pending = null;
       }
+      applyWatermark(token);
       return token;
     })();
   }
@@ -47,6 +62,7 @@ export function refreshPageToken() {
 
 export async function getPageToken() {
   if (!token) token = document.querySelector(`meta[name="${META_NAME}"]`)?.content || null;
+  applyWatermark(token);
   if (isFresh(token)) return token;
   return refreshPageToken();
 }
