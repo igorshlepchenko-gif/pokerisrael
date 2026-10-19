@@ -62,7 +62,8 @@ async function drawImage({ rows, title, dateLabel, page, pages, logo }) {
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
 
   // כותרת
-  if (logo) ctx.drawImage(logo, W - 64 - 300, 52, 300, 300 * (logo.height / logo.width || 0.25));
+  // לוגו ממורכז למעלה (לא בצד ימין — שלא יתנגש בכותרת המיושרת לימין)
+  if (logo) { const lw = 340, lh = lw * (logo.height / logo.width || 0.25); ctx.drawImage(logo, (W - lw) / 2, 40, lw, lh); }
   ctx.textAlign = 'right';
   ctx.fillStyle = C.white; ctx.font = '900 76px Heebo';
   ctx.fillText(title, W - 64, 230);
