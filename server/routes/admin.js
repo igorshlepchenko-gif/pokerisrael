@@ -30,6 +30,7 @@ router.get('/change-logs', ctrl.getChangeLogs);
 // ניהול מיקומים — כתובת -> קואורדינטות, הבסיס ל"מצא טורניר קרוב אליי"
 router.get('/locations', ctrl.getLocations);
 router.post('/locations', ctrl.createLocation);
+router.post('/locations/resolve-link', ctrl.resolveMapsLink);
 router.put('/locations/:id', ctrl.updateLocation);
 router.delete('/locations/:id', ctrl.deleteLocation);
 

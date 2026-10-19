@@ -190,19 +190,41 @@ function LocationForm({ initial, onSave, onCancel }) {
   const [paste, setPaste] = useState(
     initial.latitude !== '' && initial.latitude != null ? `${initial.latitude}, ${initial.longitude}` : '');
   const [pasteErr, setPasteErr] = useState('');
+  const [resolving, setResolving] = useState(false);
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
   const hasCoords = form.latitude !== '' && form.longitude !== '';
 
+  const latestPaste = useRef('');
   const applyPaste = (text) => {
     setPaste(text);
+    latestPaste.current = text.trim();
+    setResolving(false);
     setForm(p => ({ ...p, latitude: '', longitude: '' }));
     if (!text.trim()) { setPasteErr(''); return; }
     const c = parsePastedCoords(text);
     if (c) {
       setForm(p => ({ ...p, latitude: String(c.lat), longitude: String(c.lng) }));
       setPasteErr('');
+    } else if (/goo\.gl\//.test(text)) {
+      resolveShortLink(text.trim());
     } else {
-      setPasteErr('לא זוהו קואורדינטות. בקישור מקוצר (maps.app.goo.gl) — לפתוח קודם ואז להעתיק מסרגל הכתובות.');
+      setPasteErr('לא זוהה מיקום בקישור. צריך קישור למקום ב-Google Maps.');
+    }
+  };
+
+  // קישור מקוצר לא מכיל קואורדינטות — השרת פותח אותו ומחזיר את הקישור המלא
+  const resolveShortLink = async (link) => {
+    setResolving(true); setPasteErr('');
+    try {
+      const { data } = await api.post('/admin/locations/resolve-link', { url: link });
+      if (latestPaste.current !== link) return; // בינתיים הודבק משהו אחר
+      const c = parsePastedCoords(data.url);
+      if (c) setForm(p => ({ ...p, latitude: String(c.lat), longitude: String(c.lng) }));
+      else setPasteErr('הקישור נפתח אבל לא נמצא בו מיקום. נסה לבחור את המקום במפה ולשתף שוב.');
+    } catch (e) {
+      if (latestPaste.current === link) setPasteErr(e.response?.data?.message || 'לא הצלחתי לפתוח את הקישור');
+    } finally {
+      if (latestPaste.current === link) setResolving(false);
     }
   };
 
@@ -210,6 +232,7 @@ function LocationForm({ initial, onSave, onCancel }) {
     <form
       onSubmit={e => {
         e.preventDefault();
+        if (resolving) return;
         if (!hasCoords) { setPasteErr(pasteErr || 'צריך להדביק קישור מ-Google Maps כדי לזהות את המיקום'); return; }
         onSave(form);
       }}
@@ -236,9 +259,11 @@ function LocationForm({ initial, onSave, onCancel }) {
           <label className="block text-xs text-slate-400 mb-1">הדבק קישור מ-Google Maps *</label>
           <input value={paste} onChange={e => applyPaste(e.target.value)}
             className="input-field text-sm" required placeholder="קישור מ-Google Maps" />
-          {pasteErr
-            ? <p className="text-amber-400 text-[11px] mt-1">{pasteErr}</p>
-            : hasCoords && <p className="text-emerald-400 text-[11px] mt-1">✓ המיקום זוהה</p>}
+          {resolving
+            ? <p className="text-slate-400 text-[11px] mt-1">פותח את הקישור…</p>
+            : pasteErr
+              ? <p className="text-amber-400 text-[11px] mt-1">{pasteErr}</p>
+              : hasCoords && <p className="text-emerald-400 text-[11px] mt-1">✓ המיקום זוהה</p>}
         </div>
       </div>
       <div className="flex gap-2">

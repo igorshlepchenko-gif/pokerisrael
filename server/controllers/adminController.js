@@ -447,6 +447,33 @@ exports.getLocations = async (req, res) => {
   }
 };
 
+// קישור מקוצר (maps.app.goo.gl — מה ש"שיתוף" בטלפון נותן) לא מכיל קואורדינטות;
+// הן מופיעות רק בקישור המלא שאליו הוא מפנה. השרת עוקב אחרי ההפניות בשביל האדמין.
+// כל קפיצה חייבת להישאר בדומיין של גוגל, כדי שזה לא יהפוך לפרוקסי לכתובת שרירותית.
+const MAPS_HOSTS = /^(maps\.app\.goo\.gl|goo\.gl|(www\.|maps\.)?google\.(com|co\.il))$/;
+
+exports.resolveMapsLink = async (req, res) => {
+  let url;
+  try { url = new URL(String(req.body.url || '').trim()); } catch {
+    return res.status(400).json({ message: 'קישור לא תקין' });
+  }
+  try {
+    for (let hop = 0; hop < 5; hop++) {
+      if (url.protocol !== 'https:' || !MAPS_HOSTS.test(url.hostname)) {
+        return res.status(400).json({ message: 'רק קישורים של Google Maps' });
+      }
+      const r = await fetch(url, { redirect: 'manual', signal: AbortSignal.timeout(8000) });
+      const next = r.headers.get('location');
+      if (r.status < 300 || r.status >= 400 || !next) return res.json({ url: url.href });
+      url = new URL(next, url);
+    }
+    res.status(400).json({ message: 'יותר מדי הפניות' });
+  } catch (err) {
+    console.error('[resolveMapsLink]', err.message);
+    res.status(502).json({ message: 'לא הצלחתי לפתוח את הקישור' });
+  }
+};
+
 exports.createLocation = async (req, res) => {
   const { address, city, latitude, longitude, notes } = req.body;
   if (!address || !String(address).trim()) return res.status(400).json({ message: 'כתובת היא שדה חובה' });
