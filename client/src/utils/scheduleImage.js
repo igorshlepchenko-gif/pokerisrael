@@ -159,20 +159,75 @@ function icon(ctx, kind, x, y, s, color) {
   ctx.restore();
 }
 
+// ניתוח לוגו: צבע הרקע שלו + גבולות התוכן (בלי שוליים ריקים), כדי שהלוגו ימלא את העיגול
+// והעיגול ייצבע בצבע הרקע של הלוגו עצמו — בלי טבעת לבנה סביב לוגו כהה. נשמר במטמון לכל תמונה.
+const logoInfo = new WeakMap();
+function analyzeLogo(img) {
+  if (logoInfo.has(img)) return logoInfo.get(img);
+  let info = { sx: 0, sy: 0, sw: img.width, sh: img.height, bg: '#ffffff' };
+  try {
+    const n = 96;
+    const sc = Math.min(1, n / Math.max(img.width, img.height));
+    const w = Math.max(1, Math.round(img.width * sc)), h = Math.max(1, Math.round(img.height * sc));
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const x = c.getContext('2d', { willReadFrequently: true });
+    x.drawImage(img, 0, 0, w, h);
+    const d = x.getImageData(0, 0, w, h).data;
+    const px = (cx, cy) => { const k = (cy * w + cx) * 4; return [d[k], d[k + 1], d[k + 2], d[k + 3]]; };
+    // צבע רקע = ממוצע ארבע הפינות (שקוף → לבן)
+    const corners = [px(0, 0), px(w - 1, 0), px(0, h - 1), px(w - 1, h - 1)];
+    const transparent = corners.every((p) => p[3] < 40);
+    const bg = transparent ? [255, 255, 255] : [0, 1, 2].map((ch) => Math.round(corners.reduce((a, p) => a + p[ch], 0) / 4));
+    const differs = (p) => p[3] > 40 && (transparent || Math.abs(p[0] - bg[0]) + Math.abs(p[1] - bg[1]) + Math.abs(p[2] - bg[2]) > 60);
+    let minX = w, minY = h, maxX = -1, maxY = -1;
+    for (let yy = 0; yy < h; yy++) for (let xx = 0; xx < w; xx++) {
+      if (differs(px(xx, yy))) { if (xx < minX) minX = xx; if (xx > maxX) maxX = xx; if (yy < minY) minY = yy; if (yy > maxY) maxY = yy; }
+    }
+    if (maxX >= minX && maxY >= minY) {
+      // התוכן עצמו יכול להיות "קופסה" כהה על רקע לבן (למשל DoubleUp) — אז הרקע של העיגול
+      // הוא צבע השוליים של התוכן, לא של התמונה המקורית
+      // דגימה כמה פיקסלים פנימה מהקצה — הקצה עצמו מוחלק (שקוף-למחצה) בלוגו עם פינות מעוגלות
+      const ins = Math.max(2, Math.round(Math.min(maxX - minX, maxY - minY) * 0.04));
+      const midX = Math.round((minX + maxX) / 2), midY = Math.round((minY + maxY) / 2);
+      const inner = [px(minX + ins, midY), px(maxX - ins, midY), px(midX, minY + ins), px(midX, maxY - ins)];
+      const boxBg = [0, 1, 2].map((ch) => Math.round(inner.reduce((a, p) => a + p[ch], 0) / 4));
+      const solidBox = inner.every((p) => p[3] > 200 && Math.abs(p[0] - boxBg[0]) + Math.abs(p[1] - boxBg[1]) + Math.abs(p[2] - boxBg[2]) < 90);
+      const fill = solidBox ? boxBg : bg;
+      const pad = 1;
+      info = {
+        sx: Math.max(0, (minX - pad) / sc), sy: Math.max(0, (minY - pad) / sc),
+        sw: Math.min(img.width, (maxX - minX + 1 + pad * 2) / sc), sh: Math.min(img.height, (maxY - minY + 1 + pad * 2) / sc),
+        bg: `rgb(${fill.join(',')})`, box: solidBox,
+      };
+    }
+  } catch { /* תמונה ממקור אחר — בלי ניתוח */ }
+  logoInfo.set(img, info);
+  return info;
+}
+
 function clubBadge(ctx, cx, cy, r, logo, venue, T) {
   ctx.save();
   ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.fillStyle = '#ffffff'; ctx.fill();
-  ctx.lineWidth = 4; ctx.strokeStyle = lin(ctx, cx - r, cy - r, cx + r, cy + r, T.gold); ctx.stroke();
+  const info = logo ? analyzeLogo(logo) : null;
+  ctx.fillStyle = info ? info.bg : '#0b1220'; ctx.fill();
+  ctx.save();
   ctx.clip();
   if (logo) {
-    const s = Math.min((r * 1.8) / logo.width, (r * 1.8) / logo.height);
-    ctx.drawImage(logo, cx - (logo.width * s) / 2, cy - (logo.height * s) / 2, logo.width * s, logo.height * s);
+    // קופסה מלאה (רקע כהה) — ממלאת את העיגול; לוגו על רקע — נכנס בתוך העיגול עם מרווח קטן
+    // לוגו על רקע: נכנס בריבוע החסום במעגל (צלע ≈ 1.41r) כך ששום פינה לא נחתכת.
+    // קופסה מלאה (רקע כהה): נמתחת לרוחב העיגול — מה שנחתך הוא רק רקע באותו צבע
+    // המלבן הגדול ביותר ביחס-הצדדים של הלוגו שנכנס במעגל ברדיוס R: רוחב 2Ra/√(1+a²), גובה 2R/√(1+a²)
+    const a = info.sw / info.sh, R = r * (info.box ? 1.08 : 0.92), k = 2 * R / Math.sqrt(1 + a * a);
+    const s = Math.min((k * a) / info.sw, k / info.sh);
+    const dw = info.sw * s, dh = info.sh * s;
+    ctx.drawImage(logo, info.sx, info.sy, info.sw, info.sh, cx - dw / 2, cy - dh / 2, dw, dh);
   } else {
-    ctx.fillStyle = '#0b1220'; ctx.fill();
     ctx.fillStyle = T.accent; ctx.font = `800 ${r * 0.62}px ${FONT.body}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText((venue || '?').trim().slice(0, 2), cx, cy + 2);
   }
+  ctx.restore();
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.lineWidth = 4; ctx.strokeStyle = lin(ctx, cx - r, cy - r, cx + r, cy + r, T.gold); ctx.stroke();
   ctx.restore();
 }
 
