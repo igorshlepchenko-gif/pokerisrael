@@ -417,12 +417,13 @@ exports.getLocations = async (req, res) => {
           (SELECT COUNT(*)::int FROM venues v
             WHERE normalize_address(v.address) = normalize_address(l.address)) AS venue_count
         FROM locations l ORDER BY l.city NULLS LAST, l.address`),
-      // כתובות של טורנירים פעילים שאין להן מיפוי — אלה שנופלים מההצעות
+      // כתובות של טורנירים פעילים שאין להן מיפוי — אלה שנופלים מההצעות.
+      // טורניר פיתיון (is_canary) מוחרג: הכתובת שלו מזויפת בכוונה ו-getNearby ממילא לא מציע אותו
       pool.query(`
         SELECT t.address, COALESCE(t.city,'') AS city, v.name AS venue_name, COUNT(*)::int AS n
         FROM tournaments t JOIN venues v ON t.venue_id = v.id
         WHERE t.status='approved' AND t.is_active = true AND v.is_approved = true
-          AND t.tournament_type <> 'online'
+          AND t.tournament_type <> 'online' AND t.is_canary = false
           AND t.address IS NOT NULL AND t.latitude IS NULL
           AND normalize_address(t.address) <> normalize_address(v.address)
           AND NOT EXISTS (SELECT 1 FROM locations l
