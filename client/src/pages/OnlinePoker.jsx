@@ -295,22 +295,30 @@ function OnlinePokerPage() {
               <p className="text-xs text-slate-500">אתר פוקר ברשת GG — לא קלאב</p>
             </div>
           </div>
+          {/* חשוב: ב-7XL השיוך לסוכן נעשה בהרשמה עצמה — מי שנרשם לבד לפני הפנייה לא משויך */}
+          <div role="note" className="flex items-start gap-2 rounded-xl border-2 border-amber-500/60 bg-amber-500/10 px-4 py-3 mb-4">
+            <span className="text-xl leading-none" aria-hidden="true">⚠️</span>
+            <p className="text-sm text-amber-100">
+              <b className="text-amber-300">חשוב: פנו לסוכן לפני ההרשמה.</b>{' '}
+              אל תיצרו חשבון ב-7XL לבד — קודם שולחים הודעה ל-{AGENT.name}, והוא ינחה אתכם איך להירשם כך שהחשבון ישויך אליו.
+            </p>
+          </div>
           <ol className="text-sm text-slate-400 space-y-1.5 list-decimal pr-5 mb-4">
+            <li><b className="text-slate-200">קודם כל</b> — שולחים הודעה ל-{AGENT.name} בוואטסאפ.</li>
             <li>מורידים את האפליקציה (קישור אחד לכל המכשירים).</li>
-            <li>נרשמים לחשבון חדש.</li>
-            <li>שולחים הודעה ל-{AGENT.name} בוואטסאפ והוא משייך אתכם ומלווה אתכם.</li>
+            <li>נרשמים לפי ההנחיות שקיבלתם מהסוכן.</li>
           </ol>
           <div className="flex flex-wrap gap-2">
-            <a href={SEVEN_XL.downloadUrl} target="_blank" rel="noopener noreferrer"
-              onClick={() => logOnlineClick('store_7xl', null, 'online_page')}
-              className="inline-flex items-center justify-center gap-2 min-h-[44px] px-5 rounded-xl text-sm font-bold text-white bg-violet-600 hover:bg-violet-500 transition-colors">
-              ⬇️ הורדת 7XL
-            </a>
-            <a href={waLink(`שלום ${AGENT.name}, הגעתי מאתר פוקר ישראל ואני רוצה להצטרף ל-7XL`)}
+            <a href={waLink(`שלום ${AGENT.name}, הגעתי מאתר פוקר ישראל ואני רוצה להירשם ל-7XL (עוד לא נרשמתי)`)}
               target="_blank" rel="noopener noreferrer"
               onClick={() => logOnlineClick('whatsapp', '7xl', 'online_page')}
               className="inline-flex items-center justify-center gap-2 min-h-[44px] px-5 rounded-xl text-sm font-bold text-white bg-[#25D366] hover:bg-[#1da851] transition-colors">
-              💬 להצטרפות — דברו עם {AGENT.name}
+              💬 שלב 1: פנייה ל-{AGENT.name}
+            </a>
+            <a href={SEVEN_XL.downloadUrl} target="_blank" rel="noopener noreferrer"
+              onClick={() => logOnlineClick('store_7xl', null, 'online_page')}
+              className="inline-flex items-center justify-center gap-2 min-h-[44px] px-5 rounded-xl text-sm font-bold text-slate-200 border border-slate-600 hover:border-violet-400 transition-colors">
+              ⬇️ הורדת 7XL
             </a>
           </div>
         </section>
