@@ -152,6 +152,13 @@ async function syncLetsPoker(clubKey) {
   const venueId = await resolveVenueId(club);
   const { clubUrl, label } = club;
 
+  // מקור שסומן לא פעיל (feed_sources.active=false — למשל מועדון שהפסיק לפעול) — לא מסנכרנים
+  const feedRow = await pool.query(`SELECT active FROM feed_sources WHERE venue_id=$1 AND url=$2`, [venueId, clubUrl]);
+  if (feedRow.rows[0] && feedRow.rows[0].active === false) {
+    console.log(`[letsPokerSync:${clubKey}] feed inactive — skipped`);
+    return { skipped: 'inactive' };
+  }
+
   const result = { added: 0, updated: 0, removed: 0, skipped: 0, errors: 0 };
 
   const rawEvents = await fetchEvents(clubUrl);
