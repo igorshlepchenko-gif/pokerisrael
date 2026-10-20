@@ -11,7 +11,7 @@ const PNG = Buffer.from('89504e470d0a1a0a0000000d4948445200000001000000010806000
 let folderHtml = '';
 let downloads = 0;
 let failListing = false;
-const saved = {};
+const saved = {}; // לפי מפתח ב-app_settings
 require.cache[require.resolve('../utils/safeUrl')] = { exports: {
   safeGet: async (url) => {
     if (url.includes('embeddedfolderview')) {
@@ -25,8 +25,9 @@ require.cache[require.resolve('../utils/safeUrl')] = { exports: {
 } };
 require.cache[require.resolve('../config/db')] = { exports: {
   query: async (sql, params) => {
-    if (/INSERT INTO app_settings/.test(sql)) { saved.value = params[0]; return { rows: [] }; }
-    return { rows: saved.value ? [{ value: saved.value }] : [] };
+    const key = (sql.match(/'([a-z_]+)'/) || [])[1];
+    if (/INSERT INTO app_settings/.test(sql)) { saved[key] = params[0]; return { rows: [] }; }
+    return { rows: saved[key] ? [{ value: saved[key] }] : [] };
   },
 } };
 
@@ -75,4 +76,40 @@ test('listing failure keeps the current promo; empty folder removes it', async (
   await drive.syncDrivePromos();
   assert.equal(drive.currentDrivePromos().length, 0);
   fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('folder link parsing and automatic file names', () => {
+  assert.equal(drive.parseFolderId('https://drive.google.com/drive/folders/1VXKQP_Ze_JEm3R6uFW7rqhczyyIXDwM3?usp=sharing'), '1VXKQP_Ze_JEm3R6uFW7rqhczyyIXDwM3');
+  assert.equal(drive.parseFolderId('https://drive.google.com/open?id=1VXKQP_Ze_JEm3R6uFW7rqhczyyIXDwM3'), '1VXKQP_Ze_JEm3R6uFW7rqhczyyIXDwM3');
+  assert.equal(drive.parseFolderId('not a link'), null);
+  assert.equal(drive.titleFromFile('WhatsApp Image 2026-10-19 at 11.23.53.jpeg'), '');
+  assert.equal(drive.titleFromFile('EPT_Prague.jpg'), 'EPT Prague');
+});
+
+test('second club gets its own folder; removing it drops its promos and files', async () => {
+  const dgpcDir = path.join(__dirname, '../uploads/online-promos/dgpc');
+  folderHtml = page([entry('CCCCCCCCCCCCCCCCCCCC3', 'WhatsApp Image 2026-10-20.jpeg')]);
+  const r = await drive.setClubFolder('dgpc', 'DGPC', 'https://drive.google.com/drive/folders/DGPCFOLDER1234567890');
+  assert.equal(r.synced, 1);
+  assert.deepEqual(drive.currentDriveClubs().sort(), ['dgpc', 'ludus']);
+  const dg = drive.currentDrivePromos().filter((p) => p.clubId === 'dgpc');
+  assert.equal(dg.length, 1);
+  assert.equal(dg[0].alt, 'DGPC — פרסום'); // שם וואטסאפ אוטומטי → שם כללי
+  assert.ok(JSON.parse(saved.drive_promo_folders).dgpc.folderId === 'DGPCFOLDER1234567890');
+
+  await drive.setClubFolder('dgpc', 'DGPC', '');
+  assert.deepEqual(drive.currentDriveClubs(), ['ludus']);
+  assert.equal(drive.currentDrivePromos().filter((p) => p.clubId === 'dgpc').length, 0);
+  assert.ok(!fs.existsSync(dgpcDir));
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('bad link or private folder is rejected without saving', async () => {
+  const before = saved.drive_promo_folders;
+  await assert.rejects(drive.setClubFolder('dgpc', 'DGPC', 'hello'), { status: 400 });
+  failListing = true;
+  await assert.rejects(drive.setClubFolder('dgpc', 'DGPC', 'https://drive.google.com/drive/folders/PRIVATEFOLDER123456'), /כל מי שיש לו את הקישור/);
+  failListing = false;
+  await assert.rejects(drive.setClubFolder('../etc', 'x', 'https://drive.google.com/drive/folders/DGPCFOLDER1234567890'), { status: 400 });
+  assert.equal(saved.drive_promo_folders, before);
 });

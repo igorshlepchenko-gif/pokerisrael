@@ -54,12 +54,17 @@ function israelToday() {
 }
 // קלאבים שהפרסומים שלהם מגיעים מתיקיית Google Drive ומתעדכנים בשרת כמה פעמים ביום
 // (server/services/drivePromos.js). הפרסומים שלהם מהאקסל מתעלמים — מה שבתיקייה קובע.
-export const DRIVE_PROMO_CLUBS = ['ludus'];
+// התיקיות נקבעות בפאנל הניהול; השרת מוסר את רשימת הקלאבים ב-data-clubs של בלוק הפרסומים.
+const promosEl = () => (typeof document !== 'undefined' && document.getElementById('pli-promos')) || null;
+export const DRIVE_PROMO_CLUBS = (() => {
+  const attr = promosEl()?.dataset.clubs;
+  return attr == null ? ['ludus'] : attr.split(',').filter(Boolean); // בלי השרת (פיתוח) — כמו קודם
+})();
 
 // הרשימה העדכנית מוטמעת ב-index.html ע"י השרת (<script id="pli-promos" type="application/json">)
 function drivePromos() {
   try {
-    const el = typeof document !== 'undefined' && document.getElementById('pli-promos');
+    const el = promosEl();
     const list = el ? JSON.parse(el.textContent || '[]') : [];
     return Array.isArray(list) ? list.filter(p => p && p.image && DRIVE_PROMO_CLUBS.includes(p.clubId)) : [];
   } catch {

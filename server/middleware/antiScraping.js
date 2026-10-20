@@ -253,16 +253,19 @@ function watermarkFor(ip, ua) {
 }
 
 // ── הזרקת טוקן + קישור מלכודת ל-index.html ────────────────────────────────
-function renderIndexHtml(html, { canaryIds = [], ip = null, ua = '', promos = [] } = {}) {
+function renderIndexHtml(html, { canaryIds = [], ip = null, ua = '', promos = [], promoClubs = [] } = {}) {
   const token = pageToken.issue({ canaryIds, wm: watermarkFor(ip, ua) });
   // פרסומי אונליין שמתעדכנים מהשרת (services/drivePromos.js) — בלוק נתונים, לא סקריפט שרץ
   // (CSP מתיר אותו), ו-< מוברח כדי שתוכן לא יוכל לסגור את התגית
   const promosJson = JSON.stringify(promos).replace(/</g, '\\u003c');
+  // data-clubs — הקלאבים שהפרסומים שלהם מגיעים רק מ-Drive (פרסומי האקסל שלהם מתעלמים)
+  const clubsAttr = promoClubs.filter((c) => /^[a-z0-9-]+$/.test(c)).join(',');
   const meta = `<meta name="${config.pageToken.metaName}" content="${token}" />\n` +
-    `<script id="pli-promos" type="application/json">${promosJson}</script>`;
-  // מחוץ למסך, מוסתר מקוראי מסך ומניווט מקלדת — בני אדם לא נתקלים בו
+    `<script id="pli-promos" type="application/json" data-clubs="${clubsAttr}">${promosJson}</script>`;
+  // בלתי נראה (פיקסל אחד חתוך), מוסתר מקוראי מסך ומניווט מקלדת — בני אדם לא נתקלים בו.
+  // ⚠️ לא left:-10000px: בעמוד RTL זה מרחיב את הגלילה האופקית ב-10,000px (אפשר היה לגלול הצידה לריק)
   const trapLink = `<a href="${config.trap.path}" rel="nofollow" tabindex="-1" aria-hidden="true" ` +
-    `style="position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden">Tournament data export</a>`;
+    `style="position:absolute;top:0;right:0;width:1px;height:1px;margin:-1px;padding:0;border:0;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap">Tournament data export</a>`;
   return html.replace('</head>', `${meta}\n</head>`).replace(/<body([^>]*)>/, `<body$1>\n${trapLink}`);
 }
 

@@ -19,7 +19,17 @@ router.get('/feed-health', async (req, res) => {
   try { res.json({ stale: await require('../services/feedMonitor').staleFeeds() }); }
   catch (err) { res.status(500).json({ message: err.message }); }
 });
-// סנכרון מיידי של פרסומי Drive (Ludus) — במקום לחכות לשעה הבאה בתזמון
+// פרסומי אונליין מתיקיות Drive (services/drivePromos.js): מצב לכל קלאב, שמירת/הסרת תיקייה, סנכרון מיידי
+router.get('/drive-promos', async (req, res) => {
+  try { res.json(await require('../services/drivePromos').driveStatus()); }
+  catch (err) { res.status(500).json({ message: err.message }); }
+});
+router.put('/drive-promos/:clubId', async (req, res) => {
+  try {
+    const { clubName, link } = req.body || {};
+    res.json(await require('../services/drivePromos').setClubFolder(req.params.clubId, clubName, link));
+  } catch (err) { res.status(err.status || 500).json({ message: err.message }); }
+});
 router.post('/drive-promos/sync', async (req, res) => {
   try { res.json(await require('../services/drivePromos').syncDrivePromos()); }
   catch (err) { res.status(500).json({ message: err.message }); }

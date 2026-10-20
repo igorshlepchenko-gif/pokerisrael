@@ -211,6 +211,7 @@ if (process.env.NODE_ENV === 'production') {
       const html = antiScraping.renderIndexHtml(indexHtml, {
         canaryIds: await antiScraping.getCanaryIds(), ip: req.clientIp, ua: req.get('user-agent'),
         promos: require('./services/drivePromos').currentDrivePromos(),
+        promoClubs: require('./services/drivePromos').currentDriveClubs(),
       });
       res.set('Cache-Control', 'no-store').type('html').send(html);
     } catch (err) { next(err); }
@@ -309,13 +310,13 @@ ensureSchema().then(() => {
       syncLetsPoker('housedarom').catch(e => console.error('[letsPokerSync:housedarom] run failed:', e.message));
     }, { timezone: 'Asia/Jerusalem' });
 
-    // פרסומי Ludus מתיקיית Google Drive (services/drivePromos.js) — מה שבתיקייה מוחלף באתר
+    // פרסומי הקלאבים מתיקיות Google Drive (services/drivePromos.js) — מה שבתיקייה מוחלף באתר
     // בשעות 09:00, 10:00, 11:00, 14:35, 15:00, 16:00 (שעון ישראל), וגם מיד בהפעלת השרת
-    const { syncDrivePromos, loadState: loadDrivePromos } = require('./services/drivePromos');
+    const { syncDrivePromos, loadState: loadDrivePromos, loadFolders: loadDriveFolders } = require('./services/drivePromos');
     const runDriveSync = () => syncDrivePromos()
       .then(r => console.log('[drivePromos] synced:', JSON.stringify(r)))
       .catch(e => console.error('[drivePromos] sync failed:', e.message));
-    loadDrivePromos().then(runDriveSync);
+    Promise.all([loadDrivePromos(), loadDriveFolders()]).then(runDriveSync);
     cron.schedule(process.env.DRIVE_PROMOS_CRON || '0 9,10,11,15,16 * * *', runDriveSync, { timezone: 'Asia/Jerusalem' });
     cron.schedule(process.env.DRIVE_PROMOS_CRON_2 || '35 14 * * *', runDriveSync, { timezone: 'Asia/Jerusalem' });
 
