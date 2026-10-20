@@ -6,6 +6,7 @@ import LocationsManager from '../components/Admin/LocationsManager';
 import AbResults from '../components/Admin/AbResults';
 import SecurityLog from '../components/Admin/SecurityLog';
 import PushSetup from '../components/Admin/PushSetup';
+import FeedHealthBanner from '../components/Admin/FeedHealthBanner';
 import VisitsReport from '../components/Admin/VisitsReport';
 import TournamentEditForm from '../components/TournamentEditForm';
 
@@ -401,6 +402,8 @@ export default function AdminPanel() {
           📲 תמונת טורנירי היום
         </a>
       </div>
+
+      <FeedHealthBanner />
 
       {/* Tabs */}
       <div className="flex gap-1 mb-6 bg-slate-800 p-1 rounded-xl w-fit flex-wrap">

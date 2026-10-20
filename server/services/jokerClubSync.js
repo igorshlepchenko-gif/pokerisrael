@@ -50,9 +50,13 @@ function buildDescription(t) {
   return parts.length ? parts.join(' | ') : null;
 }
 
+// משחקים שאינם פוקר שהג'וקר מפרסם באותו עמוד הרשמה (למשל טורניר שש-בש) — לא מיובאים לאתר
+const NON_POKER = /שש[\s-]?בש|backgammon|שחמט|\bchess\b/i;
+
 function normalize(t) {
   const startDt = parseStartDt(t.date_str, t.start_time);
   if (!startDt || !t.name) return null;
+  if (NON_POKER.test(t.name)) return null;
   return {
     external_id: makeExternalId(t),
     name: t.name,

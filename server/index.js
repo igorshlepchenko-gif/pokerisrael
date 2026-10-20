@@ -319,6 +319,12 @@ ensureSchema().then(() => {
     cron.schedule(process.env.DRIVE_PROMOS_CRON || '0 9,10,11,15,16 * * *', runDriveSync, { timezone: 'Asia/Jerusalem' });
     cron.schedule(process.env.DRIVE_PROMOS_CRON_2 || '35 14 * * *', runDriveSync, { timezone: 'Asia/Jerusalem' });
 
+    // ניטור ייבואי טורנירים: מקור שלא התעדכן בזמן → התראה לאדמין (services/feedMonitor.js)
+    const { checkFeedsAndAlert } = require('./services/feedMonitor');
+    cron.schedule(process.env.FEED_MONITOR_CRON || '15 * * * *', () => {
+      checkFeedsAndAlert().catch(e => console.error('[feedMonitor] check failed:', e.message));
+    }, { timezone: 'Asia/Jerusalem' });
+
     // התראת בוקר לאדמין: "טורנירי היום מוכנים לשיתוף" → /today (services/webPush.js)
     const { sendDailyShareReminder } = require('./services/webPush');
     cron.schedule(process.env.PUSH_DAILY_CRON || '0 8 * * *', () => {
