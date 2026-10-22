@@ -38,3 +38,6 @@ client/public/video/
 
 # קובץ האקסל של קלאבי האונליין, יומן הייבוא היומי והמריץ — קבצי עבודה מקומיים (נתיבים במחשב)
 /online-clubs/
+
+# שאלות מהמחקר היומי לשעשועון (server/scripts/quizResearch.js)
+/quiz-research/
