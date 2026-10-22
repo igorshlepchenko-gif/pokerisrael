@@ -5,10 +5,12 @@ import { useTheme } from '../../context/ThemeContext';
 import logoSvg from '../../assets/logo.svg';
 import IsraelClock from './IsraelClock';
 import { useOnlineVisible } from '../../utils/onlineAccess';
+import { useQuizAccess, QUIZ_NAME } from '../../utils/quizAccess';
 
 export default function Navbar() {
   const { user, logout } = useAuth();
   const onlineVisible = useOnlineVisible();
+  const quiz = useQuizAccess();
   const { isDark, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
@@ -24,6 +26,7 @@ export default function Navbar() {
     { to: '/communities', label: '👥 קהילות', show: true },
     { to: '/lessons', label: '🎓 לימודי פוקר', show: true },
     { to: '/online', label: '🌐 פוקר אונליין', show: onlineVisible },
+    { to: '/quiz', label: `🎲 ${QUIZ_NAME}`, show: quiz.allowed },
     { to: '/hands', label: '🃏 הידיים שלי', show: !!user },
     { to: '/dashboard', label: 'ניהול', show: user && (user.role === 'venue_owner' || user.role === 'admin') },
     { to: '/admin', label: 'ניהול מערכת', show: user?.role === 'admin', amber: true },

@@ -35,6 +35,7 @@ const agentRoutes          = require('./routes/agent');
 const abRoutes = require('./routes/ab');
 const analyticsRoutes = require('./routes/analytics');
 const pushRoutes = require('./routes/push');
+const quizRoutes = require('./routes/quiz');
 const { seedSiteAssets } = require('./utils/seedSiteAssets');
 
 const app = express();
@@ -170,6 +171,7 @@ app.use('/api/agent',         agentRoutes);
 app.use('/api/ab',            abRoutes);
 app.use('/api/analytics',     analyticsRoutes);
 app.use('/api/push',          pushRoutes);
+app.use('/api/quiz',          quizRoutes);
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', message: 'Poker Live Israel API' }));
 
@@ -258,6 +260,10 @@ const ensureSchema = require('./database/ensureSchema');
 ensureSchema().then(() => {
   antiScraping.reloadManualBlocks();
   seedSiteAssets();
+  // שאלות חדשות לשעשועון מ-data/quizQuestions.json (נכנסות כ"ממתינות לאישור")
+  require('./services/quiz').seedQuestions()
+    .then((n) => n && console.log(`[quiz] ${n} שאלות חדשות נוספו (ממתינות לאישור)`))
+    .catch((e) => console.error('[quiz] seed failed:', e.message));
   cleanOldLogs();
   setInterval(cleanOldLogs, 24 * 60 * 60 * 1000);
 

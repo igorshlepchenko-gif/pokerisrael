@@ -19,6 +19,7 @@ import Podcasts from './pages/Podcasts';
 import Communities from './pages/Communities';
 import Lessons from './pages/Lessons';
 import OnlinePoker from './pages/OnlinePoker';
+import Quiz from './pages/Quiz';
 import CookieConsent from './components/CookieConsent';
 import HolidayGreeting from './components/HolidayGreeting';
 import AccessibilityWidget from './components/AccessibilityWidget';
@@ -52,6 +53,7 @@ function AppRoutes() {
           <Route path="/communities" element={<Communities />} />
           <Route path="/lessons" element={<Lessons />} />
           <Route path="/online" element={<OnlinePoker />} />
+          <Route path="/quiz" element={<Quiz />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/today" element={<TodayShare />} />

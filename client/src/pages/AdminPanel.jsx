@@ -8,6 +8,7 @@ import SecurityLog from '../components/Admin/SecurityLog';
 import PushSetup from '../components/Admin/PushSetup';
 import FeedHealthBanner from '../components/Admin/FeedHealthBanner';
 import DrivePromos from '../components/Admin/DrivePromos';
+import QuizAdmin from '../components/Admin/QuizAdmin';
 import VisitsReport from '../components/Admin/VisitsReport';
 import TournamentEditForm from '../components/TournamentEditForm';
 
@@ -264,7 +265,7 @@ export default function AdminPanel() {
         setAgentSources(src.data);
         setPendingImports(pend.data);
         setPendingVenueList(venues.data);
-      } else if (tab === 'security' || tab === 'visits' || tab === 'online-promos') {
+      } else if (tab === 'security' || tab === 'visits' || tab === 'online-promos' || tab === 'quiz') {
         // SecurityLog / VisitsReport / DrivePromos טוענים את הנתונים בעצמם
       } else {
         const res = await api.get('/admin/users');
@@ -420,6 +421,7 @@ export default function AdminPanel() {
           ['imports', '📥 ייבוא מפרסומים'],
           ['locations', '📍 מיקומים'],
           ['online-promos', '🌐 פרסומי אונליין'],
+          ['quiz', '🎲 שעשועון'],
           ['ab', '🧪 A/B'],
           ['visits', '📊 כניסות'],
           ['security', '🛡️ אבטחה'],
@@ -1735,6 +1737,8 @@ export default function AdminPanel() {
           {tab === 'locations' && <LocationsManager />}
 
           {tab === 'online-promos' && <DrivePromos />}
+
+          {tab === 'quiz' && <QuizAdmin />}
 
           {tab === 'ab' && <AbResults />}
 

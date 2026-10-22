@@ -313,6 +313,85 @@ async function ensureSchema() {
         created_at  TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
         expires_at  TIMESTAMP WITH TIME ZONE
       )`,
+      // ── שעשועון הפוקר (services/quiz.js) ──────────────────────────────────
+      // שאלות: נכנסות מ-data/quizQuestions.json כ-pending, ומופיעות לגולשים רק אחרי אישור בפאנל
+      `CREATE TABLE IF NOT EXISTS quiz_questions (
+        id            SERIAL PRIMARY KEY,
+        question_key  CHAR(32) NOT NULL UNIQUE,
+        category      VARCHAR(20) NOT NULL,
+        difficulty    SMALLINT NOT NULL CHECK (difficulty BETWEEN 1 AND 3),
+        question      TEXT NOT NULL,
+        options       JSONB NOT NULL,
+        correct       SMALLINT NOT NULL,
+        explanation   TEXT,
+        source        TEXT,
+        status        VARCHAR(10) NOT NULL DEFAULT 'pending',
+        times_shown   INT NOT NULL DEFAULT 0,
+        times_correct INT NOT NULL DEFAULT 0,
+        flags         INT NOT NULL DEFAULT 0,
+        created_at    TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        updated_at    TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_quiz_questions_status ON quiz_questions(status, category)`,
+      // הסט היומי — נקבע בפעם הראשונה שמישהו משחק באותו יום, ואז זהה לכולם
+      `CREATE TABLE IF NOT EXISTS quiz_daily_sets (
+        day           DATE PRIMARY KEY,
+        question_ids  INT[] NOT NULL,
+        created_at    TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      )`,
+      // משחק: id אקראי ארוך (גם המפתח של אורח למשחק שלו). day = התאריך בישראל
+      `CREATE TABLE IF NOT EXISTS quiz_games (
+        id            CHAR(32) PRIMARY KEY,
+        user_id       INT REFERENCES users(id) ON DELETE CASCADE,
+        mode          VARCHAR(10) NOT NULL,
+        topic         VARCHAR(20),
+        day           DATE NOT NULL,
+        question_ids  INT[] NOT NULL,
+        idx           INT NOT NULL DEFAULT 0,
+        stack         INT NOT NULL,
+        bet           INT,
+        revealed_at   TIMESTAMP WITH TIME ZONE,
+        results       VARCHAR(60) NOT NULL DEFAULT '',
+        status        VARCHAR(10) NOT NULL DEFAULT 'active',
+        ranked        BOOLEAN NOT NULL DEFAULT false,
+        points        INT NOT NULL DEFAULT 0,
+        started_at    TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        finished_at   TIMESTAMP WITH TIME ZONE
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_quiz_games_user_day ON quiz_games(user_id, day)`,
+      `CREATE INDEX IF NOT EXISTS idx_quiz_games_ranked ON quiz_games(day) WHERE ranked`,
+      // סט יומי מדורג אחד לכל משתמש ביום
+      `CREATE UNIQUE INDEX IF NOT EXISTS uq_quiz_daily_once ON quiz_games(user_id, day) WHERE mode = 'daily' AND ranked`,
+      `CREATE TABLE IF NOT EXISTS quiz_answers (
+        game_id       CHAR(32) NOT NULL REFERENCES quiz_games(id) ON DELETE CASCADE,
+        idx           INT NOT NULL,
+        question_id   INT NOT NULL REFERENCES quiz_questions(id) ON DELETE CASCADE,
+        user_id       INT,
+        bet           INT NOT NULL,
+        choice        SMALLINT,
+        correct       BOOLEAN NOT NULL,
+        ms            INT,
+        created_at    TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        PRIMARY KEY (game_id, idx)
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_quiz_answers_user ON quiz_answers(user_id, created_at)`,
+      // דיווחי גולשים על שאלה שגויה
+      `CREATE TABLE IF NOT EXISTS quiz_flags (
+        id            SERIAL PRIMARY KEY,
+        question_id   INT NOT NULL REFERENCES quiz_questions(id) ON DELETE CASCADE,
+        user_id       INT,
+        reason        VARCHAR(300),
+        created_at    TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      )`,
+      // כינוי בטבלת הדירוג (אם ריק — שם פרטי + אות ראשונה של המשפחה)
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS quiz_nickname VARCHAR(24)`,
+      // גישה לשעשועון בשלב הסגור — המנהל מאשר משתמשים ידנית (או פותח לכולם: app_settings 'quiz_open_to_all')
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS quiz_access BOOLEAN NOT NULL DEFAULT false`,
+      // שאלה של מועדון מסוים (צ'אלנג' QR) — NULL = שאלה כללית
+      `ALTER TABLE quiz_questions ADD COLUMN IF NOT EXISTS venue_id INT REFERENCES venues(id) ON DELETE CASCADE`,
+      // שפת השאלה — לשעשועון בכמה שפות בעתיד
+      `ALTER TABLE quiz_questions ADD COLUMN IF NOT EXISTS lang VARCHAR(5) NOT NULL DEFAULT 'he'`,
+      `ALTER TABLE quiz_games ADD COLUMN IF NOT EXISTS venue_id INT REFERENCES venues(id) ON DELETE SET NULL`,
     ];
     for (const sql of MIGRATIONS) {
       try { await pool.query(sql); } catch (e) { console.error('migration failed:', e.message); }
