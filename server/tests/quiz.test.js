@@ -73,6 +73,14 @@ test('pickQuestions follows the difficulty plan, mixes topics, falls back when s
   assert.ok(engine.pickQuestions(pool, [1, 2], { preferred }).every((i) => preferred.has(i)));
 });
 
+test('card questions get extra time', () => {
+  assert.ok(engine.hasCards('בורד: K♠ 8♦ 10♣'));
+  assert.ok(!engine.hasCards('מי זכה ב-2003?'));
+  assert.equal(engine.answerSecondsFor('daily', 'מי זכה ב-2003?'), 20);
+  assert.equal(engine.answerSecondsFor('daily', 'בורד: K♠ 8♦ 4♣. מי מנצח?'), 20 + config.cardBonusSeconds);
+  assert.equal(engine.answerSecondsFor('clock', 'בורד: K♠ 8♦ 4♣'), null); // נגד השעון — שעון אחד למשחק
+});
+
 test('answer timing with grace, and the share line', () => {
   assert.ok(engine.inTime(0, 20000, 20));
   assert.ok(engine.inTime(0, 20000 + config.graceMs, 20));

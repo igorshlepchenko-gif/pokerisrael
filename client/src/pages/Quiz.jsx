@@ -4,6 +4,7 @@ import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { useQuizAccess, QUIZ_NAME } from '../utils/quizAccess';
 import { QuestionsSection } from '../components/Admin/QuizAdmin';
+import { QuestionText, CardText } from '../components/QuizCards';
 
 // ── שעשועון פוקר ───────────────────────────────────────────────────────────
 // כל משחק מתחיל עם 1,000 צ'יפים. לפני כל שאלה רואים רק נושא + קושי ומהמרים; תשובה
@@ -440,7 +441,7 @@ function BetPanel({ s, busy, onBet }) {
         className={`mt-4 w-full min-h-[52px] rounded-2xl text-lg font-black transition-colors disabled:opacity-50 ${amount === s.stack ? 'bg-red-600 hover:bg-red-500 text-white' : 'bg-amber-500 hover:bg-amber-400 text-slate-950'}`}>
         {amount === s.stack ? `🔥 אול-אין ${fmt(amount)}` : `מהמר ${fmt(amount)} וחושף את השאלה`}
       </button>
-      <p className="text-center text-xs text-slate-500 mt-2">נכון: +{fmt(win)} · טעות: −{fmt(amount)} · 20 שניות לענות</p>
+      <p className="text-center text-xs text-slate-500 mt-2">נכון: +{fmt(win)} · טעות: −{fmt(amount)} · {s.next.seconds || 20} שניות לענות</p>
     </div>
   );
 }
@@ -476,12 +477,12 @@ function QuestionCard({ s, busy, picked, onAnswer, flash }) {
           <div className={`h-full transition-[width] duration-100 ${left < 5000 ? 'bg-red-500' : 'bg-amber-400'}`} style={{ width: `${(left / total) * 100}%`, marginInlineStart: 0 }} />
         </div>
       )}
-      <h2 className="text-lg sm:text-xl font-bold text-white leading-relaxed mb-4">{s.question.text}</h2>
+      <h2 className="text-lg sm:text-xl font-bold text-white leading-relaxed mb-4"><QuestionText text={s.question.text} /></h2>
       <div className="grid gap-2">
         {s.question.options.map((o, i) => (
           <button key={i} disabled={busy} onClick={() => choose(i)}
             className={`text-right min-h-[52px] px-4 py-3 rounded-2xl border-2 font-semibold transition-colors ${picked === i ? 'border-amber-400 bg-amber-500/20 text-white' : 'border-slate-700 bg-slate-800/60 text-slate-100 hover:border-amber-400/70'}`}>
-            {o}
+            <CardText text={o} />
           </button>
         ))}
       </div>
@@ -510,11 +511,11 @@ function Feedback({ last, s, onNext, isAdmin }) {
       </p>
       {last.question && (
         <>
-          <p className="text-slate-200 mt-4 mb-3 leading-relaxed">{last.question.text}</p>
+          <div className="text-slate-200 mt-4 mb-3 leading-relaxed"><QuestionText text={last.question.text} /></div>
           <div className="grid gap-1.5">
             {last.question.options.map((o, i) => (
               <div key={i} className={`px-3 py-2 rounded-xl text-sm ${i === last.correctIndex ? 'bg-emerald-500/25 text-emerald-100 font-bold' : i === last.choice ? 'bg-red-500/25 text-red-100 line-through' : 'text-slate-400'}`}>
-                {i === last.correctIndex ? '✓ ' : ''}{o}
+                {i === last.correctIndex ? '✓ ' : ''}<CardText text={o} />
               </div>
             ))}
           </div>

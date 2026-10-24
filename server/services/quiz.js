@@ -230,13 +230,14 @@ async function stateOf(client, g) {
   const qid = g.question_ids[g.idx];
   const q = await questionPublic(client, qid);
   s.blind = engine.blindFor(g.mode, g.idx);
-  s.next = { category: q.category, categoryLabel: config.categories[q.category], difficulty: q.difficulty, payout: config.payout[q.difficulty] };
+  const seconds = engine.answerSecondsFor(g.mode, q.question);
+  s.next = { category: q.category, categoryLabel: config.categories[q.category], difficulty: q.difficulty, payout: config.payout[q.difficulty], seconds };
   if (g.bet != null) {
     s.bet = g.bet;
     s.question = { text: q.question, options: q.options };
     if (g.mode !== 'clock') {
-      s.answerSeconds = m.answerSeconds;
-      s.msLeft = Math.max(0, new Date(g.revealed_at).getTime() + m.answerSeconds * 1000 - Date.now());
+      s.answerSeconds = seconds;
+      s.msLeft = Math.max(0, new Date(g.revealed_at).getTime() + seconds * 1000 - Date.now());
     }
   }
   return s;
@@ -287,11 +288,11 @@ async function answer(id, user, choice) {
     if (g.bet == null) throw httpError(409, 'קודם מהמרים');
     const m = config.modes[g.mode];
     const qid = g.question_ids[g.idx];
-    const qr = await client.query(`SELECT difficulty, options, correct, explanation FROM quiz_questions WHERE id = $1`, [qid]);
+    const qr = await client.query(`SELECT question, difficulty, options, correct, explanation FROM quiz_questions WHERE id = $1`, [qid]);
     const q = qr.rows[0];
     const now = Date.now();
     const ms = now - new Date(g.revealed_at).getTime();
-    const onTime = g.mode === 'clock' || engine.inTime(new Date(g.revealed_at).getTime(), now, m.answerSeconds);
+    const onTime = g.mode === 'clock' || engine.inTime(new Date(g.revealed_at).getTime(), now, engine.answerSecondsFor(g.mode, q.question));
     const c = Number.isInteger(choice) && choice >= 0 && choice < q.options.length ? choice : null;
     const correct = onTime && c === q.correct;
     const bet = g.bet;

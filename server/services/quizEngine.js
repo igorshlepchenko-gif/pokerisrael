@@ -82,9 +82,17 @@ function inTime(revealedAt, now, seconds) {
   return now - revealedAt <= seconds * 1000 + config.graceMs;
 }
 
+// יש בטקסט קלפים כמו A♠ / 10♦ (→ זמן נוסף לענות)
+const hasCards = (text) => /(?:10|[2-9TJQKA])[♠♥♦♣]/.test(String(text || ''));
+// כמה שניות לענות על שאלה במצב הזה
+function answerSecondsFor(mode, questionText) {
+  const base = modeConf(mode).answerSeconds;
+  return base == null ? null : base + (hasCards(questionText) ? config.cardBonusSeconds || 0 : 0);
+}
+
 // שורת התוצאה לשיתוף: 🟩 נכון, 🟥 טעות, ⬜ לא הספיק
 function shareLine(results) {
   return [...results].map((r) => (r === 'C' ? '🟩' : r === 'T' ? '⬜' : '🟥')).join('');
 }
 
-module.exports = { blindFor, validateBet, settle, seededRandom, shuffle, pickQuestions, inTime, shareLine, modeConf, round5 };
+module.exports = { blindFor, validateBet, settle, seededRandom, shuffle, pickQuestions, inTime, shareLine, modeConf, round5, hasCards, answerSecondsFor };
