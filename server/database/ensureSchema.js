@@ -387,6 +387,11 @@ async function ensureSchema() {
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS quiz_nickname VARCHAR(24)`,
       // גישה לשעשועון בשלב הסגור — המנהל מאשר משתמשים ידנית (או פותח לכולם: app_settings 'quiz_open_to_all')
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS quiz_access BOOLEAN NOT NULL DEFAULT false`,
+      // בודק שאלות: משחק גם בשאלות ממתינות ומאשר/פוסל/עורך שאלות (לא שאר פאנל הניהול)
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS quiz_reviewer BOOLEAN NOT NULL DEFAULT false`,
+      // מי אישר/פסל/ערך את השאלה לאחרונה
+      `ALTER TABLE quiz_questions ADD COLUMN IF NOT EXISTS reviewed_by INT REFERENCES users(id) ON DELETE SET NULL`,
+      `ALTER TABLE quiz_questions ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMP WITH TIME ZONE`,
       // שאלה של מועדון מסוים (צ'אלנג' QR) — NULL = שאלה כללית
       `ALTER TABLE quiz_questions ADD COLUMN IF NOT EXISTS venue_id INT REFERENCES venues(id) ON DELETE CASCADE`,
       // שפת השאלה — לשעשועון בכמה שפות בעתיד

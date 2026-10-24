@@ -49,6 +49,8 @@ function AccessSection() {
     act(() => api.put('/quiz/admin/access/users', { ids: 'all', allowed }), allowed ? 'כל המשתמשים קיבלו גישה' : 'הגישה נלקחה מכולם');
   };
   const toggle = (u) => act(() => api.put('/quiz/admin/access/users', { ids: [u.id], allowed: !u.quiz_access }));
+  const toggleReviewer = (u) => act(() => api.put('/quiz/admin/access/reviewers', { ids: [u.id], reviewer: !u.quiz_reviewer }),
+    u.quiz_reviewer ? `${u.name} כבר לא בודק שאלות` : `${u.name} הוא עכשיו בודק שאלות — משחק גם בממתינות, ומאשר/פוסל שאלות מתוך השעשועון`);
 
   if (!data) return <p className="text-slate-400 py-6 text-center">טוען…</p>;
   const term = q.trim().toLowerCase();
@@ -60,6 +62,7 @@ function AccessSection() {
       <div className={`rounded-xl border p-4 ${data.open ? 'border-emerald-500/50 bg-emerald-500/10' : 'border-amber-500/40 bg-amber-500/10'}`}>
         <p className="font-bold text-white">{data.open ? '🌍 פתוח לכולם — כל הגולשים רואים את השעשועון (גם בלי חשבון)' : '🔒 שלב סגור — רק אתה והמשתמשים שאישרת'}</p>
         <p className="text-xs text-slate-400 mt-1">כשסגור: מי שלא אושר רואה מסך "בשלב סגור", והקישור בתפריט מוסתר ממנו.</p>
+        <p className="text-xs text-slate-400">🔍 בודק — משחק גם בשאלות ממתינות, פוסל שאלה בלחיצה ומאשר/עורך שאלות במסך "בדיקת שאלות" בתוך השעשועון.</p>
         <button onClick={() => setOpen(!data.open)}
           className={`mt-3 px-4 py-2 rounded-lg text-sm font-bold ${data.open ? 'bg-slate-700 text-white' : 'bg-emerald-600 text-white'}`}>
           {data.open ? 'לסגור חזרה לשלב סגור' : 'לפתוח לכולם'}
@@ -83,10 +86,17 @@ function AccessSection() {
               <p className="text-xs text-slate-500 truncate" dir="ltr" style={{ direction: 'ltr', textAlign: 'right' }}>{u.email}</p>
             </div>
             {u.role === 'admin' ? <span className="text-xs text-slate-500">תמיד</span> : (
-              <button onClick={() => toggle(u)} role="switch" aria-checked={u.quiz_access}
-                className={`min-w-[88px] px-3 py-1.5 rounded-lg text-sm font-bold ${u.quiz_access ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-400 border border-slate-600'}`}>
-                {u.quiz_access ? '✓ יש גישה' : 'אין גישה'}
-              </button>
+              <>
+                <button onClick={() => toggleReviewer(u)} role="switch" aria-checked={u.quiz_reviewer}
+                  title="בודק שאלות: משחק גם בממתינות ומאשר/פוסל/עורך שאלות"
+                  className={`min-w-[88px] px-3 py-1.5 rounded-lg text-sm font-bold ${u.quiz_reviewer ? 'bg-sky-600 text-white' : 'bg-slate-800 text-slate-500 border border-slate-700'}`}>
+                  {u.quiz_reviewer ? '🔍 בודק' : 'לא בודק'}
+                </button>
+                <button onClick={() => toggle(u)} role="switch" aria-checked={u.quiz_access} disabled={u.quiz_reviewer}
+                  className={`min-w-[88px] px-3 py-1.5 rounded-lg text-sm font-bold disabled:opacity-60 ${u.quiz_access ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-400 border border-slate-600'}`}>
+                  {u.quiz_access ? '✓ יש גישה' : 'אין גישה'}
+                </button>
+              </>
             )}
           </div>
         ))}
@@ -99,7 +109,7 @@ function AccessSection() {
 // ── שאלות: סקירה, אישור, עריכה ────────────────────────────────────────────
 const EMPTY = { category: 'rules', difficulty: 2, question: '', options: ['', '', '', ''], correct: 0, explanation: '', source: '', status: 'approved', venue_id: '' };
 
-function QuestionsSection({ presetClub = null, onSaved }) {
+export function QuestionsSection({ presetClub = null, onSaved }) {
   const [status, setStatus] = useState(presetClub ? '' : 'pending');
   const [category, setCategory] = useState(presetClub ? 'club' : '');
   const [data, setData] = useState(null);
@@ -167,7 +177,7 @@ function QuestionsSection({ presetClub = null, onSaved }) {
             <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400 mb-1">
               <span className="px-2 py-0.5 rounded bg-slate-800">{cats[q.category]}{q.venue_name ? ` · ${q.venue_name}` : ''}</span>
               <span>{DIFF[q.difficulty]}</span>
-              <span>{STATUS[q.status]}</span>
+              <span>{STATUS[q.status]}{q.reviewed_by_name ? ` · ע"י ${q.reviewed_by_name}` : ''}</span>
               {q.times_shown > 0 && <span>הוצגה {q.times_shown} · {Math.round((q.times_correct / q.times_shown) * 100)}% צדקו</span>}
               {q.flags > 0 && <span className="text-red-300 font-bold">🚩 {q.flags} דיווחים{q.flag_reasons?.length ? `: ${q.flag_reasons.slice(0, 3).join(' | ')}` : ''}</span>}
             </div>

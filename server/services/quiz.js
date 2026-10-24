@@ -38,7 +38,10 @@ async function seedQuestions(file = path.join(__dirname, '../data/quizQuestions.
 }
 
 // שאלות שמותר להגיש. אדמין (שלב הבדיקה) רואה גם שאלות שעוד לא אושרו, כדי לבדוק אותן תוך כדי משחק
-const statusesFor = (user) => (user?.role === 'admin' ? ['approved', 'pending'] : ['approved']);
+// בודק שאלות = אדמין, או משתמש שקיבל בפאנל "בודק" (users.quiz_reviewer): משחק גם בשאלות ממתינות,
+// פוסל שאלה בלחיצה תוך כדי משחק, ומאשר/עורך שאלות במסך "בדיקת שאלות"
+const isReviewer = (user) => user?.role === 'admin' || !!user?.quiz_reviewer;
+const statusesFor = (user) => (isReviewer(user) ? ['approved', 'pending'] : ['approved']);
 
 // שאלות כלליות (venue_id IS NULL). שאלות של מועדון מוגשות רק בצ'אלנג' של אותו מועדון
 async function candidates(statuses, topic = null) {
@@ -64,7 +67,8 @@ async function isOpenToAll() {
 }
 async function access(user) {
   const open = await isOpenToAll();
-  return { open, loggedIn: !!user, allowed: open || user?.role === 'admin' || !!user?.quiz_access };
+  const reviewer = isReviewer(user);
+  return { open, loggedIn: !!user, reviewer, allowed: open || reviewer || !!user?.quiz_access };
 }
 async function requireAccess(user) {
   if (!(await access(user)).allowed) throw httpError(403, user ? 'השעשועון בשלב סגור — עוד לא קיבלת גישה' : 'השעשועון בשלב סגור');
@@ -98,7 +102,7 @@ async function dailySet(day, user) {
     await pool.query(`INSERT INTO quiz_daily_sets (day, question_ids) VALUES ($1,$2) ON CONFLICT (day) DO NOTHING`, [day, ids]);
     return (await pool.query(`SELECT question_ids FROM quiz_daily_sets WHERE day = $1`, [day])).rows[0].question_ids;
   }
-  if (user?.role !== 'admin') throw httpError(503, 'השעשועון עוד לא מוכן — חסרות שאלות');
+  if (!isReviewer(user)) throw httpError(503, 'השעשועון עוד לא מוכן — חסרות שאלות');
   const preview = engine.pickQuestions(await candidates(statusesFor(user)), m.difficulties, { rand: engine.seededRandom(`daily:${day}`) });
   if (preview.length < m.questions) throw httpError(503, 'אין מספיק שאלות לסט יומי');
   return preview;
@@ -419,9 +423,9 @@ async function flagQuestion(user, questionId, reason) {
   await requireAccess(user);
   const id = Number(questionId);
   if (!Number.isInteger(id)) throw httpError(400, 'שאלה לא תקינה');
-  // אדמין שמסמן שאלה תוך כדי משחק — נפסלת מיד (שלב הבדיקה)
-  if (user?.role === 'admin') {
-    await pool.query(`UPDATE quiz_questions SET status = 'rejected', updated_at = NOW() WHERE id = $1`, [id]);
+  // בודק שמסמן שאלה תוך כדי משחק — נפסלת מיד
+  if (isReviewer(user)) {
+    await pool.query(`UPDATE quiz_questions SET status = 'rejected', reviewed_by = $2, reviewed_at = NOW(), updated_at = NOW() WHERE id = $1`, [id, user.id]);
     return { rejected: true };
   }
   await pool.query(`INSERT INTO quiz_flags (question_id, user_id, reason) VALUES ($1,$2,$3)`, [id, user?.id || null, String(reason || '').slice(0, 300) || null]);
@@ -445,8 +449,8 @@ const NOT_SEED = `COALESCE((to_jsonb(u) ->> 'is_seed_data')::boolean, false) = f
 
 async function adminAccess() {
   const users = await pool.query(
-    `SELECT u.id, u.name, u.email, u.role, u.quiz_access, u.is_active FROM users u WHERE ${NOT_SEED}
-     ORDER BY (u.role = 'admin') DESC, u.quiz_access DESC, u.name`);
+    `SELECT u.id, u.name, u.email, u.role, u.quiz_access, u.quiz_reviewer, u.is_active FROM users u WHERE ${NOT_SEED}
+     ORDER BY (u.role = 'admin') DESC, u.quiz_reviewer DESC, u.quiz_access DESC, u.name`);
   return { open: await isOpenToAll(), users: users.rows };
 }
 async function adminSetOpen(open) {
@@ -460,6 +464,14 @@ async function adminSetUserAccess(userIds, allowed) {
   const r = userIds === 'all'
     ? await pool.query(`UPDATE users u SET quiz_access = $1 WHERE u.role <> 'admin' AND ${NOT_SEED}`, [!!allowed])
     : await pool.query(`UPDATE users SET quiz_access = $2 WHERE id = ANY($1)`, [(userIds || []).map(Number).filter(Number.isInteger), !!allowed]);
+  return { updated: r.rowCount };
+}
+
+// בודק שאלות — תמיד גם עם גישה
+async function adminSetReviewer(userIds, reviewer) {
+  const ids = (userIds || []).map(Number).filter(Number.isInteger);
+  const r = await pool.query(
+    `UPDATE users SET quiz_reviewer = $2, quiz_access = (quiz_access OR $2) WHERE id = ANY($1) AND role <> 'admin'`, [ids, !!reviewer]);
   return { updated: r.rowCount };
 }
 
@@ -493,8 +505,8 @@ function validateQuestion(q) {
 async function adminList({ status, category }) {
   const r = await pool.query(
     `SELECT q.*, (SELECT COALESCE(json_agg(f.reason ORDER BY f.created_at DESC) FILTER (WHERE f.reason IS NOT NULL), '[]') FROM quiz_flags f WHERE f.question_id = q.id) AS flag_reasons
-       , v.name AS venue_name
-     FROM quiz_questions q LEFT JOIN venues v ON v.id = q.venue_id
+       , v.name AS venue_name, ru.name AS reviewed_by_name
+     FROM quiz_questions q LEFT JOIN venues v ON v.id = q.venue_id LEFT JOIN users ru ON ru.id = q.reviewed_by
      WHERE ($1::text IS NULL OR q.status = $1) AND ($2::text IS NULL OR q.category = $2)
      ORDER BY q.flags DESC, q.category, q.difficulty, q.id`,
     [status || null, category || null]
@@ -503,38 +515,40 @@ async function adminList({ status, category }) {
   return { questions: r.rows, counts: counts.rows, categories: config.categories };
 }
 
-async function adminSave(id, body) {
+// by — מי ששמר/אישר (נשמר ב-reviewed_by, מוצג בפאנל "אושר ע"י")
+async function adminSave(id, body, by = null) {
   const q = validateQuestion(body);
   const status = ['pending', 'approved', 'rejected'].includes(body.status) ? body.status : 'pending';
   if (id) {
     const r = await pool.query(
       `UPDATE quiz_questions SET category=$2, difficulty=$3, question=$4, options=$5, correct=$6, explanation=$7, source=$8, status=$9,
-         venue_id=$10, updated_at=NOW()
+         venue_id=$10, reviewed_by=$11, reviewed_at=NOW(), updated_at=NOW()
        WHERE id=$1 RETURNING *`,
-      [id, q.category, q.difficulty, q.question, JSON.stringify(q.options), q.correct, q.explanation, q.source, status, q.venue_id]
+      [id, q.category, q.difficulty, q.question, JSON.stringify(q.options), q.correct, q.explanation, q.source, status, q.venue_id, by]
     );
     if (!r.rows[0]) throw httpError(404, 'שאלה לא נמצאה');
     return r.rows[0];
   }
   const r = await pool.query(
-    `INSERT INTO quiz_questions (question_key, category, difficulty, question, options, correct, explanation, source, status, venue_id)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT (question_key) DO NOTHING RETURNING *`,
-    [questionKey(q.question), q.category, q.difficulty, q.question, JSON.stringify(q.options), q.correct, q.explanation, q.source, status, q.venue_id]
+    `INSERT INTO quiz_questions (question_key, category, difficulty, question, options, correct, explanation, source, status, venue_id, reviewed_by, reviewed_at)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,NOW()) ON CONFLICT (question_key) DO NOTHING RETURNING *`,
+    [questionKey(q.question), q.category, q.difficulty, q.question, JSON.stringify(q.options), q.correct, q.explanation, q.source, status, q.venue_id, by]
   );
   if (!r.rows[0]) throw httpError(409, 'שאלה זהה כבר קיימת');
   return r.rows[0];
 }
 
-async function adminSetStatus(ids, status) {
+async function adminSetStatus(ids, status, by = null) {
   if (!['pending', 'approved', 'rejected'].includes(status)) throw httpError(400, 'סטטוס לא מוכר');
   const list = (ids || []).map(Number).filter(Number.isInteger);
-  const r = await pool.query(`UPDATE quiz_questions SET status = $2, updated_at = NOW() WHERE id = ANY($1)`, [list, status]);
+  const r = await pool.query(
+    `UPDATE quiz_questions SET status = $2, reviewed_by = $3, reviewed_at = NOW(), updated_at = NOW() WHERE id = ANY($1)`, [list, status, by]);
   return { updated: r.rowCount };
 }
 
 module.exports = {
   seedQuestions, startGame, getState, placeBet, answer, finishClock, access, clubInfo,
-  adminAccess, adminSetOpen, adminSetUserAccess, adminClubs,
+  adminAccess, adminSetOpen, adminSetUserAccess, adminSetReviewer, adminClubs, isReviewer,
   leaderboard, me, setNickname, flagQuestion, displayName, periodStart,
   adminList, adminSave, adminSetStatus, validateQuestion, questionKey, israelDay,
 };

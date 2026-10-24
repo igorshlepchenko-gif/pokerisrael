@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { useQuizAccess, QUIZ_NAME } from '../utils/quizAccess';
+import { QuestionsSection } from '../components/Admin/QuizAdmin';
 
 // ── שעשועון פוקר ───────────────────────────────────────────────────────────
 // כל משחק מתחיל עם 1,000 צ'יפים. לפני כל שאלה רואים רק נושא + קושי ומהמרים; תשובה
@@ -25,10 +26,10 @@ const fmt = (n) => Number(n || 0).toLocaleString('he-IL');
 const errMsg = (e) => e?.response?.data?.message || 'משהו השתבש — נסה שוב';
 
 export default function Quiz() {
-  const { loading, allowed, open } = useQuizAccess();
+  const { loading, allowed, open, reviewer } = useQuizAccess();
   if (loading) return null;
   if (!allowed) return <ClosedBeta />;
-  return <QuizPage open={open} />;
+  return <QuizPage open={open} reviewer={reviewer} />;
 }
 
 // שלב סגור — מי שלא אושר (או אורח) רואה הסבר במקום העמוד
@@ -49,8 +50,9 @@ function ClosedBeta() {
   );
 }
 
-function QuizPage({ open }) {
+function QuizPage({ open, reviewer }) {
   const { user } = useAuth() || {};
+  const [reviewing, setReviewing] = useState(false); // מסך "בדיקת שאלות" לבודקים (לא אדמין — לאדמין יש את הפאנל)
   const [params] = useSearchParams();
   const clubId = /^\d+$/.test(params.get('club') || '') ? params.get('club') : null;
   const [me, setMe] = useState(null);
@@ -78,12 +80,22 @@ function QuizPage({ open }) {
         <div className="bg-amber-500/15 border-b border-amber-500/40 text-amber-200 text-sm font-bold text-center px-4 py-2">
           {user?.role === 'admin'
             ? '🔒 שלב סגור — רק משתמשים שאישרת בפאנל רואים את השעשועון. אתה רואה גם שאלות שעוד לא אישרת'
-            : '🔒 גרסת בטא סגורה — תודה שאתה עוזר לנו לבדוק!'}
+            : reviewer
+              ? '🔍 אתה בודק שאלות — במשחק מופיעות גם שאלות שעוד לא אושרו, ואפשר לפסול שאלה אחרי כל תשובה'
+              : '🔒 גרסת בטא סגורה — תודה שאתה עוזר לנו לבדוק!'}
         </div>
       )}
-      <div className="max-w-2xl mx-auto px-4 py-8">
-        {game
-          ? <Game key={game.id} initial={game} onExit={back} onReplay={(mode, topic, club) => start(mode, topic, club)} isAdmin={user?.role === 'admin'} />
+      {reviewer && user?.role !== 'admin' && !game && (
+        <div className="max-w-2xl mx-auto px-4 pt-4 flex justify-center">
+          <button onClick={() => setReviewing((v) => !v)}
+            className={`px-4 min-h-[40px] rounded-xl text-sm font-bold border ${reviewing ? 'border-sky-400 bg-sky-600 text-white' : 'border-sky-500/50 text-sky-200'}`}>
+            {reviewing ? '← חזרה לשעשועון' : '🔍 בדיקת שאלות — לאשר, לפסול, לערוך'}
+          </button>
+        </div>
+      )}
+      <div className={`${reviewing ? 'max-w-4xl' : 'max-w-2xl'} mx-auto px-4 py-8`}>
+        {reviewing && !game ? <QuestionsSection /> : game
+          ? <Game key={game.id} initial={game} onExit={back} onReplay={(mode, topic, club) => start(mode, topic, club)} isAdmin={reviewer} />
           : <Lobby me={me} onStart={start} error={error} reloadMe={loadMe} clubId={clubId} />}
       </div>
     </div>

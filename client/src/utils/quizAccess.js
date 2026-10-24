@@ -28,7 +28,7 @@ export function useQuizAccess() {
     return () => { alive = false; };
   }, [key, loading]);
 
-  return { loading: loading || !state, allowed: !!state?.allowed, open: !!state?.open };
+  return { loading: loading || !state, allowed: !!state?.allowed, open: !!state?.open, reviewer: !!state?.reviewer };
 }
 
 // אחרי שינוי הרשאות בפאנל — לרענן

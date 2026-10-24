@@ -28,9 +28,11 @@ async function softUser(req, res, next) {
   if (!token) return next();
   try {
     const d = jwt.verify(token, process.env.JWT_SECRET);
-    const r = await pool.query(`SELECT id, role, is_active, token_version, quiz_access FROM users WHERE id = $1`, [d.id]);
+    const r = await pool.query(`SELECT id, role, is_active, token_version, quiz_access, quiz_reviewer FROM users WHERE id = $1`, [d.id]);
     const u = r.rows[0];
-    if (u && u.is_active && d.tokenVersion === u.token_version) req.user = { id: u.id, role: u.role, quiz_access: u.quiz_access };
+    if (u && u.is_active && d.tokenVersion === u.token_version) {
+      req.user = { id: u.id, role: u.role, quiz_access: u.quiz_access, quiz_reviewer: u.quiz_reviewer };
+    }
   } catch { /* אורח */ }
   next();
 }
@@ -57,18 +59,21 @@ router.post('/games/:id/finish', softUser, wrap((req) => quiz.finishClock(req.pa
 router.post('/questions/:id/flag', softUser, wrap((req) => quiz.flagQuestion(req.user, req.params.id, req.body?.reason)));
 router.put('/nickname', authenticate, wrap((req) => quiz.setNickname(req.user, req.body?.nickname)));
 
-// ── ניהול (אדמין) ──
+// ── ניהול ──
+// שאלות — אדמין או בודק שאלות. גישה/מועדונים/QR — אדמין בלבד
 const admin = [authenticate, requireRole('admin')];
-router.get('/admin/questions', ...admin, wrap((req) => quiz.adminList({ status: req.query.status, category: req.query.category })));
-router.post('/admin/questions', ...admin, wrap((req) => quiz.adminSave(null, req.body || {})));
-router.put('/admin/questions/:id', ...admin, wrap((req) => quiz.adminSave(Number(req.params.id), req.body || {})));
-router.post('/admin/questions/status', ...admin, wrap((req) => quiz.adminSetStatus(req.body?.ids, req.body?.status)));
+const reviewer = [softUser, (req, res, next) => (quiz.isReviewer(req.user) ? next() : res.status(403).json({ message: 'אין הרשאה לפעולה זו' }))];
+router.get('/admin/questions', ...reviewer, wrap((req) => quiz.adminList({ status: req.query.status, category: req.query.category })));
+router.post('/admin/questions', ...reviewer, wrap((req) => quiz.adminSave(null, req.body || {}, req.user.id)));
+router.put('/admin/questions/:id', ...reviewer, wrap((req) => quiz.adminSave(Number(req.params.id), req.body || {}, req.user.id)));
+router.post('/admin/questions/status', ...reviewer, wrap((req) => quiz.adminSetStatus(req.body?.ids, req.body?.status, req.user.id)));
 // גישה: מתג כללי, משתמש ספציפי, או כולם (ids: 'all')
 router.get('/admin/access', ...admin, wrap(() => quiz.adminAccess()));
 router.put('/admin/access/open', ...admin, wrap((req) => quiz.adminSetOpen(!!req.body?.open)));
 router.put('/admin/access/users', ...admin, wrap((req) => quiz.adminSetUserAccess(req.body?.ids, !!req.body?.allowed)));
+router.put('/admin/access/reviewers', ...admin, wrap((req) => quiz.adminSetReviewer(req.body?.ids, !!req.body?.reviewer)));
 // מועדונים + QR לשולחן
-router.get('/admin/clubs', ...admin, wrap(() => quiz.adminClubs(SITE)));
+router.get('/admin/clubs', ...reviewer, wrap(() => quiz.adminClubs(SITE))); // לבחירת מועדון בשאלת מועדון
 router.get('/admin/clubs/:id/qr', ...admin, wrap(async (req) => {
   const club = await quiz.clubInfo(req.params.id);
   const link = `${SITE}/quiz?club=${club.id}&utm_source=club_qr`;
