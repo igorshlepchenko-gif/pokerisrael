@@ -178,6 +178,12 @@ function Lobby({ me, onStart, error, reloadMe, clubId }) {
             <p className="text-2xl tracking-wider mt-1" dir="ltr">{me.daily.share}</p>
             <ShareButton points={me.daily.points} line={me.daily.share} day={me.day} />
             <p className="text-xs text-slate-500 mt-2">סט חדש מחר ב-00:00</p>
+            {me.reviewer && (
+              <button onClick={() => onStart('daily')}
+                className="mt-3 w-full min-h-[44px] rounded-xl border border-amber-500/50 text-amber-200 font-bold hover:bg-amber-500/10">
+                🔁 לשחק שוב (לא נספר בטבלה)
+              </button>
+            )}
           </div>
         ) : (
           <button onClick={() => onStart('daily')}

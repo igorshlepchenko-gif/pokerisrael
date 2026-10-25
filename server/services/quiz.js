@@ -136,7 +136,8 @@ async function startGame({ user, mode, topic, venueId }) {
       const prev = await pool.query(
         `SELECT id, status FROM quiz_games WHERE user_id = $1 AND day = $2 AND mode = 'daily' AND ranked`, [userId, day]);
       if (prev.rows[0]?.status === 'active') return getState(prev.rows[0].id, user); // רענון באמצע — ממשיכים
-      if (prev.rows[0]) throw httpError(409, 'כבר שיחקת את הסט היומי היום — מחר יש סט חדש');
+      // בודק/אדמין רשאי לשחק שוב — המשחק החוזר לא מדורג (המכסה היומית כבר נוצלה), הניקוד המקורי נשאר
+      if (prev.rows[0] && !isReviewer(user)) throw httpError(409, 'כבר שיחקת את הסט היומי היום — מחר יש סט חדש');
     }
   } else if (mode === 'club') {
     // 10 שאלות כלליות לפי תוכנית הקושי, ובמקומות 2,5,7,9 — שאלות המועדון (אם יש)
