@@ -119,6 +119,8 @@ async function rankedCountToday(userId, mode, day) {
 // ── משחק ──────────────────────────────────────────────────────────────────
 async function startGame({ user, mode, topic, venueId }) {
   await requireAccess(user);
+  // משחקים רק משתמשים רשומים (החלטת המשתמש 2026-10-29) — אורח רואה לובי וטבלה בלבד
+  if (!user) throw httpError(401, 'כדי לשחק צריך להירשם (חינם) או להתחבר');
   const m = engine.modeConf(mode);
   if (mode === 'topic' && (!config.categories[topic] || topic === 'club')) throw httpError(400, 'נושא לא מוכר');
   let venue = null;

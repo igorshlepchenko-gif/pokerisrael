@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { useQuizAccess, QUIZ_NAME } from '../utils/quizAccess';
 import { QuestionsSection } from '../components/Admin/QuizAdmin';
 import { QuestionText, CardText } from '../components/QuizCards';
 import QuizRulesModal from '../components/QuizRulesModal';
+import { rememberReturn } from '../utils/returnTo';
 
 // ── שעשועון פוקר ───────────────────────────────────────────────────────────
 // כל משחק מתחיל עם 1,000 צ'יפים. לפני כל שאלה רואים רק נושא + קושי ומהמרים; תשובה
@@ -111,6 +112,15 @@ function Lobby({ me, onStart, error, reloadMe, clubId }) {
   const [showRules, setShowRules] = useState(false);
   const [club, setClub] = useState(null);
   const logged = me?.loggedIn;
+  // אורח: רואה את הלובי והטבלה, אבל משחק רק אחרי הרשמה (גם השרת חוסם — services/quiz.js startGame)
+  const guest = !!me && !logged;
+  const navigate = useNavigate();
+  const here = `/quiz${clubId ? `?club=${clubId}` : ''}`;
+  const play = (...args) => {
+    if (!guest) return onStart(...args);
+    rememberReturn(here);
+    navigate('/register');
+  };
   useEffect(() => {
     if (clubId) api.get(`/quiz/clubs/${clubId}`).then((r) => setClub(r.data)).catch(() => setClub(null));
   }, [clubId]);
@@ -144,11 +154,15 @@ function Lobby({ me, onStart, error, reloadMe, clubId }) {
 
       {error && <p className="mb-4 rounded-xl bg-red-500/10 border border-red-500/40 text-red-200 text-sm p-3 text-center">{error}</p>}
 
-      {!logged && me && (
-        <p className="mb-4 rounded-xl bg-sky-500/10 border border-sky-500/30 text-sky-100 text-sm p-3 text-center">
-          אפשר לשחק גם בלי חשבון — אבל רק <Link to="/register" className="underline font-bold">משתמשים רשומים</Link> נכנסים לטבלה וצוברים ניקוד.
-          {' '}<Link to="/login" className="underline">התחברות</Link>
-        </p>
+      {guest && (
+        <section className="mb-4 rounded-2xl border border-sky-500/40 bg-sky-500/10 p-4 text-center">
+          <p className="text-sky-100 font-black text-lg">🔒 כדי לשחק צריך חשבון</p>
+          <p className="text-sm text-slate-300 mt-1">ההרשמה חינם ולוקחת דקה — ואז הניקוד שלך נכנס לטבלה.</p>
+          <div className="mt-3 flex gap-2 justify-center">
+            <Link to="/register" onClick={() => rememberReturn(here)} className="min-h-[44px] px-6 inline-flex items-center rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-black">הרשמה חינם</Link>
+            <Link to="/login" onClick={() => rememberReturn(here)} className="min-h-[44px] px-6 inline-flex items-center rounded-xl border border-sky-400/50 text-sky-100 font-bold hover:bg-white/5">יש לי חשבון</Link>
+          </div>
+        </section>
       )}
 
       {/* צ'אלנג' מועדון — מי שסרק את ה-QR בשולחן */}
@@ -161,7 +175,7 @@ function Lobby({ me, onStart, error, reloadMe, clubId }) {
               <p className="text-sm text-slate-400">10 שאלות{club.questions ? `, חלקן על ${club.name}` : ''}. טבלה נפרדת לשחקני המועדון.</p>
             </div>
           </div>
-          <button onClick={() => onStart('club', null, club.id)}
+          <button onClick={() => play('club', null, club.id)}
             className="mt-4 w-full min-h-[52px] rounded-2xl bg-violet-600 hover:bg-violet-500 text-white text-lg font-black transition-colors">
             לשחק את הצ'אלנג' של {club.name} ←
           </button>
@@ -185,14 +199,14 @@ function Lobby({ me, onStart, error, reloadMe, clubId }) {
             <ShareButton points={me.daily.points} line={me.daily.share} day={me.day} />
             <p className="text-xs text-slate-500 mt-2">סט חדש מחר ב-00:00</p>
             {me.reviewer && (
-              <button onClick={() => onStart('daily')}
+              <button onClick={() => play('daily')}
                 className="mt-3 w-full min-h-[44px] rounded-xl border border-amber-500/50 text-amber-200 font-bold hover:bg-amber-500/10">
                 🔁 לשחק שוב (לא נספר בטבלה)
               </button>
             )}
           </div>
         ) : (
-          <button onClick={() => onStart('daily')}
+          <button onClick={() => play('daily')}
             className="mt-4 w-full min-h-[52px] rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-lg font-black transition-colors">
             {logged && me.daily ? 'להמשיך את הסט היומי ←' : 'לשחק את הסט היומי ←'}
           </button>
@@ -201,7 +215,7 @@ function Lobby({ me, onStart, error, reloadMe, clubId }) {
 
       {/* מצבים נוספים */}
       <div className="grid sm:grid-cols-2 gap-3 mb-2">
-        <button onClick={() => onStart('clock')}
+        <button onClick={() => play('clock')}
           className="text-right rounded-2xl border border-slate-700 bg-slate-900 hover:border-sky-400 p-4 transition-colors">
           <p className="text-lg font-black text-white">⏱️ נגד השעון</p>
           <p className="text-sm text-slate-400">90 שניות. כל שאלה על הבליינד — כמה שיותר נכונות.</p>
@@ -215,7 +229,7 @@ function Lobby({ me, onStart, error, reloadMe, clubId }) {
       {showTopics && (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-2">
           {TOPICS.map((k) => [k, CATEGORIES[k]]).map(([k, c]) => (
-            <button key={k} onClick={() => onStart('topic', k)}
+            <button key={k} onClick={() => play('topic', k)}
               className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 px-3 py-3 text-sm font-bold text-emerald-100">
               {c.icon} {c.label}
             </button>
