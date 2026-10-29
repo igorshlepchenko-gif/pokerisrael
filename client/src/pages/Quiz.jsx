@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useQuizAccess, QUIZ_NAME } from '../utils/quizAccess';
 import { QuestionsSection } from '../components/Admin/QuizAdmin';
 import { QuestionText, CardText } from '../components/QuizCards';
+import QuizRulesModal from '../components/QuizRulesModal';
 
 // ── שעשועון פוקר ───────────────────────────────────────────────────────────
 // כל משחק מתחיל עם 1,000 צ'יפים. לפני כל שאלה רואים רק נושא + קושי ומהמרים; תשובה
@@ -107,6 +108,7 @@ function QuizPage({ open, reviewer }) {
 function Lobby({ me, onStart, error, reloadMe, clubId }) {
   const [showTopics, setShowTopics] = useState(false);
   const [showHow, setShowHow] = useState(false);
+  const [showRules, setShowRules] = useState(false);
   const [club, setClub] = useState(null);
   const logged = me?.loggedIn;
   useEffect(() => {
@@ -116,7 +118,7 @@ function Lobby({ me, onStart, error, reloadMe, clubId }) {
   return (
     <>
       <header className="text-center mb-6">
-        <div className="text-5xl mb-2" aria-hidden="true">🎲</div>
+        <img src="/quiz/logo-192.webp" alt="" width="96" height="96" className="w-24 h-24 mx-auto mb-2 drop-shadow-[0_0_18px_rgba(29,78,216,0.55)]" />
         <h1 className="text-3xl font-black text-white">{QUIZ_NAME}</h1>
         <p className="text-sm text-amber-300/80 font-bold">שעשועון הפוקר של פוקר ישראל</p>
         <p className="text-slate-400 mt-2 text-sm leading-relaxed">
@@ -133,8 +135,12 @@ function Lobby({ me, onStart, error, reloadMe, clubId }) {
           <p>❌ טעות או שלא הספקת (20 שניות): ההימור הולך. 0 צ'יפים = הודחת.</p>
           <p>🏆 הניקוד של משחק = הצ'יפים שנשארו לך בסופו. הוא נצבר לטבלה היומית, לעונה (רבעון) ולכל הזמנים.</p>
           <p>🗓️ הסט היומי — אותן 10 שאלות לכולם, פעם אחת ביום. "לפי נושא" ו"נגד השעון" — עד 5 משחקים מדורגים ביום, ואחר כך אפשר להמשיך לשחק לכיף.</p>
+          <button onClick={() => setShowRules(true)} className="mt-2 w-full min-h-[44px] rounded-xl border border-amber-500/50 text-amber-200 font-bold hover:bg-amber-500/10">
+            📖 כרטיס החוקים המלא
+          </button>
         </div>
       )}
+      {showRules && <QuizRulesModal onClose={() => setShowRules(false)} />}
 
       {error && <p className="mb-4 rounded-xl bg-red-500/10 border border-red-500/40 text-red-200 text-sm p-3 text-center">{error}</p>}
 
