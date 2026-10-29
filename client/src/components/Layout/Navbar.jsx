@@ -120,8 +120,10 @@ export default function Navbar() {
 
       {/* Mobile dropdown menu */}
       {menuOpen && (
-        <div className={`${bp.burger} border-t px-4 py-3 flex flex-col gap-1`}
+        <div className={`${bp.burger} border-t px-4 py-3`}
           style={{ background: 'rgba(6,9,26,0.98)', borderColor: 'rgba(29,78,216,0.2)' }}>
+        {/* עמודה צרה בצד ימין — בלי זה, במסך רחב (טאבלט/מחשב קטן) הקישורים וכפתור היציאה נמתחים לכל רוחב החלון */}
+        <div className="w-full max-w-xs ml-auto flex flex-col gap-1">
 
           {/* Nav links */}
           {navLinks.map(({ to, label, amber, icon }) => (
@@ -159,6 +161,7 @@ export default function Navbar() {
               </Link>
             </div>
           )}
+        </div>
         </div>
       )}
     </nav>
