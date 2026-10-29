@@ -32,12 +32,12 @@ export default function Navbar() {
     { to: '/admin', label: 'ניהול מערכת', show: user?.role === 'admin', amber: true },
   ].filter(l => l.show);
 
-  // כמה קישורים נכנסים בשורה אחת? אורח (7) — מ-xl/1280; מחובר עם ניהול (עד 10) — רק מ-2xl/1536,
+  // כמה קישורים נכנסים בשורה אחת? אורח (7) — מ-xl/1280; מחובר עם ניהול (עד 10) — רק מ-1700px,
   // ושם גם המיכל מתרחב. מתחת לזה — תפריט המבורגר, כדי שלא יהיה צפוף. מחרוזות מלאות בשביל Tailwind.
   const crowded = navLinks.length > 7;
   const bp = crowded
-    ? { row: 'hidden 2xl:flex', block: 'hidden 2xl:block', flex: 'hidden 2xl:flex', burger: '2xl:hidden', clock: 'hidden min-[1800px]:block', wrap: 'max-w-7xl 2xl:max-w-screen-2xl', pad: 'px-2.5 min-[1800px]:px-4' }
-    : { row: 'hidden xl:flex', block: 'hidden xl:block', flex: 'hidden xl:flex', burger: 'xl:hidden', clock: 'hidden 2xl:block', wrap: 'max-w-7xl', pad: 'px-2.5 2xl:px-4' };
+    ? { row: 'hidden min-[1700px]:flex', block: 'hidden min-[1700px]:block', flex: 'hidden min-[1700px]:flex', burger: 'min-[1700px]:hidden', clock: 'hidden min-[1900px]:block', wrap: 'max-w-7xl min-[1700px]:max-w-[1840px]', pad: 'px-2.5 min-[2100px]:px-4' }
+    : { row: 'hidden xl:flex', block: 'hidden xl:block', flex: 'hidden xl:flex', burger: 'xl:hidden', clock: 'hidden 2xl:block', wrap: 'max-w-7xl 2xl:max-w-screen-2xl', pad: 'px-2.5 2xl:px-4' };
 
   const linkClass = (to, amber) => {
     const active = location.pathname === to;
@@ -57,7 +57,7 @@ export default function Navbar() {
           </Link>
 
           {/* Center nav links — desktop only, from the breakpoint where they all fit (see bp above) */}
-          <div className={`${bp.row} items-center gap-0.5 2xl:gap-1`}>
+          <div className={`${bp.row} items-center gap-0.5 2xl:gap-1 mx-4`}>
             {navLinks.map(({ to, label, amber, icon }) => (
               <Link key={to} to={to} className={linkClass(to, amber) + (icon ? ' inline-flex items-center gap-1.5' : '')}>
                 {icon && <img src={icon} alt="" className="w-6 h-6 -my-1" />}{label}
