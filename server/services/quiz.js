@@ -427,7 +427,7 @@ async function flagQuestion(user, questionId, reason) {
   if (!Number.isInteger(id)) throw httpError(400, 'שאלה לא תקינה');
   // בודק שמסמן שאלה תוך כדי משחק — נפסלת מיד
   if (isReviewer(user)) {
-    await pool.query(`UPDATE quiz_questions SET status = 'rejected', reviewed_by = $2, reviewed_at = NOW(), updated_at = NOW() WHERE id = $1`, [id, user.id]);
+    await pool.query(`UPDATE quiz_questions SET status = 'rejected', reviewed_by = $2, reviewed_at = NOW(), updated_at = NOW(), review_note = NULL WHERE id = $1`, [id, user.id]);
     return { rejected: true };
   }
   await pool.query(`INSERT INTO quiz_flags (question_id, user_id, reason) VALUES ($1,$2,$3)`, [id, user?.id || null, String(reason || '').slice(0, 300) || null]);
@@ -510,7 +510,7 @@ async function adminList({ status, category }) {
        , v.name AS venue_name, ru.name AS reviewed_by_name
      FROM quiz_questions q LEFT JOIN venues v ON v.id = q.venue_id LEFT JOIN users ru ON ru.id = q.reviewed_by
      WHERE ($1::text IS NULL OR q.status = $1) AND ($2::text IS NULL OR q.category = $2)
-     ORDER BY q.flags DESC, q.category, q.difficulty, q.id`,
+     ORDER BY q.flags DESC, (q.review_note IS NOT NULL AND q.status = 'pending') DESC, q.category, q.difficulty, q.id`,
     [status || null, category || null]
   );
   const counts = await pool.query(`SELECT status, category, COUNT(*)::int AS n FROM quiz_questions GROUP BY status, category`);
@@ -524,7 +524,7 @@ async function adminSave(id, body, by = null) {
   if (id) {
     const r = await pool.query(
       `UPDATE quiz_questions SET category=$2, difficulty=$3, question=$4, options=$5, correct=$6, explanation=$7, source=$8, status=$9,
-         venue_id=$10, reviewed_by=$11, reviewed_at=NOW(), updated_at=NOW()
+         venue_id=$10, reviewed_by=$11, reviewed_at=NOW(), updated_at=NOW(), review_note=NULL
        WHERE id=$1 RETURNING *`,
       [id, q.category, q.difficulty, q.question, JSON.stringify(q.options), q.correct, q.explanation, q.source, status, q.venue_id, by]
     );
@@ -544,7 +544,7 @@ async function adminSetStatus(ids, status, by = null) {
   if (!['pending', 'approved', 'rejected'].includes(status)) throw httpError(400, 'סטטוס לא מוכר');
   const list = (ids || []).map(Number).filter(Number.isInteger);
   const r = await pool.query(
-    `UPDATE quiz_questions SET status = $2, reviewed_by = $3, reviewed_at = NOW(), updated_at = NOW() WHERE id = ANY($1)`, [list, status, by]);
+    `UPDATE quiz_questions SET status = $2, reviewed_by = $3, reviewed_at = NOW(), updated_at = NOW(), review_note = NULL WHERE id = ANY($1)`, [list, status, by]);
   return { updated: r.rowCount };
 }
 

@@ -397,6 +397,8 @@ async function ensureSchema() {
       // שפת השאלה — לשעשועון בכמה שפות בעתיד
       `ALTER TABLE quiz_questions ADD COLUMN IF NOT EXISTS lang VARCHAR(5) NOT NULL DEFAULT 'he'`,
       `ALTER TABLE quiz_games ADD COLUMN IF NOT EXISTS venue_id INT REFERENCES venues(id) ON DELETE SET NULL`,
+      // ספק של בדיקת ה-AI: שאלה שלא אושרה אוטומטית — למה (מוצגת ראשונה בבדיקה; מתאפס כשאדם מטפל בה)
+      `ALTER TABLE quiz_questions ADD COLUMN IF NOT EXISTS review_note TEXT`,
     ];
     for (const sql of MIGRATIONS) {
       try { await pool.query(sql); } catch (e) { console.error('migration failed:', e.message); }

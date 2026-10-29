@@ -173,14 +173,15 @@ export function QuestionsSection({ presetClub = null, onSaved }) {
 
       <div className="space-y-2">
         {shown.map((q) => (
-          <div key={q.id} className={`rounded-xl border p-3 ${q.flags > 0 ? 'border-red-500/50' : 'border-slate-700'} bg-slate-900/60`}>
+          <div key={q.id} className={`rounded-xl border p-3 ${q.flags > 0 ? 'border-red-500/50' : q.review_note ? 'border-amber-500/60' : 'border-slate-700'} bg-slate-900/60`}>
             <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400 mb-1">
               <span className="px-2 py-0.5 rounded bg-slate-800">{cats[q.category]}{q.venue_name ? ` · ${q.venue_name}` : ''}</span>
               <span>{DIFF[q.difficulty]}</span>
-              <span>{STATUS[q.status]}{q.reviewed_by_name ? ` · ע"י ${q.reviewed_by_name}` : ''}</span>
+              <span>{STATUS[q.status]}{q.reviewed_by_name ? ` · ע"י ${q.reviewed_by_name}` : q.status === 'approved' && q.reviewed_at ? ' · אוטומטית' : ''}</span>
               {q.times_shown > 0 && <span>הוצגה {q.times_shown} · {Math.round((q.times_correct / q.times_shown) * 100)}% צדקו</span>}
               {q.flags > 0 && <span className="text-red-300 font-bold">🚩 {q.flags} דיווחים{q.flag_reasons?.length ? `: ${q.flag_reasons.slice(0, 3).join(' | ')}` : ''}</span>}
             </div>
+            {q.review_note && <p className="text-xs text-amber-200 bg-amber-500/10 rounded px-2 py-1 mb-1">⚠️ לא בטוח: {q.review_note}</p>}
             <p className="text-slate-100 font-semibold">{q.question}</p>
             <ol className="mt-1 text-sm space-y-0.5">
               {q.options.map((o, i) => <li key={i} className={i === q.correct ? 'text-emerald-300 font-bold' : 'text-slate-400'}>{i === q.correct ? '✓ ' : '• '}{o}</li>)}

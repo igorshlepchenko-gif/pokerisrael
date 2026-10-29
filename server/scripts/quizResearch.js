@@ -1,7 +1,9 @@
 // ── הוספת שאלות חדשות לשעשועון (המשימה היומית "מחקר שאלות לשולם בליינד") ──
 //
 //   node scripts/quizResearch.js existing [out.json]   רשימת כל השאלות הקיימות (לבדיקת כפילויות)
-//   node scripts/quizResearch.js add <file.json>       בדיקה + הוספה כ"ממתינות לאישור"
+//   node scripts/quizResearch.js add <file.json>       בדיקה + הוספה לאתר
+//     שאלה עם "sure": true (ביטחון ≥95% שהתשובה נכונה) → מאושרת מיד ("אוטומטית").
+//     אחרת → ממתינה לאישור, עם "doubt": "<למה לא בטוח>" — מוצגת ראשונה במסך הבדיקה.
 //   QUIZ_STAGE_ONLY=1 node scripts/quizResearch.js add <file.json>   רק שמירה בתיקייה, בלי האתר
 //
 // מול הפרודקשן: railway run --service Postgres node scripts/quizResearch.js ...
@@ -66,16 +68,23 @@ async function add(file) {
     const k = norm(q.question);
     if (known.has(k)) { report.duplicates.push(q.question.slice(0, 60)); continue; }
     known.add(k);
-    valid.push(q);
+    valid.push({ ...q, sure: raw.sure === true, doubt: raw.doubt ? String(raw.doubt) : undefined });
   }
+  report.approved = 0;
+  report.needsReview = [];
   if (db) {
     for (const q of valid) {
+      const sure = q.sure === true && !q.doubt;
+      const note = sure ? null : (String(q.doubt || '').trim() || 'לא סומנה כבטוחה (≥95%)');
       const r = await pool.query(
-        `INSERT INTO quiz_questions (question_key, category, difficulty, question, options, correct, explanation, source, status)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'pending') ON CONFLICT (question_key) DO NOTHING`,
-        [quiz.questionKey(q.question), q.category, q.difficulty, q.question, JSON.stringify(q.options), q.correct, q.explanation, q.source]
+        `INSERT INTO quiz_questions (question_key, category, difficulty, question, options, correct, explanation, source, status, review_note, reviewed_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) ON CONFLICT (question_key) DO NOTHING`,
+        [quiz.questionKey(q.question), q.category, q.difficulty, q.question, JSON.stringify(q.options), q.correct, q.explanation, q.source,
+          sure ? 'approved' : 'pending', note, sure ? new Date() : null]
       );
       report.added += r.rowCount;
+      if (r.rowCount && sure) report.approved++;
+      if (r.rowCount && !sure) report.needsReview.push(`${q.question.slice(0, 50)} — ${note}`);
     }
   }
   // שמירה בתיקייה — רק השאלות התקינות (כך שהרצה חוזרת אחרי העלייה לא תיכשל על אותן שגיאות)
