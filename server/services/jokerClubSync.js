@@ -40,6 +40,16 @@ function parseStartDt(dateStr, timeStr) {
   return `20${yy}-${mm}-${dd}T${timeStr}:00`;
 }
 
+// עמלה מתוך "פירוט דמי כניסה": הרכיב האחרון הוא תמיד העמלה.
+// "₪1,200 (1,000+200)" → 200 (פרסים+עמלה); "₪1,600 (1,250+100+250)" → 250 (פרסים+באונטי+עמלה).
+function parseRake(breakdown) {
+  const m = String(breakdown || '').match(/\(([\d,+\s]+)\)/);
+  if (!m) return null;
+  const parts = m[1].split('+').map(s => Number(s.replace(/[,\s]/g, '')));
+  if (parts.length < 2 || parts.some(n => !Number.isFinite(n))) return null;
+  return parts[parts.length - 1];
+}
+
 function buildDescription(t) {
   const parts = [];
   if (t.prize_percent) parts.push(`אחוז בפרסים: ${t.prize_percent}`);
@@ -62,6 +72,7 @@ function normalize(t) {
     name: t.name,
     description: buildDescription(t),
     cost: t.cost ?? 0,
+    rake: parseRake(t.cost_breakdown),
     start_time: startDt,
     starting_stack: parseStack(t.starting_stack),
     level_duration: parseLevelMinutes(t.blind_length),
@@ -74,6 +85,7 @@ function isChanged(existing, fresh) {
   return (
     existing.name !== fresh.name ||
     Number(existing.cost) !== Number(fresh.cost) ||
+    Number(existing.rake ?? 0) !== Number(fresh.rake ?? 0) ||
     new Date(existing.start_time).getTime() !== new Date(fresh.start_time).getTime() ||
     (existing.description || null) !== (fresh.description || null) ||
     Number(existing.starting_stack ?? 0) !== Number(fresh.starting_stack ?? 0) ||
@@ -90,7 +102,7 @@ async function syncJokerClub(rawTournaments) {
   const freshIds = new Set(normalized.map(t => t.external_id));
 
   const existingRes = await pool.query(
-    `SELECT id, external_id, name, cost, start_time, description, starting_stack, level_duration, re_entry, late_reg_level, manually_edited
+    `SELECT id, external_id, name, cost, rake, start_time, description, starting_stack, level_duration, re_entry, late_reg_level, manually_edited
      FROM tournaments WHERE external_source=$1 AND venue_id=$2`,
     [SOURCE_KEY, JOKER_CLUB_VENUE_ID]
   );
@@ -104,10 +116,11 @@ async function syncJokerClub(rawTournaments) {
           `INSERT INTO tournaments
              (venue_id, name, description, cost, start_time, starting_stack, level_duration,
               re_entry, late_reg_level, is_recurring, tournament_type, status, created_by,
-              external_source, external_id)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,false,'live','approved',$10,$11,$12)`,
+              external_source, external_id, rake, rake_type)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,false,'live','approved',$10,$11,$12,$13,$14)`,
           [JOKER_CLUB_VENUE_ID, t.name, t.description, t.cost, t.start_time, t.starting_stack,
-           t.level_duration, t.re_entry, t.late_reg_level, 1, SOURCE_KEY, t.external_id]
+           t.level_duration, t.re_entry, t.late_reg_level, 1, SOURCE_KEY, t.external_id,
+           t.rake, t.rake != null ? 'amount' : null]
         );
         result.added++;
       } else if (existing.manually_edited) {
@@ -116,10 +129,12 @@ async function syncJokerClub(rawTournaments) {
         await pool.query(
           `UPDATE tournaments SET
              name=$1, description=$2, cost=$3, start_time=$4, starting_stack=$5,
-             level_duration=$6, re_entry=$7, late_reg_level=$8, updated_at=NOW()
-           WHERE id=$9`,
+             level_duration=$6, re_entry=$7, late_reg_level=$8,
+             rake=$9, rake_type=$10, updated_at=NOW()
+           WHERE id=$11`,
           [t.name, t.description, t.cost, t.start_time, t.starting_stack,
-           t.level_duration, t.re_entry, t.late_reg_level, existing.id]
+           t.level_duration, t.re_entry, t.late_reg_level,
+           t.rake, t.rake != null ? 'amount' : null, existing.id]
         );
         result.updated++;
       } else {
@@ -167,4 +182,4 @@ async function syncJokerClub(rawTournaments) {
   return result;
 }
 
-module.exports = { syncJokerClub, normalize, makeExternalId };
+module.exports = { syncJokerClub, normalize, makeExternalId, parseRake };
