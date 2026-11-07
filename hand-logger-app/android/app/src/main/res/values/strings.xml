@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Hand Logger</string>
+    <string name="title_activity_main">Hand Logger</string>
+    <string name="package_name">org.pokerisrael.handlogger</string>
+    <string name="custom_url_scheme">org.pokerisrael.handlogger</string>
+</resources>
