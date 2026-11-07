@@ -17,7 +17,7 @@ $env:AGENT_SECRET = ($envLine -replace '^AGENT_SECRET=', '') -replace '^"|"$', '
 # club's casual chat land in the manual-review queue. Substrings, not full names, to sidestep
 # the emoji/symbol characters in the real group names ("SUITS - The Mind's Playground ♣️",
 # "האוס אירועים House ♦️") — matching is substring-based (see GROUP_FILTER in index.js).
-$env:GROUPS = "suits,house"
+$env:GROUPS = "suits,house,showdown"
 
 $logFile = Join-Path $PSScriptRoot 'forwarder.log'
 Start-Transcript -Path $logFile -Append | Out-Null

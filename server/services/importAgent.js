@@ -15,6 +15,7 @@ const Groq        = require('groq-sdk');
 const pool        = require('../config/db');
 const { TEXT_MODEL, TEXT_REASONING_EFFORT, VISION_MODELS, stripToJson } = require('../config/aiModels');
 const { resolveScheduleYear } = require('../utils/scheduleDates');
+const { parseRake } = require('./jokerClubSync');
 
 // ── Lazy singletons ──────────────────────────────────────────────────────────
 let _bot  = null;
@@ -254,7 +255,10 @@ function attachBotHandlers(bot) {
 
 // ── Detect weekly tournament schedule (≥3 buy-in blocks = schedule, not reminder) ──
 function detectWeeklySchedule(text) {
-  return (text.match(/כניסה:/g) || []).length >= 3;
+  if ((text.match(/כניסה:/g) || []).length >= 3) return true;
+  // ShowDown-style posts: a price with its fee breakdown on every tournament, e.g.
+  // "💰 500 ₪ (375+125)" — no "כניסה:" label, so the check above misses them.
+  return (text.match(/\d[\d,]*\s*₪\s*\(\s*[\d,]+(?:\s*\+\s*[\d,]+)+\s*\)/g) || []).length >= 3;
 }
 
 // ── Parse ALL tournaments from a weekly schedule text message ─────────────────
@@ -268,7 +272,7 @@ async function parseWeeklyScheduleText(text) {
     const r = await groq.chat.completions.create({
       model: TEXT_MODEL,
       temperature: 0.1,
-      max_tokens: 2000,
+      max_tokens: 3000,
       reasoning_effort: TEXT_REASONING_EFFORT,
       response_format: { type: 'json_object' },
       messages: [
@@ -282,8 +286,10 @@ async function parseWeeklyScheduleText(text) {
           `- cost: total buy-in integer\n` +
           `- starting_stack: chip count integer (300,000→300000)\n` +
           `- re_entry: integer (X2→2, X3→3)\n` +
-          `- level_count: level duration minutes integer\n\n` +
-          `Return ONLY: {"tournaments":[{"name":"...","date_str":"21.6","start_time":"18:00","cost":800,"starting_stack":300000,"re_entry":2,"level_count":20}]}\n\n` +
+          `- level_count: level duration minutes integer\n` +
+          `- cost_breakdown: the fee breakdown exactly as written in parentheses next to the price, e.g. "(375+125)" or "(275+50+125)"; null if none\n` +
+          `- late_reg_level: the level number registration stays open until (e.g. "הרשמה עד סוף שלב 13" → 13); null if not stated\n\n` +
+          `Return ONLY: {"tournaments":[{"name":"...","date_str":"21.6","start_time":"18:00","cost":800,"starting_stack":300000,"re_entry":2,"level_count":20,"cost_breakdown":"(600+200)","late_reg_level":12}]}\n\n` +
           `Message:\n---\n${text.slice(0, 6000)}\n---`
         },
       ],
@@ -657,11 +663,17 @@ async function importWeeklySchedule(rawTournaments, venueId) {
       cost = cost ?? 0;
 
       // Check if a tournament for this venue+name+date already exists
+      // Same first word isn't enough on its own: a club can run two "SATURDAY …" events on
+      // one day, and the second would overwrite the first. Require the same full name or the
+      // same start time as well.
       const existing = await pool.query(
         `SELECT id, manually_edited FROM tournaments
-         WHERE venue_id=$1 AND name ILIKE $2 AND DATE(start_time)=$3 LIMIT 1`,
-        [venueId, `%${firstName}%`, date]
+         WHERE venue_id=$1 AND name ILIKE $2 AND DATE(start_time)=$3
+           AND (LOWER(name)=LOWER($4) OR start_time=$5::timestamp) LIMIT 1`,
+        [venueId, `%${firstName}%`, date, t.name || '', startDt]
       );
+      const rake = parseRake(t.cost_breakdown);
+      const lateRegLevel = Number.isInteger(t.late_reg_level) ? t.late_reg_level : null;
 
       if (existing.rows.length > 0) {
         // לא נוגעים בטורניר שאדמין תיקן ידנית — אותה הגנה שקיימת בכל שירותי הסנכרון
@@ -674,17 +686,21 @@ async function importWeeklySchedule(rawTournaments, venueId) {
         await pool.query(
           `UPDATE tournaments
            SET cost=$1, starting_stack=$2, re_entry=$3, level_duration=$4, name=$5, start_time=$6,
-               tournament_type='live', platform=NULL
-           WHERE id=$7`,
-          [cost, t.starting_stack||null, t.re_entry||null, t.level_count||null, t.name, startDt, existing.rows[0].id]
+               tournament_type='live', platform=NULL,
+               rake=COALESCE($7, rake), rake_type=CASE WHEN $7::numeric IS NULL THEN rake_type ELSE 'amount' END,
+               late_reg_level=COALESCE($8, late_reg_level)
+           WHERE id=$9`,
+          [cost, t.starting_stack||null, t.re_entry||null, t.level_count||null, t.name, startDt, rake, lateRegLevel, existing.rows[0].id]
         );
         updated++;
       } else {
         await pool.query(
           `INSERT INTO tournaments
-             (venue_id, name, cost, start_time, starting_stack, re_entry, level_duration, is_recurring, status, tournament_type)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,false,'approved','live')`,
-          [venueId, t.name||'טורניר', cost, startDt, t.starting_stack||null, t.re_entry||null, t.level_count||null]
+             (venue_id, name, cost, start_time, starting_stack, re_entry, level_duration, is_recurring, status, tournament_type,
+              rake, rake_type, late_reg_level)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,false,'approved','live',$8,$9,$10)`,
+          [venueId, t.name||'טורניר', cost, startDt, t.starting_stack||null, t.re_entry||null, t.level_count||null,
+           rake, rake != null ? 'amount' : null, lateRegLevel]
         );
         imported++;
       }
