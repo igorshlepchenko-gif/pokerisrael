@@ -1162,6 +1162,7 @@ export default function TournamentForm({ venues, tournament = null, onSuccess, o
           <option value="3X">3X</option>
           <option value="4X">4X</option>
           <option value="Unlimited">Unlimited</option>
+          <option value="כן (לא ידוע)">כן (לא ידוע)</option>
         </select>
       </div>}
 

@@ -3,7 +3,7 @@ import api from '../utils/api';
 import { toIsraelDatetimeInput } from '../utils/whatsapp';
 
 const DAYS_HE = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
-const RE_ENTRY_OPTIONS = ['1X', '2X', '3X', '4X', '5X', 'Unlimited'];
+const RE_ENTRY_OPTIONS = ['1X', '2X', '3X', '4X', '5X', 'Unlimited', 'כן (לא ידוע)'];
 
 const toLocalInput = toIsraelDatetimeInput;
 
